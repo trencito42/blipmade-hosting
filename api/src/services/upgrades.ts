@@ -89,6 +89,8 @@ export interface ResourceQuote {
   nextChangeAt: string | null;
   /** True when the customer has to pay for the change. */
   requiresPayment: boolean;
+  /** Why no credit is given for a decrease, when the unused time was not collected. Null when nothing is withheld. */
+  creditWithheld: string | null;
 }
 
 export const RESIZE_LIMIT = 2;
@@ -314,9 +316,14 @@ export async function quoteResourceChange(
   const recurringDelta = newPrice - currentPrice;
   const subscription = await prisma.subscription.findFirst({
     where: { instanceId: instance.id },
-    select: { currentPeriodStart: true, currentPeriodEnd: true },
+    select: { currentPeriodStart: true, currentPeriodEnd: true, status: true },
   });
   const prorated = prorateRemaining(recurringDelta, subscription?.currentPeriodStart ?? null, subscription?.currentPeriodEnd ?? null);
+  // Only money that was collected is given back as credit. A subscription that is late or paused has not paid for
+  // the days that are left, so the change is applied and no credit is written.
+  const uncollected = subscription !== null && subscription.status !== 'ACTIVE' && subscription.status !== 'TRIALING';
+  const creditWithheld = prorated.dueNow < 0 && uncollected ? 'The current period is not paid, so there is no credit for the unused time. The lower price applies from the next period.' : null;
+  if (creditWithheld) prorated.dueNow = 0;
 
   return {
     currentPrice,
@@ -330,6 +337,7 @@ export async function quoteResourceChange(
     changesAllowed: RESIZE_LIMIT,
     nextChangeAt,
     requiresPayment: prorated.dueNow > 0,
+    creditWithheld,
   };
 }
 

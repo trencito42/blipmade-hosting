@@ -288,4 +288,58 @@ describe('resource changes', () => {
     expect(half.remainingDays).toBe(15);
     expect(prorateRemaining(200, null, null, now)).toEqual({ dueNow: 200, remainingDays: null });
   });
+
+  it('prorates at the edges of the period, in a leap year and across a change of clock', () => {
+    const start = new Date('2028-02-01T00:00:00.000Z');
+    const end = new Date('2028-03-01T00:00:00.000Z'); // February 2028 has 29 days
+    expect(prorateRemaining(290, start, end, start)).toEqual({ dueNow: 290, remainingDays: 29 });
+    // The last second: almost nothing is left to pay for, and the rounding is to the cent, never below zero for a rise.
+    const lastSecond = new Date(end.getTime() - 1000);
+    expect(prorateRemaining(290, start, end, lastSecond).dueNow).toBe(0);
+    expect(prorateRemaining(290, start, end, lastSecond).remainingDays).toBe(1);
+    // After the end of the period the whole difference is for the next one.
+    expect(prorateRemaining(290, start, end, new Date(end.getTime() + 1000))).toEqual({ dueNow: 290, remainingDays: null });
+    // The change of the clock does not matter: the period is measured in UTC time.
+    const dstStart = new Date('2026-03-01T00:00:00.000Z');
+    const dstEnd = new Date('2026-04-01T00:00:00.000Z');
+    expect(prorateRemaining(310, dstStart, dstEnd, new Date('2026-03-16T12:00:00.000Z')).dueNow).toBe(155);
+    // A decrease gives back a negative amount in the same proportion.
+    expect(prorateRemaining(-200, new Date('2026-11-01T00:00:00.000Z'), new Date('2026-12-01T00:00:00.000Z'), new Date('2026-11-16T00:00:00.000Z')).dueNow).toBe(-100);
+    // A yearly period: half of the year left is half of the difference (the example of the issue: 120 to 180 EUR a year).
+    expect(prorateRemaining(6000, new Date('2026-01-01T00:00:00.000Z'), new Date('2027-01-01T00:00:00.000Z'), new Date('2026-07-02T12:00:00.000Z')).dueNow).toBe(3000);
+  });
+
+  it('gives no credit for a period that was not paid, and never asks for a negative payment', async () => {
+    const { client, instance } = await seedInstance();
+    await prisma.subscription.create({
+      data: {
+        userId: instance.userId,
+        instanceId: instance.id,
+        status: 'PAST_DUE',
+        amount: 374,
+        currency: 'EUR',
+        currentPeriodStart: new Date(Date.now() - 10 * 86_400_000),
+        currentPeriodEnd: new Date(Date.now() + 20 * 86_400_000),
+      },
+    });
+    const quote = await client.request('GET', `/api/instances/${instance.id}/resources/quote?ram=512&cpu=1&disk=5`);
+    expect(quote.status).toBe(200);
+    expect(quote.body.quote.requiresPayment).toBe(false);
+    expect(quote.body.quote.priceDelta).toBe(0);
+    expect(quote.body.quote.creditWithheld).toMatch(/not paid/);
+    // The same decrease on a paid period is credited in proportion.
+    await prisma.subscription.update({ where: { instanceId: instance.id }, data: { status: 'ACTIVE' } });
+    const paid = await client.request('GET', `/api/instances/${instance.id}/resources/quote?ram=512&cpu=1&disk=5`);
+    expect(paid.body.quote.priceDelta).toBeLessThan(0);
+    expect(paid.body.quote.creditWithheld).toBeNull();
+  });
+
+  it('never lets four changes at once pass the limit of two', async () => {
+    const { client, instance } = await seedInstance();
+    const sizes = [[2048, 1, 10], [3072, 1, 10], [4096, 1, 10], [5120, 1, 10]];
+    const answers = await Promise.all(sizes.map(([ram, cpu, disk]) => client.request('PUT', `/api/instances/${instance.id}/resources`, { ram, cpu, disk })));
+    const orders = await prisma.order.count({ where: { instanceId: instance.id, kind: 'UPGRADE', status: { in: ['PENDING', 'AWAITING_PAYMENT', 'PAID', 'FULFILLED'] } } });
+    expect(orders).toBeLessThanOrEqual(2);
+    expect(answers.filter((answer) => answer.status >= 400).length).toBeGreaterThanOrEqual(2);
+  });
 });

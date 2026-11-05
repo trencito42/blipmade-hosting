@@ -16,6 +16,8 @@ interface Quote {
   changesUsed?: number;
   changesAllowed?: number;
   nextChangeAt?: string | null;
+  /** Why no credit is given for a decrease (the period is not paid), or null. */
+  creditWithheld?: string | null;
 }
 
 interface SaveResult {
@@ -111,7 +113,7 @@ export default function EditResources() {
             total={priced.newPrice}
             currency={priced.currency}
             period={priced.period === 'YEARLY' ? 'year' : 'month'}
-            note={priced.requiresPayment ? 'Only the days left in this period are charged now. The new price renews afterwards.' : priced.priceDelta < 0 ? 'The unused days are credited. The lower price renews afterwards.' : undefined}
+            note={priced.creditWithheld ? priced.creditWithheld : priced.requiresPayment ? 'Only the days left in this period are charged now. The new price renews afterwards.' : priced.priceDelta < 0 ? 'The unused days are credited. The lower price renews afterwards.' : undefined}
           />
         ) : undefined
       }
