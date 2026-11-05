@@ -10,7 +10,7 @@ import * as operations from '../services/panel/operations.js';
 import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
 import {
-  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, worldFolders, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
+  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, lagAdvice, parseTps, worldFolders, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
   pluginFileFor, pluginEntries, pluginToggleName, PLUGIN_FILE, searchPlugins, searchModpacks, modpackFilesFor, type PlayerAction,
 } from '../services/minecraft.js';
 
@@ -202,6 +202,32 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
       } catch { /* The world has not been created yet. */ }
     }
     return { worlds };
+  });
+
+  /**
+   * Is the server lagging: the ticks a second it keeps (asked with the `tps` command of Paper and read from the log) and
+   * the memory it uses, with what to do. It needs the server running. Folia has no such command, so it says so.
+   */
+  app.get('/instances/:id/minecraft/performance', async (request: FastifyRequest) => {
+    const { slug, token, uuid } = await load(request);
+    const resources = await client.getResources(token, uuid);
+    if (resources.state !== 'running') return { running: false, verdict: 'unknown', tps: null, lines: ['The server is not running, so there is nothing to measure.'] };
+    if (slug === 'minecraft-folia') return { running: true, verdict: 'unknown', tps: null, lines: ['Folia has no /tps command: it runs regions on their own threads. Use the Spark plugin to look at it.'] };
+    let tps: ReturnType<typeof parseTps> = null;
+    try {
+      await client.sendCommand(token, uuid, 'tps');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      tps = parseTps(await readText(token, uuid, '/logs/latest.log'));
+    } catch {
+      tps = null;
+    }
+    let hasSpark = false;
+    try {
+      hasSpark = (await client.listFiles(token, uuid, '/plugins')).some((file) => /^spark.*\.jar$/i.test(file.name));
+    } catch { /* No plugins folder. */ }
+    const memoryLimitMb = (await prisma.instance.findUnique({ where: { id: (request.params as { id: string }).id }, select: { ram: true } }))?.ram ?? 0;
+    const advice = lagAdvice({ tps, memoryBytes: resources.memory_bytes, memoryLimitMb, hasSpark });
+    return { running: true, verdict: advice.verdict, tps, memoryBytes: resources.memory_bytes, memoryLimitMb, cpuPercent: Math.round(resources.cpu_absolute), lines: advice.lines };
   });
 
   /** A copy of the worlds that is kept until the owner removes it. */

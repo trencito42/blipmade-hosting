@@ -318,3 +318,26 @@ export function worldFolders(levelName: string | undefined): string[] {
   if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(name) || name.includes('..')) return ['world', 'world_nether', 'world_the_end'];
   return [name, `${name}_nether`, `${name}_the_end`];
 }
+
+/** The last answer of `/tps` in a log: the averages of the last 1, 5 and 15 minutes. The colour codes of the game are ignored. */
+export function parseTps(log: string): { m1: number; m5: number; m15: number } | null {
+  const clean = log.replace(/\u001b\[[0-9;]*m/g, '').replace(/§./g, '');
+  const matches = [...clean.matchAll(/TPS from last 1m, 5m, 15m:\s*\*?([\d.]+)\*?,\s*\*?([\d.]+)\*?,\s*\*?([\d.]+)\*?/g)];
+  const last = matches[matches.length - 1];
+  return last ? { m1: Number(last[1]), m5: Number(last[2]), m15: Number(last[3]) } : null;
+}
+
+export type LagVerdict = 'good' | 'slow' | 'bad' | 'unknown';
+
+/** What the numbers say, in words a customer can act on. Twenty ticks a second is a healthy server. */
+export function lagAdvice(input: { tps: { m1: number } | null; memoryBytes: number; memoryLimitMb: number; hasSpark: boolean }): { verdict: LagVerdict; lines: string[] } {
+  const lines: string[] = [];
+  const usedShare = input.memoryLimitMb > 0 ? input.memoryBytes / (input.memoryLimitMb * 1024 * 1024) : 0;
+  if (input.tps === null) return { verdict: 'unknown', lines: ['The server did not answer with its ticks. Try again in a moment.'] };
+  const verdict: LagVerdict = input.tps.m1 >= 19 ? 'good' : input.tps.m1 >= 15 ? 'slow' : 'bad';
+  if (verdict === 'good') lines.push('The server keeps 20 ticks a second. There is no lag from the server.');
+  else lines.push(`The server runs at ${input.tps.m1} ticks a second instead of 20, so the game lags.`);
+  if (usedShare > 0.9) lines.push('The memory is almost full. More memory, or fewer plugins and a smaller view distance, usually helps.');
+  if (verdict !== 'good') lines.push(input.hasSpark ? 'Spark is installed: run /spark profiler start for a minute, then /spark profiler stop, to see which plugin takes the time.' : 'Install the Spark plugin and run /spark profiler to see which plugin takes the time.');
+  return { verdict, lines };
+}

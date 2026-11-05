@@ -23,6 +23,36 @@ const PROPERTY_LABELS: Record<string, string> = {
 };
 const WORLD_KEYS = new Set(['level-name', 'level-seed', 'level-type', 'generator-settings', 'allow-nether', 'generate-structures', 'max-world-size']);
 
+interface Lag { running: boolean; verdict: 'good' | 'slow' | 'bad' | 'unknown'; tps: { m1: number; m5: number; m15: number } | null; memoryBytes?: number; memoryLimitMb?: number; cpuPercent?: number; lines: string[] }
+
+/** Is the server lagging: the ticks a second, the memory and what to do. It asks the running server only when the button is pressed. */
+function LagCheck({ instanceId }: { instanceId: string }) {
+  const [result, setResult] = useState<Lag | null>(null);
+  const check = useAction(async () => {
+    setResult(await get<Lag>(`/instances/${encodeURIComponent(instanceId)}/minecraft/performance`));
+  });
+  const tone = result?.verdict === 'good' ? 'text-acc' : result?.verdict === 'unknown' ? 'text-ink2' : 'text-bad';
+  return (
+    <Panel title="Is the server lagging?" description="Asks the running server how many ticks a second it keeps (20 is healthy) and how full its memory is.">
+      <SoftButton type="button" onClick={() => void check.run()} disabled={check.pending}>{check.pending ? 'Measuring…' : 'Measure now'}</SoftButton>
+      {check.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{check.error}</p>}
+      {result && (
+        <div className="mt-4 grid gap-2">
+          {result.tps && (
+            <p className={`font-mono text-[22px] font-semibold tracking-[-0.03em] ${tone}`}>{result.tps.m1} <span className="text-[13px] font-normal text-ink3">ticks/s (1 min) · {result.tps.m5} (5 min) · {result.tps.m15} (15 min)</span></p>
+          )}
+          {typeof result.memoryBytes === 'number' && typeof result.memoryLimitMb === 'number' && result.memoryLimitMb > 0 && (
+            <p className="text-[13.5px] text-ink2">Memory {Math.round(result.memoryBytes / 1024 / 1024)} of {result.memoryLimitMb} MB{typeof result.cpuPercent === 'number' ? ` · CPU ${result.cpuPercent}%` : ''}</p>
+          )}
+          <ul className="grid gap-1 text-[14px] text-ink2">
+            {result.lines.map((line) => <li key={line}>{line}</li>)}
+          </ul>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function WorldList({ instanceId }: { instanceId: string }) {
   const toast = useToast();
   const state = useAsync<{ worlds: { name: string; entries: number }[] }>((signal) => get(`/instances/${encodeURIComponent(instanceId)}/minecraft/worlds`, undefined, signal), [instanceId]);
@@ -85,7 +115,7 @@ export default function MinecraftTab({ instance }: TabProps) {
   const [packQuery, setPackQuery] = useState('');
   const [packs, setPacks] = useState<PluginHit[]>([]);
   const [version, setVersion] = useState('');
-  const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'settings'>('players');
+  const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'performance' | 'settings'>('players');
   const versions = useAsync<{ supported: boolean; versions: string[]; current: string | null }>((signal) => get(`${base}/versions`, undefined, signal), [instance.id]);
   const plugins = useAsync<{ installed: { name: string; size: number; enabled: boolean }[] }>((signal) => get(`${base}/plugins`, undefined, signal), [instance.id]);
   const data = state.data;
@@ -185,6 +215,7 @@ export default function MinecraftTab({ instance }: TabProps) {
           { value: 'players', label: 'Players' },
           { value: 'addons', label: 'Add-ons' },
           { value: 'worlds', label: 'Worlds' },
+          { value: 'performance', label: 'Lag' },
           { value: 'settings', label: 'Settings' },
         ]}
       />
@@ -334,6 +365,7 @@ export default function MinecraftTab({ instance }: TabProps) {
           <p className="text-[14px] text-ink2">Put mod files in the mods folder from Files. No other installer runs from this page.</p>
         </Panel>
       )}
+      {section === 'performance' && <LagCheck instanceId={instance.id} />}
       {section === 'worlds' && <WorldList instanceId={instance.id} />}
       {section === 'worlds' && (
         <Panel title="Worlds" description="A new seed applies to a new world. It does not rewrite the world that is already there. Copies of the world are the Backups tab.">

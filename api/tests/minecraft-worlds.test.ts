@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The world manager: a backup on request, and a new world only after a backup, with the server stopped and the words typed. */
-const panel = { state: 'offline', backupFails: false, folders: ['world', 'world_nether'] as string[], deleted: [] as string[], backups: [] as string[], properties: 'level-name=world\n' };
+const panel = { state: 'offline', backupFails: false, folders: ['world', 'world_nether'] as string[], deleted: [] as string[], backups: [] as string[], properties: 'level-name=world\n', log: '', commands: [] as string[] };
 
 vi.mock('../src/services/panel/credentials.js', () => ({
   resolveCustomerCredential: vi.fn(async () => ({ token: 'ptlc_testtoken', panelUserId: 1, externalId: 'ext', source: 'issued' })),
@@ -15,7 +15,8 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
     panel.backups.push(payload.name);
     return { uuid: 'b1', name: payload.name };
   }),
-  readFile: vi.fn(async () => ({ content: panel.properties, encoding: 'utf-8' })),
+  readFile: vi.fn(async (_token: string, _uuid: string, path: string) => ({ content: path === '/logs/latest.log' ? panel.log : panel.properties, encoding: 'utf-8' })),
+  sendCommand: vi.fn(async (_token: string, _uuid: string, command: string) => { panel.commands.push(command); }),
   listFiles: vi.fn(async (_token: string, _uuid: string, path: string) => {
     if (!panel.folders.includes(path.slice(1))) throw new Error('not found');
     return [{ name: 'level.dat' }];
@@ -25,14 +26,14 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
 }));
 
 const { prisma } = await import('../src/db.js');
-const { worldFolders } = await import('../src/services/minecraft.js');
+const { worldFolders, parseTps, lagAdvice } = await import('../src/services/minecraft.js');
 const { closeApp, getApp, registerAndLogin, resetDatabase } = await import('./helpers.js');
 
 beforeAll(async () => { await getApp(); });
 afterAll(async () => { await closeApp(); });
 beforeEach(async () => {
   await resetDatabase();
-  Object.assign(panel, { state: 'offline', backupFails: false, folders: ['world', 'world_nether'], deleted: [], backups: [], properties: 'level-name=world\n' });
+  Object.assign(panel, { state: 'offline', backupFails: false, folders: ['world', 'world_nether'], deleted: [], backups: [], properties: 'level-name=world\n', log: '', commands: [] });
 });
 
 async function seed() {
@@ -93,5 +94,37 @@ describe('the world manager', () => {
     const answer = await stranger.request('POST', `/api/instances/${instance.id}/minecraft/worlds/reset`, { confirm: 'reset the world' });
     expect([403, 404]).toContain(answer.status);
     expect(panel.deleted).toEqual([]);
+  });
+});
+
+describe('is the server lagging', () => {
+  it('reads the last answer of /tps from the log, colours and all', () => {
+    const log = '[10:00:01 INFO]: TPS from last 1m, 5m, 15m: 20.0, 20.0, 19.9\n[10:05:02 INFO]: §6TPS from last 1m, 5m, 15m: §a*17.5§r, §a18.2§r, §a19.0\n';
+    expect(parseTps(log)).toEqual({ m1: 17.5, m5: 18.2, m15: 19 });
+    expect(parseTps('nothing here')).toBeNull();
+  });
+
+  it('says what the numbers mean and what to do', () => {
+    expect(lagAdvice({ tps: { m1: 20 }, memoryBytes: 1e8, memoryLimitMb: 2048, hasSpark: false })).toMatchObject({ verdict: 'good' });
+    const slow = lagAdvice({ tps: { m1: 16 }, memoryBytes: 1.95 * 1024 ** 3, memoryLimitMb: 2048, hasSpark: false });
+    expect(slow.verdict).toBe('slow');
+    expect(slow.lines.join(' ')).toMatch(/memory is almost full/);
+    expect(slow.lines.join(' ')).toMatch(/Install the Spark plugin/);
+    expect(lagAdvice({ tps: { m1: 9 }, memoryBytes: 0, memoryLimitMb: 2048, hasSpark: true }).lines.join(' ')).toMatch(/spark profiler start/);
+    expect(lagAdvice({ tps: null, memoryBytes: 0, memoryLimitMb: 2048, hasSpark: false }).verdict).toBe('unknown');
+  });
+
+  it('asks the running server for its ticks and answers with what it read; a stopped one is not measured', async () => {
+    const { client, instance } = await seed();
+    const url = `/api/instances/${instance.id}/minecraft/performance`;
+    panel.state = 'offline';
+    const off = await client.request('GET', url);
+    expect(off.body).toMatchObject({ running: false, verdict: 'unknown' });
+    expect(panel.commands).toEqual([]);
+    panel.state = 'running';
+    panel.log = '[10:00:01 INFO]: TPS from last 1m, 5m, 15m: 14.2, 17.0, 18.8\n';
+    const on = await client.request('GET', url);
+    expect(panel.commands).toEqual(['tps']);
+    expect(on.body).toMatchObject({ running: true, verdict: 'bad', tps: { m1: 14.2, m5: 17, m15: 18.8 } });
   });
 });
