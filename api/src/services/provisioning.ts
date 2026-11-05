@@ -1792,7 +1792,9 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       if (instance.orderItemId) {
         const line = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });
         const gameVersion = (line?.config as { catalog?: { install?: { gameVersion?: string } } } | null)?.catalog?.install?.gameVersion;
+        // Paper and Folia read MINECRAFT_VERSION, the egg of Forge reads MC_VERSION.
         if (gameVersion && 'MINECRAFT_VERSION' in environment) environment = { ...environment, MINECRAFT_VERSION: gameVersion };
+        if (gameVersion && 'MC_VERSION' in environment) environment = { ...environment, MC_VERSION: gameVersion };
       }
 
       const created = await ptero.createServer({

@@ -559,7 +559,7 @@ export default function Deploy() {
     setName(product.slug);
     const next: Record<string, string> = {};
     if (query.mcVersion && product.slug.startsWith('minecraft-')) {
-      next.MINECRAFT_VERSION = query.mcVersion;
+      next[product.slug === 'minecraft-forge' ? 'MC_VERSION' : 'MINECRAFT_VERSION'] = query.mcVersion;
     }
     setVariables(next);
   }, [product, query.mcVersion]);

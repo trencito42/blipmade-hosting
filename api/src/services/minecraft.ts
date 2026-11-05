@@ -191,10 +191,38 @@ async function cachedJson<T>(url: string, minutes: number): Promise<T> {
   return value;
 }
 
-export async function paperVersions(): Promise<string[]> {
-  const data = await cachedJson<{ versions: string[] }>('https://api.papermc.io/v2/projects/paper', 10);
-  // The newest first, and only the releases (no snapshots or pre-releases).
-  return data.versions.filter((version) => /^\d+\.\d+(\.\d+)?$/.test(version)).reverse();
+const RELEASE = /^\d+\.\d+(\.\d+)?$/;
+
+/**
+ * The game versions a PaperMC project (Paper or Folia) has builds for, newest first and only releases. The old
+ * address (`api.papermc.io/v2`) is sunset and answers 410; `fill.papermc.io/v3` groups the versions by minor
+ * release, newest group first, and the newest version first inside a group.
+ */
+export async function papermcVersions(project: 'paper' | 'folia'): Promise<string[]> {
+  const data = await cachedJson<{ versions: Record<string, string[]> }>(`https://fill.papermc.io/v3/projects/${project}`, 10);
+  return Object.values(data.versions ?? {}).flat().filter((version) => RELEASE.test(version));
+}
+
+export const paperVersions = (): Promise<string[]> => papermcVersions('paper');
+
+/** The Minecraft versions Forge has a build for (the keys of its promotions are `<version>-latest` and `<version>-recommended`), newest first. */
+export async function forgeVersions(): Promise<string[]> {
+  const data = await cachedJson<{ promos: Record<string, string> }>('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json', 30);
+  const found = new Set<string>();
+  for (const key of Object.keys(data.promos ?? {})) {
+    const version = key.replace(/-(latest|recommended)$/, '');
+    if (version !== key && RELEASE.test(version)) found.add(version);
+  }
+  const parts = (version: string) => version.split('.').map(Number);
+  return [...found].sort((a, b) => {
+    const left = parts(a);
+    const right = parts(b);
+    for (let index = 0; index < 3; index += 1) {
+      const delta = (right[index] ?? 0) - (left[index] ?? 0);
+      if (delta !== 0) return delta;
+    }
+    return 0;
+  });
 }
 
 export interface PluginHit { slug: string; title: string; description: string; downloads: number; icon: string | null }

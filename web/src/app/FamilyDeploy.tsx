@@ -67,8 +67,9 @@ function ChoiceCard({ selected, title, body, meta, onSelect }: { selected: boole
     <button
       type="button"
       onClick={onSelect}
-      className={`grid gap-2 rounded-[20px] border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
-        selected ? 'border-acc bg-acc/10' : 'border-line bg-card hover:border-ink/35'
+      aria-pressed={selected}
+      className={`grid content-start gap-2 rounded-[20px] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
+        selected ? 'bg-acc/15 ring-2 ring-acc' : 'bg-s1 hover:bg-ink/10'
       }`}
     >
       <span className="font-display text-[17px] font-semibold tracking-[-0.02em] text-ink">{title}</span>
@@ -86,15 +87,26 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
   const productSlug = variant?.product.slug ?? '';
   const isBedrock = productSlug === 'minecraft-bedrock';
   const isForge = productSlug === 'minecraft-forge';
-  const versionsState = useAsync<{ supported: boolean; versions: string[] }>(
-    (signal) => (productSlug ? get('/catalog/minecraft/versions', { product: productSlug }, signal) : Promise.resolve({ supported: false, versions: [] })),
+  const versionsState = useAsync<{ product: string; supported: boolean; versions: string[]; note?: string }>(
+    async (signal) => {
+      if (!productSlug) return { product: '', supported: false, versions: [] };
+      const answer = await get<{ supported: boolean; versions: string[]; note?: string }>('/catalog/minecraft/versions', { product: productSlug }, signal);
+      return { ...answer, product: productSlug };
+    },
     [productSlug],
   );
+  // The state keeps the list of the software that was on screen before until the new one arrives.
+  const versionList = versionsState.data?.product === productSlug ? versionsState.data : undefined;
   const [gameVersion, setGameVersion] = useState('');
+  // The versions belong to the software: while the list of another software is on screen, or the choice is not in
+  // the list, the newest version is picked.
   useEffect(() => {
-    const first = versionsState.data?.versions[0];
-    if (first && !gameVersion) setGameVersion(first);
-  }, [versionsState.data, gameVersion]);
+    if (!versionList) {
+      if (gameVersion) setGameVersion('');
+      return;
+    }
+    if (versionList.versions.length && !versionList.versions.includes(gameVersion)) setGameVersion(versionList.versions[0]);
+  }, [versionList, gameVersion]);
   const [pluginQuery, setPluginQuery] = useState('');
   const [pluginHits, setPluginHits] = useState<{ slug: string; title: string; description: string }[]>([]);
   const [pluginSearchPending, setPluginSearchPending] = useState(false);
@@ -153,7 +165,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
   const canContinue = (() => {
     const step = steps[stepIndex]?.id;
     if (step === 'software') return Boolean(variant?.product.orderable);
-    if (step === 'version') return Boolean(gameVersion) && (versionsState.data?.supported !== false || isBedrock);
+    if (step === 'version') return isBedrock || Boolean(gameVersion);
     if (step === 'resources') return ram >= 512 && cpu >= 0.5 && disk >= 5;
     return true;
   })();
@@ -227,19 +239,35 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
         </ul>
       )}
       {stepId === 'version' && (
-        <Panel title="Supported releases">
-          {versionsState.loading ? <LoadingBlock rows={2} label="Loading versions" /> : null}
+        <Panel title={isBedrock ? 'Bedrock version' : 'Supported releases'}>
           {isBedrock ? (
-            <p className="text-[14px] text-ink2">Bedrock uses the version bundled with the egg. You configure worlds and add-ons after the server is online.</p>
+            <p className="text-[14px] text-ink2">Bedrock installs the newest official server build. You set up worlds and add-ons after the server is online.</p>
+          ) : !versionList && !versionsState.error ? (
+            <LoadingBlock rows={2} label="Loading versions" />
+          ) : versionsState.error || !versionList?.versions.length ? (
+            <ErrorState
+              title="Versions could not be loaded"
+              message="The list of versions did not load. Try again in a moment."
+              onRetry={versionsState.reload}
+            />
           ) : (
-            <fieldset className="grid max-h-72 gap-1 overflow-y-auto rounded-2xl border border-line p-2">
+            <fieldset className="grid gap-3">
               <legend className="sr-only">Minecraft version</legend>
-              {(versionsState.data?.versions ?? []).map((version) => (
-                <label key={version} className="flex min-h-10 cursor-pointer items-center gap-3 rounded-xl px-3 text-[14px] hover:bg-s1">
-                  <input type="radio" name="mc-version" className="size-4" checked={gameVersion === version} onChange={() => setGameVersion(version)} />
-                  {version}
-                </label>
-              ))}
+              {versionList?.note ? <p className="text-[13px] text-ink3">{versionList?.note}</p> : null}
+              <div className="flex max-h-80 flex-wrap gap-2 overflow-y-auto">
+                {versionList?.versions.map((version, index) => (
+                  <label
+                    key={version}
+                    className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-4 font-mono text-[13.5px] transition-colors focus-within:ring-2 focus-within:ring-acc ${
+                      gameVersion === version ? 'bg-acc text-bg font-semibold' : 'bg-s1 text-ink hover:bg-ink/10'
+                    }`}
+                  >
+                    <input type="radio" name="mc-version" className="sr-only" checked={gameVersion === version} onChange={() => setGameVersion(version)} />
+                    {version}
+                    {index === 0 ? <span className="font-sans text-[11px] font-semibold uppercase tracking-wide opacity-70">newest</span> : null}
+                  </label>
+                ))}
+              </div>
             </fieldset>
           )}
         </Panel>
@@ -249,12 +277,12 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
           {presets.length > 0 && (
             <Panel title="Preset template" description="Preset revision is not the Minecraft game version.">
               <div className="grid gap-2">
-                <label className="flex min-h-10 items-center gap-3 rounded-xl border border-line px-3 text-[14px]">
+                <label className="flex min-h-10 items-center gap-3 rounded-xl bg-s1 px-3 text-[14px]">
                   <input type="radio" name="preset" checked={presetSlug === null} onChange={() => setPresetSlug(null)} />
                   No preset
                 </label>
                 {presets.map((entry) => (
-                  <label key={entry.slug} className="flex min-h-10 items-center gap-3 rounded-xl border border-line px-3 text-[14px]">
+                  <label key={entry.slug} className="flex min-h-10 items-center gap-3 rounded-xl bg-s1 px-3 text-[14px]">
                     <input type="radio" name="preset" checked={presetSlug === entry.slug} onChange={() => setPresetSlug(entry.slug)} />
                     <span>{entry.name}<span className="mt-0.5 block text-[12.5px] text-ink3">Revision {entry.version}. {entry.summary}</span></span>
                   </label>
@@ -273,7 +301,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
             </div>
             <ul className="mt-3 grid gap-2">
               {pluginHits.map((hit) => (
-                <li key={hit.slug} className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-line px-3 py-2">
+                <li key={hit.slug} className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-s1 px-3 py-2">
                   <div>
                     <p className="font-medium text-ink">{hit.title}</p>
                     <p className="text-[12.5px] text-ink3 line-clamp-2">{hit.description}</p>
@@ -296,6 +324,19 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
       )}
       {stepId === 'resources' && (
         <Panel title="Server size">
+          <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Quick sizes">
+            {[2048, 4096, 6144, 8192].map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => setRam(size)}
+                aria-pressed={ram === size}
+                className={`min-h-11 rounded-full px-4 text-[13.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${ram === size ? 'bg-acc text-bg' : 'bg-s1 text-ink hover:bg-ink/10'}`}
+              >
+                {memLabel(size)}
+              </button>
+            ))}
+          </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <TextInput label="RAM (MB)" value={String(ram)} onChange={(event) => setRam(Number(event.target.value) || ram)} inputMode="numeric" />
             <TextInput label="vCPU" value={String(cpu)} onChange={(event) => setCpu(Number(event.target.value) || cpu)} inputMode="decimal" />
@@ -455,11 +496,11 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
             <p className="text-[14px] text-ink2">No presets for this product. Continue to size the server on checkout.</p>
           ) : (
             <div className="grid gap-2">
-              <label className="flex min-h-10 items-center gap-3 rounded-xl border border-line px-3 text-[14px]">
+              <label className="flex min-h-10 items-center gap-3 rounded-xl bg-s1 px-3 text-[14px]">
                 <input type="radio" name="preset" checked={presetSlug === null} onChange={() => setPresetSlug(null)} /> No preset
               </label>
               {presets.map((entry) => (
-                <label key={entry.slug} className="flex min-h-10 items-center gap-3 rounded-xl border border-line px-3 text-[14px]">
+                <label key={entry.slug} className="flex min-h-10 items-center gap-3 rounded-xl bg-s1 px-3 text-[14px]">
                   <input type="radio" name="preset" checked={presetSlug === entry.slug} onChange={() => setPresetSlug(entry.slug)} />
                   <span>{entry.name}<span className="mt-0.5 block text-[12.5px] text-ink3">Revision {entry.version}. {entry.summary}</span></span>
                 </label>

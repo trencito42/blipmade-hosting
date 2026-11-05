@@ -603,12 +603,12 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     handler: async (request) => {
       await requireAuth(request);
       const { product } = z.object({ product: z.enum(['minecraft-paper', 'minecraft-folia', 'minecraft-forge', 'minecraft-bedrock']) }).parse(request.query ?? {});
-      const { paperVersions } = await import('../services/minecraft.js');
+      const { papermcVersions, forgeVersions } = await import('../services/minecraft.js');
       if (product === 'minecraft-paper' || product === 'minecraft-folia') {
-        return { supported: true, versions: (await paperVersions()).slice(0, 30) };
+        return { supported: true, versions: (await papermcVersions(product === 'minecraft-folia' ? 'folia' : 'paper')).slice(0, 30) };
       }
       if (product === 'minecraft-forge') {
-        return { supported: true, versions: (await paperVersions()).slice(0, 20), note: 'Forge uses MC_VERSION on the egg; pick the game version your modpack targets.' };
+        return { supported: true, versions: (await forgeVersions()).slice(0, 30), note: 'Pick the game version your mods or modpack target. Forge picks its recommended build for it.' };
       }
       return { supported: false, versions: [], note: 'Bedrock versions are fixed by the egg image.' };
     },

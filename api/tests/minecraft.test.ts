@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { applyProperties, cleanPlayer, cleanRawCommand, commandFor, namesOfList, parseProperties } from '../src/services/minecraft.js';
+import { afterEach, describe, expect, it, vi as spy } from 'vitest';
+import { forgeVersions, papermcVersions, applyProperties, cleanPlayer, cleanRawCommand, commandFor, namesOfList, parseProperties } from '../src/services/minecraft.js';
 
 describe('minecraft tools', () => {
   it('only lets real names into a command', () => {
@@ -46,5 +46,19 @@ describe('server list ping', () => {
     server.close();
     expect(status).toMatchObject({ online: true, version: 'Paper 1.21.4', motd: 'Welcome', players: { online: 2, max: 20, sample: ['Alex', 'Steve'] } });
     expect((await pingJava('127.0.0.1', 1)).online).toBe(false);
+  });
+});
+
+describe('versions to pick', () => {
+  afterEach(() => spy.unstubAllGlobals());
+  const answer = (body: unknown) => spy.stubGlobal('fetch', spy.fn(async () => new Response(JSON.stringify(body), { status: 200 })));
+
+  it('reads the groups of PaperMC, newest first, without pre-releases', async () => {
+    answer({ versions: { '26.1': ['26.1.2', '26.1.1'], '1.21': ['1.21.11', '1.21.11-rc1', '1.21.10', '1.21'] } });
+    expect(await papermcVersions('folia')).toEqual(['26.1.2', '26.1.1', '1.21.11', '1.21.10', '1.21']);
+  });
+  it('lists the Minecraft versions Forge builds for, newest first', async () => {
+    answer({ promos: { '1.20.1-latest': 'a', '1.20.1-recommended': 'b', '1.21.11-latest': 'c', '1.9.4-latest': 'd', '26.2-recommended': 'e', 'junk': 'x' } });
+    expect(await forgeVersions()).toEqual(['26.2', '1.21.11', '1.20.1', '1.9.4']);
   });
 });
