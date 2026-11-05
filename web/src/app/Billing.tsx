@@ -88,11 +88,11 @@ function CreditBalance() {
       ) : (
         <p className="text-[14px] text-ink3">No credit on this account.</p>
       )}
-      {history.data && history.data.credits.length > 0 && (
+      {(history.data?.credits?.length ?? 0) > 0 && (
         <div className="mt-5">
           <p className="mb-2 text-[13px] font-semibold text-ink">Credits you were given</p>
           <ul className="divide-y divide-line">
-            {history.data.credits.map((row) => (
+            {history.data!.credits.map((row) => (
               <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-[13.5px]">
                 <span className="min-w-0 text-ink2">
                   {row.reason}
