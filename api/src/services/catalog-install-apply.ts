@@ -211,13 +211,19 @@ export async function applyCatalogOrderInstall(instanceId: string): Promise<'ins
     });
     const uuid = instance.pterodactylUuid;
     const files: string[] = [];
+    const skipped: { slug: string; reason: string }[] = [];
     const version = install.gameVersion ?? '';
     if (install.plugins?.length && version && instance.product.slug === 'minecraft-paper') {
       try { await panelClient.createFolder(token, uuid, '/plugins'); } catch { /* exists */ }
       for (const plugin of install.plugins) {
-        const file = await pluginFileFor(plugin.slug, version);
-        await panelClient.pullFile(token, uuid, file.url, '/plugins', file.filename);
-        files.push(`/plugins/${file.filename}`);
+        // One plugin without a build for this version must not stop the others: it is skipped and told.
+        try {
+          const file = await pluginFileFor(plugin.slug, version);
+          await panelClient.pullFile(token, uuid, file.url, '/plugins', file.filename);
+          files.push(`/plugins/${file.filename}`);
+        } catch (error) {
+          skipped.push({ slug: plugin.slug, reason: error instanceof Error ? error.message : 'Install failed.' });
+        }
       }
     }
     if (install.modpack && version && instance.product.slug === 'minecraft-forge') {
@@ -233,12 +239,12 @@ export async function applyCatalogOrderInstall(instanceId: string): Promise<'ins
       data: {
         installationManifest: {
           ...(instance.installationManifest as object | null),
-          orderInstall: { status: 'installed', files, installedAt: new Date().toISOString() },
+          orderInstall: { status: 'installed', files, ...(skipped.length ? { skipped } : {}), installedAt: new Date().toISOString() },
         },
       },
     });
     await prisma.instanceEvent.create({
-      data: { instanceId: instance.id, type: 'preset', message: files.length ? `Checkout install wrote ${files.length} file(s). Restart the server to load them.` : 'Checkout install finished.' },
+      data: { instanceId: instance.id, type: 'preset', message: (files.length ? `Checkout install wrote ${files.length} file(s). Restart the server to load them.` : 'Checkout install finished.') + (skipped.length ? ` Skipped ${skipped.map((item) => item.slug).join(', ')}: no build for ${version}.` : '') },
     });
     return files.length ? 'installed' : 'none';
   } catch (error) {
