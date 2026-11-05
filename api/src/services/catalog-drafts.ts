@@ -16,7 +16,7 @@ const PLAN_FAMILIES: DraftFamily[] = [
   {
     slug: 'email-hosting',
     name: 'Email hosting',
-    group: 'websites-apps',
+    group: 'email-hosting',
     summary: 'Starter, Plus and Business. The mailbox limits change. The mail product does not.',
     variants: [
       { slug: 'email-hosting-starter', label: 'Starter' },
@@ -27,7 +27,7 @@ const PLAN_FAMILIES: DraftFamily[] = [
   {
     slug: 'vps',
     name: 'VPS',
-    group: 'tools-automation',
+    group: 'vps',
     summary: 'Start, Plus, Pro and Max. Pick a size, then the same VPS checkout.',
     variants: [
       { slug: 'vps-start', label: 'Start' },
@@ -99,6 +99,8 @@ function groupFor(category: string, slug: string): CatalogGroup {
   if (slug === 'teamspeak-6' || slug === 'lavalink') return 'voice';
   if (category === 'WEB_CMS') return 'websites-apps';
   if (category === 'DATABASES') return 'databases-caches';
+  if (category === 'EMAIL_HOSTING') return 'email-hosting';
+  if (category === 'VPS') return 'vps';
   if (category === 'DEVELOPER_TOOLS' && ['dotnet', 'dart', 'deno', 'elixir', 'golang', 'java', 'lua', 'nodejs', 'python', 'php', 'rust-runtime'].includes(slug)) return 'custom-runtime';
   return 'tools-automation';
 }
@@ -351,7 +353,7 @@ export async function ensureDraftPluginPresets(dryRun = false): Promise<{ create
  */
 export async function publishReadyFamilies(): Promise<{ prepared: number; active: number }> {
   const [products, prices, families] = await Promise.all([
-    prisma.product.findMany({ select: { id: true, visible: true, deployable: true } }),
+    prisma.product.findMany({ select: { id: true, visible: true, deployable: true, fulfilment: true } }),
     prisma.productPrice.findMany({ where: { active: true }, select: { productId: true } }),
     prisma.catalogFamily.findMany({ select: { id: true, prepared: true, discovery: true, variants: { select: { id: true, productId: true, active: true } } } }),
   ]);
@@ -363,7 +365,8 @@ export async function publishReadyFamilies(): Promise<{ prepared: number; active
     let readyCount = 0;
     for (const variant of family.variants) {
       const product = productById.get(variant.productId);
-      const on = Boolean(product?.visible && product.deployable && priced.has(product.id));
+      const isSpecial = product?.fulfilment === 'VPS' || product?.fulfilment === 'EMAIL';
+      const on = Boolean(product?.visible && (product.deployable || isSpecial) && (priced.has(product.id) || isSpecial));
       if (variant.active !== on) await prisma.catalogVariant.update({ where: { id: variant.id }, data: { active: on } });
       if (on) {
         readyCount += 1;

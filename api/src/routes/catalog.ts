@@ -15,6 +15,7 @@ import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
+import { getOfferingBySlug, publicOfferings, searchOfferings } from '../services/catalog-offerings.js';
 import { importProductFor, inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-inspect.js';
 import { IMPORT_ZIP_TTL_MS, zipQuotaProblem } from '../services/import-lifecycle.js';
 import { purgeExpiredImportArchives } from '../services/import-apply.js';
@@ -501,6 +502,21 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
   app.get('/catalog/families/:slug', async (request) => {
     const { slug } = z.object({ slug: z.string() }).parse(request.params);
     return { family: await publicFamily(slug) };
+  });
+
+  app.get('/catalog/offerings', async () => ({ offerings: await publicOfferings() }));
+
+  app.get('/catalog/offerings/:slug', async (request) => {
+    const { slug } = z.object({ slug: z.string() }).parse(request.params);
+    const offering = await getOfferingBySlug(slug);
+    if (!offering) throw notFound('This deployment offering was not found.');
+    return { offering };
+  });
+
+  app.get('/catalog/search', async (request) => {
+    const { q = '' } = z.object({ q: z.string().optional() }).parse(request.query ?? {});
+    const matches = await searchOfferings(q);
+    return { matches, query: q };
   });
 
   app.get('/catalog/products/:slug', async (request) => {

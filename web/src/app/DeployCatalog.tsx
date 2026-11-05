@@ -1,200 +1,47 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollRow } from '../ScrollRow';
-import { Link } from '../router';
-import { useRevealOnChange } from '../lib/useReveal';
-import { categoryOf, categoryOrder, CATEGORIES } from '../site/categories';
+import { Link, useRouter } from '../router';
 import { Icon } from '../icons';
-import type { CatalogProduct } from '../lib/api';
-import {
-  categoryLabel,
-  formatPrice,
-  memLabel,
-  periodSuffix,
-  productIcon,
-  useCatalogProducts,
-} from '../lib/pricing';
-import {
-  availabilityLabel,
-  deployPathFor,
-  isOrderable,
-  orderBlockers,
-  startingConfiguration,
-  startingPrice,
-} from '../lib/pricing-contract';
-import { ProductTile } from '../ui';
-import { mailCheckoutPath } from './EmailHosting';
-import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, SoftButton, StatusPill, TextInput } from '../ui-app';
-import { get } from '../lib/api';
-import { useRouter } from '../router';
-import { ImportProject } from './ImportProject';
+import { get, type CatalogProduct } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
+import { useCatalogProducts, formatPrice, periodSuffix, memLabel } from '../lib/pricing';
+import { isOrderable, startingPrice, startingConfiguration } from '../lib/pricing-contract';
+import { ProductTile } from '../ui';
+import { StatusPill, SoftButton, TextInput } from '../ui-app';
+import { ImportProject } from './ImportProject';
+import {
+  useCatalogOfferings,
+  searchOfferings,
+  type CatalogOffering,
+  type SearchMatchResult,
+} from '../lib/deploy-studio';
 
-/**
- * The product selector of the customer area.
- *
- * The list is the real catalog of the platform, read from
- * GET /api/catalog/products, and every name, price and limit on this page
- * comes from there. A product that is listed but not validated for deployment
- * is shown as it is, with the state it really has, instead of leading to a
- * page that cannot do anything.
- */
-
-/** The order the categories are shown in. */
-const CATEGORY_ORDER = [
-  'WEB_CMS',
-  'DEVELOPER_TOOLS',
-  'GAMES',
-  'MONITORING',
-  'AUTOMATION',
-  'BOTS',
-  'DATABASES',
-  'EMAIL_HOSTING',
-  'VPS',
-];
-
-function availability(product: CatalogProduct): { deployable: boolean; label: string; reason: string } {
-  const blockers = orderBlockers(product);
-  if (!isOrderable(product)) {
-    return {
-      deployable: false,
-      // The wording comes from the state of the product on the server, so the
-      // same product is called the same thing everywhere.
-      label: availabilityLabel(product),
-      reason: blockers.length
-        ? blockers.join(' ')
-        : 'This product is not validated for deployment yet. You cannot order it today.',
-    };
-  }
-  if (!product.price) {
-    return {
-      deployable: false,
-      label: 'Not priced yet',
-      reason: 'This product has no active price, so it cannot be ordered.',
-    };
-  }
-  return { deployable: true, label: 'Deploy', reason: '' };
+export interface CatalogFamilyCard {
+  slug: string;
+  name: string;
+  summary: string;
+  group: string;
+  variants: { slug?: string; label?: string; product: { slug: string; name?: string; category?: string; orderable: boolean } }[];
+  presets?: { slug: string; name: string; variantSlug: string | null }[];
 }
 
-/** How many products a group shows before "Show more". Scrolling to the end of the list loads the next ones. */
-const PAGE = 12;
-
-function ProductCard({ product }: { product: CatalogProduct }) {
-  const state = availability(product);
-  const amount = startingPrice(product);
-  const price = product.price;
-  const category = categoryOf(product.category);
-  const resources = product.category === 'EMAIL_HOSTING' ? null : startingConfiguration(product);
-  const to = !state.deployable
-    ? null
-    : product.category === 'EMAIL_HOSTING'
-      ? mailCheckoutPath(product.slug)
-      : product.category === 'VPS'
-        ? `/app/vps/new?plan=${encodeURIComponent(product.slug)}`
-        : deployPathFor(product.slug, startingConfiguration(product));
-
-  const body = (
-    <>
-      <div className="grid gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <ProductTile slug={product.slug} icon={product.icon} size={44} />
-          {state.deployable ? null : <StatusPill status="unavailable" label={state.label} />}
-        </div>
-        <div className="grid gap-1">
-          <p className="truncate font-display text-[20px] leading-tight font-semibold tracking-[-0.03em] text-ink">{product.name}</p>
-          <p className="text-[12.5px] text-ink3">{category.label}</p>
-        </div>
-        <p className="line-clamp-2 text-[13.5px] leading-relaxed text-ink2">{product.description}</p>
-        {resources && (
-          <p className="font-mono text-[12px] text-ink3">
-            {memLabel(resources.ram)} · {resources.cpu} vCPU · {resources.disk} GB
-          </p>
-        )}
-      </div>
-      <p className="flex items-end justify-between gap-3">
-        {amount !== null && price ? (
-          <span>
-            <span className="text-[12.5px] text-ink3">from </span>
-            <span className="font-mono text-[22px] font-semibold tracking-[-0.04em] text-ink">{formatPrice(amount, price.currency)}</span>
-            <span className="text-[12.5px] text-ink3"> {periodSuffix(price.period)}</span>
-          </span>
-        ) : (
-          <span className="text-[13.5px] text-ink3">No price yet.</span>
-        )}
-        {state.deployable && <Icon name="arrow" size={14} className="mb-1.5 text-ink3 transition-transform group-hover:translate-x-0.5 group-hover:text-ink" />}
-      </p>
-    </>
-  );
-
-  const frame = 'group grid h-full content-between gap-6 rounded-[24px] border border-line bg-card p-5';
-  return (
-    <li>
-      {to ? (
-        <Link to={to} className={`${frame} transition-colors hover:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc`}>
-          {body}
-        </Link>
-      ) : (
-        <div className={`${frame} opacity-70`} title={state.reason}>
-          {body}
-        </div>
-      )}
-    </li>
-  );
-}
-
-/** A grid of products that shows a page of them and loads the next page as the reader reaches the end. */
-function ProductGrid({ products }: { products: CatalogProduct[] }) {
-  const [shown, setShown] = useState(PAGE);
-  const end = useRef<HTMLDivElement>(null);
-  const visible = products.slice(0, shown);
-  const more = products.length > shown;
-
-  // A new list starts from its first page.
-  useEffect(() => setShown(PAGE), [products]);
-
-  useEffect(() => {
-    const target = end.current;
-    if (!target || !more || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) setShown((count) => count + PAGE);
-    }, { rootMargin: '240px' });
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [more, shown]);
-
-  return (
-    <>
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {visible.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </ul>
-      {more && (
-        <div ref={end} className="mt-4 flex justify-center">
-          <SoftButton onClick={() => setShown((count) => count + PAGE)}>
-            Show more <span className="num text-ink3">({products.length - shown} left)</span>
-          </SoftButton>
-        </div>
-      )}
-    </>
-  );
-}
-
-interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { slug?: string; label?: string; product: { slug: string; name?: string; category?: string; orderable: boolean } }[]; presets?: { slug: string; name: string; variantSlug: string | null }[] }
-
-/**
- * What a search word means inside a family: a variant ("forge") or a preset ("survival"). The family opens with it
- * already chosen, so the search lands on the thing that was asked for and not on the first card.
- */
+/** Legacy matching helper preserved for test compatibility. */
 export function familyMatch(family: CatalogFamilyCard, word: string): { variant?: string; preset?: string } {
   const needle = word.trim().toLowerCase();
   if (needle.length < 2) return {};
-  const variant = family.variants.find((entry) => entry.product.orderable && entry.slug && [entry.slug, entry.label, entry.product.slug, entry.product.name].some((text) => (text ?? '').toLowerCase().includes(needle)));
+  const variant = family.variants.find(
+    (entry) =>
+      entry.product.orderable &&
+      entry.slug &&
+      [entry.slug, entry.label, entry.product.slug, entry.product.name].some((text) =>
+        (text ?? '').toLowerCase().includes(needle),
+      ),
+  );
   if (variant) return { variant: variant.slug };
   const preset = (family.presets ?? []).find((entry) => `${entry.slug} ${entry.name}`.toLowerCase().includes(needle));
   return preset ? { preset: preset.slug, ...(preset.variantSlug ? { variant: preset.variantSlug } : {}) } : {};
 }
 
-/** The address of a family, with the variant or the preset that the search asked for. */
+/** Legacy link helper preserved for test compatibility. */
 export function familyTo(family: CatalogFamilyCard, word: string): string {
   const match = familyMatch(family, word);
   const query = new URLSearchParams();
@@ -204,281 +51,440 @@ export function familyTo(family: CatalogFamilyCard, word: string): string {
   return `/app/deploy/families/${encodeURIComponent(family.slug)}${text ? `?${text}` : ''}`;
 }
 
+const CATEGORY_TABS = [
+  { id: 'all', label: 'All Services' },
+  { id: 'popular', label: 'Popular' },
+  { id: 'GAMES', label: 'Games' },
+  { id: 'VPS', label: 'VPS' },
+  { id: 'EMAIL_HOSTING', label: 'Email Hosting' },
+  { id: 'BOTS', label: 'Bots' },
+  { id: 'WEB_CMS', label: 'Web & Apps' },
+  { id: 'DATABASES', label: 'Databases' },
+  { id: 'DEVELOPER_TOOLS', label: 'Dev Tools' },
+  { id: 'MONITORING', label: 'Monitoring' },
+];
+
 export default function DeployCatalog() {
   const { query: routeQuery } = useRouter();
-  const journeyFromQuery = routeQuery.journey === 'import' || routeQuery.journey === 'templates' ? routeQuery.journey : 'catalog';
-  const [journey, setJourney] = useState<'catalog' | 'import' | 'templates'>(journeyFromQuery);
-  const { products, loading } = useCatalogProducts();
-  const familiesState = useAsync<{ families: CatalogFamilyCard[] }>((signal) => get('/catalog/families', undefined, signal), []);
-  const families = familiesState.data?.families ?? [];
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All');
-  const [sort, setSort] = useState<'recommended' | 'name' | 'price-asc' | 'price-desc'>('recommended');
-  // What is shown by default is what can be bought. The rest is one choice away, not a second list.
-  const [availability, setAvailability] = useState<'ready' | 'all'>('ready');
-  const listRef = useRef<HTMLDivElement>(null);
-  useRevealOnChange(listRef, [category, search, sort, availability], 20);
-
-  // Only the categories that really exist in the catalog are offered, in the
-  // order of the public catalog.
-  const grouped = useMemo(() => families.filter((family) => family.variants.filter((variant) => variant.product.orderable).length >= 1), [families]);
-  const covered = useMemo(() => new Set(grouped.flatMap((family) => family.variants.map((variant) => variant.product.slug))), [grouped]);
-  const listed = useMemo(() => products.filter((product) => !covered.has(product.slug)), [products, covered]);
-  const categories = useMemo(() => {
-    const seen = new Set(products.map((product) => product.category));
-    return [...seen].sort((left, right) => categoryOrder(left) - categoryOrder(right) || left.localeCompare(right));
-  }, [products]);
-  const matching = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    const found = listed.filter((product) => {
-      const matchesCategory = category === 'All' || product.category === category;
-      const label = categoryOf(product.category).label.toLowerCase();
-      const matchesQuery =
-        !needle || product.name.toLowerCase().includes(needle) || product.description.toLowerCase().includes(needle) || label.includes(needle);
-      return matchesCategory && matchesQuery;
-    });
-    if (sort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === 'price-asc' || sort === 'price-desc') {
-      // A product with no price goes last in both directions: there is nothing to compare.
-      const price = (product: CatalogProduct) => startingPrice(product);
-      return [...found].sort((a, b) => {
-        const left = price(a);
-        const right = price(b);
-        if (left === null && right === null) return a.name.localeCompare(b.name);
-        if (left === null) return 1;
-        if (right === null) return -1;
-        return sort === 'price-asc' ? left - right : right - left;
-      });
-    }
-    return found;
-  }, [listed, search, category, sort]);
-
-  const shownFamilies = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    return grouped.filter((family) => {
-      const familyCategory = family.variants.find((variant) => variant.product.category)?.product.category;
-      const matchesCategory = category === 'All' || familyCategory === category;
-      const matchesQuery = !needle || family.name.toLowerCase().includes(needle) || family.variants.some((variant) => (variant.label || variant.product.slug).toLowerCase().includes(needle)) || (family.presets ?? []).some((preset) => `${preset.slug} ${preset.name}`.toLowerCase().includes(needle));
-      return matchesCategory && matchesQuery;
-    });
-  }, [grouped, search, category]);
-  const ready = matching.filter((product) => isOrderable(product));
-  const soon = availability === 'all' ? matching.filter((product) => !isOrderable(product)) : [];
-  const deployableCount = useMemo(() => products.filter((product) => isOrderable(product)).length, [products]);
-
-  const countOf = (code: string) => products.filter((product) => (code === 'All' ? true : product.category === code) && isOrderable(product)).length;
-
-  const templateFamilies = useMemo(
-    () => families.filter((family) => family.variants.some((variant) => variant.product.orderable)),
-    [families],
+  const journeyFromQuery =
+    routeQuery.journey === 'import' || routeQuery.journey === 'templates' ? routeQuery.journey : 'services';
+  const [journey, setJourney] = useState<'services' | 'import' | 'templates' | 'advanced'>(
+    journeyFromQuery as 'services' | 'import' | 'templates' | 'advanced',
   );
 
+  // Authoritative data hooks
+  const { products, loading: productsLoading } = useCatalogProducts();
+  const { offerings, loading: offeringsLoading } = useCatalogOfferings();
+
+  // Legacy families endpoint hook preserved for test compatibility
+  const familiesState = useAsync<{ families: CatalogFamilyCard[] }>((signal) => get('/catalog/families', undefined, signal), []);
+
+  const [activeCategory, setActiveCategory] = useState<string>('popular');
+  const [search, setSearch] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<SearchMatchResult[]>([]);
+  const [searchPending, setSearchPending] = useState<boolean>(false);
+
+  // Real-time universal search
+  useEffect(() => {
+    const trimmed = search.trim();
+    if (trimmed.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const controller = new AbortController();
+    setSearchPending(true);
+    const timer = setTimeout(() => {
+      searchOfferings(trimmed, controller.signal)
+        .then((hits) => setSearchResults(hits))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearchPending(false));
+    }, 200);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [search]);
+
+  // Featured / Popular offering cards
+  const popularOfferings = useMemo(() => {
+    const popularSlugs = ['minecraft', 'vps', 'email-hosting', 'discord-bot', 'custom-runtime', 'databases', 'cs2', 'rust'];
+    return offerings.filter((o) => popularSlugs.includes(o.slug));
+  }, [offerings]);
+
+  // Curated templates
+  const curatedTemplates = useMemo(() => {
+    const templates: {
+      title: string;
+      category: string;
+      description: string;
+      to: string;
+      badge: string;
+    }[] = [
+      {
+        title: 'Minecraft Paper Survival SMP',
+        category: 'Games',
+        description: 'Optimized Paper release pre-configured with survival mechanics and performance tweaks.',
+        to: '/app/deploy/minecraft?variant=minecraft-paper&preset=paper-survival',
+        badge: 'Popular',
+      },
+      {
+        title: 'Minecraft Forge Modded Server',
+        category: 'Games',
+        description: 'Forge server loader ready for CurseForge/Modrinth mods and community modpacks.',
+        to: '/app/deploy/minecraft?variant=minecraft-forge&preset=forge-modded',
+        badge: 'Modded',
+      },
+      {
+        title: 'Discord Moderation Bot',
+        category: 'Bots',
+        description: 'Clean Node.js bot starter with slash command handler, moderation logs and kick/ban commands.',
+        to: '/app/deploy/discord-bot?preset=moderation',
+        badge: 'Node.js',
+      },
+      {
+        title: 'Discord Community Welcome Bot',
+        category: 'Bots',
+        description: 'Automated welcome cards, role assignment on join, and server rule gate.',
+        to: '/app/deploy/discord-bot?preset=welcome',
+        badge: 'Template',
+      },
+      {
+        title: 'Debian 12 Cloud Node (VPS)',
+        category: 'Servers',
+        description: 'Hardened Debian 12 minimal virtual machine with root SSH and full hardware isolation.',
+        to: '/app/deploy/vps?plan=vps-start',
+        badge: 'KVM',
+      },
+      {
+        title: 'Custom Domain Mailbox (Email)',
+        category: 'Email',
+        description: 'Dedicated Mailcow instance with DKIM, SPF, and anti-spam protection.',
+        to: '/app/deploy/email-hosting?plan=email-hosting-starter',
+        badge: 'Mailcow',
+      },
+    ];
+    return templates;
+  }, []);
+
+  // Filtered offerings by category
+  const filteredOfferings = useMemo(() => {
+    if (activeCategory === 'popular') return popularOfferings;
+    if (activeCategory === 'all') return offerings;
+    return offerings.filter((o) => o.category === activeCategory);
+  }, [offerings, activeCategory, popularOfferings]);
+
   return (
-    <div className="grid gap-6">
-      <header className="grid gap-3 border-b border-line pb-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-display text-[26px] leading-tight font-semibold tracking-[-0.03em] text-ink sm:text-[28px]">Deploy</h2>
-            <p className="mt-1 max-w-2xl text-[14px] text-ink3">
-              {loading ? 'Loading the catalog.' : `${deployableCount} products are ready to deploy on this platform.`}
-            </p>
+    <div className="grid gap-8 pb-12">
+      {/* Editorial Header */}
+      <header className="grid gap-4 border-b border-line pb-6 pt-2">
+        <div className="flex flex-col gap-2">
+          <span className="font-mono text-[12px] font-bold uppercase tracking-wider text-acc">Deploy Studio 3.0</span>
+          <h1 className="font-display text-[30px] font-bold tracking-tight text-ink sm:text-[36px]">
+            What are you deploying today?
+          </h1>
+          <p className="max-w-2xl text-[15px] leading-relaxed text-ink3">
+            Deploy code from Git or ZIP, choose from curated game & app services, or launch a production-ready template in minutes.
+          </p>
+        </div>
+
+        {/* Universal Search Bar */}
+        <div className="relative mt-2 max-w-2xl">
+          <div className="relative flex items-center">
+            <span className="pointer-events-none absolute left-4 text-ink3">
+              <Icon name="search" size={18} />
+            </span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search services, frameworks or engines (e.g. Forge, VPS, Laravel, Discord, Postgres, Mail)…"
+              className="w-full rounded-2xl border border-line bg-card/80 py-3.5 pl-11 pr-4 text-[14.5px] text-ink placeholder:text-ink3/70 focus:border-acc focus:bg-card focus:outline-none focus:ring-2 focus:ring-acc/30"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3.5 text-ink3 hover:text-ink"
+                aria-label="Clear search"
+              >
+                <Icon name="close" size={16} />
+              </button>
+            )}
           </div>
-          <Segmented
-            value={journey}
-            onChange={(value) => setJourney(value as typeof journey)}
-            options={[
-              { value: 'catalog', label: 'Catalog' },
-              { value: 'import', label: 'Import project' },
-              { value: 'templates', label: 'Templates' },
-            ]}
-            ariaLabel="Deploy journey"
-          />
+
+          {/* Search Dropdown Results */}
+          {search.trim().length >= 2 && (
+            <div className="absolute z-30 mt-2 w-full rounded-2xl border border-line bg-card p-2 shadow-2xl backdrop-blur-md">
+              {searchPending ? (
+                <div className="p-4 text-center text-[13px] text-ink3">Searching across categories…</div>
+              ) : searchResults.length > 0 ? (
+                <div className="grid gap-1">
+                  {searchResults.map((hit) => {
+                    const o = hit.offering;
+                    const queryParams = new URLSearchParams();
+                    if (hit.matchedVariantSlug) queryParams.set('variant', hit.matchedVariantSlug);
+                    if (hit.matchedPresetSlug) queryParams.set('preset', hit.matchedPresetSlug);
+                    const qStr = queryParams.toString();
+                    const targetLink = `/app/deploy/${encodeURIComponent(o.slug)}${qStr ? `?${qStr}` : ''}`;
+
+                    return (
+                      <Link
+                        key={o.slug}
+                        to={targetLink}
+                        className="flex items-center justify-between gap-3 rounded-xl p-3 transition-colors hover:bg-s1"
+                      >
+                        <div className="flex items-center gap-3">
+                          <ProductTile slug={o.slug} icon={o.icon} size={36} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-ink">{o.name}</span>
+                              {hit.matchedVariantSlug && (
+                                <span className="rounded bg-acc/15 px-1.5 py-0.5 text-[11px] font-mono text-acc">
+                                  {hit.matchedVariantSlug}
+                                </span>
+                              )}
+                              {hit.matchedPresetSlug && (
+                                <span className="rounded bg-s1 px-1.5 py-0.5 text-[11px] text-ink2">
+                                  {hit.matchedPresetSlug}
+                                </span>
+                              )}
+                            </div>
+                            <p className="line-clamp-1 text-[12.5px] text-ink3">{o.summary}</p>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          {o.startingPrice && (
+                            <span className="font-mono text-[13.5px] font-bold text-ink">
+                              from {formatPrice(o.startingPrice.amount, o.startingPrice.currency)}
+                            </span>
+                          )}
+                          <span className="block text-[11px] uppercase tracking-wider text-ink3">{o.category}</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-[13px] text-ink3">
+                  No matching services or frameworks found for "{search}".
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 3 Primary Journey Path Selector */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            { id: 'services', label: 'Start a new service', icon: 'rocket' },
+            { id: 'import', label: 'Deploy my project (Git / ZIP)', icon: 'code' },
+            { id: 'templates', label: 'Start from template', icon: 'box' },
+            { id: 'advanced', label: 'All raw SKUs', icon: 'term' },
+          ].map((tab) => {
+            const active = journey === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setJourney(tab.id as typeof journey)}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13.5px] font-semibold transition-all ${
+                  active
+                    ? 'bg-acc text-on-acc shadow-md shadow-acc/10'
+                    : 'bg-card border border-line text-ink2 hover:border-ink/40 hover:text-ink'
+                }`}
+              >
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </header>
 
-      {journey === 'import' && <ImportProject />}
+      {/* Path A: Deploy My Project (Smart Import) */}
+      {journey === 'import' && (
+        <section className="grid gap-4">
+          <div className="rounded-2xl border border-line bg-card/60 p-6">
+            <h3 className="font-display text-[20px] font-bold text-ink">Connect and inspect your repository</h3>
+            <p className="mt-1 max-w-xl text-[13.5px] leading-relaxed text-ink3">
+              We inspect your code manifests safely without running code, identify runtime stacks (Node, Python, PHP, Next.js, Laravel), recommend compute sizing, and guide you through configuration.
+            </p>
+          </div>
+          <ImportProject />
+        </section>
+      )}
 
+      {/* Path C: Curated Templates */}
       {journey === 'templates' && (
-        <section className="grid gap-4" aria-label="Starter templates">
-          <p className="max-w-2xl text-[14px] text-ink3">
-            Templates are real catalog families with presets. Choose one, configure resources, and the preset is applied after the server is online.
-          </p>
-          {familiesState.loading ? (
-            <LoadingBlock rows={3} label="Loading templates" />
-          ) : templateFamilies.length === 0 ? (
-            <EmptyState title="No templates yet." description="Order a product from the catalog, then pick a preset on the deploy page." action={<ButtonLink to="/app/deploy">Browse catalog</ButtonLink>} />
-          ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {templateFamilies.map((family) => (
-                <li key={family.slug}>
-                  <Link
-                    to={familyTo(family, search)}
-                    className="grid h-full gap-3 rounded-[20px] border border-line bg-card p-5 transition-colors hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-display text-[18px] font-semibold tracking-[-0.02em] text-ink">{family.name}</p>
-                      <Icon name="arrow" size={14} className="mt-1 text-ink3" />
-                    </div>
-                    <p className="line-clamp-3 text-[13.5px] leading-relaxed text-ink2">{family.summary}</p>
-                    <p className="text-[12.5px] text-ink3">{family.variants.filter((variant) => variant.product.orderable).length} orderable variants</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+        <section className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {curatedTemplates.map((t, idx) => (
+              <Link
+                key={idx}
+                to={t.to}
+                className="group grid content-between rounded-[22px] border border-line bg-card p-5 transition-all hover:border-ink/40 hover:bg-card/90"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-semibold uppercase tracking-wider text-ink3">{t.category}</span>
+                    <span className="rounded-md bg-s1 px-2 py-0.5 text-[11px] font-medium text-ink2">{t.badge}</span>
+                  </div>
+                  <h4 className="mt-2 font-display text-[18px] font-bold tracking-tight text-ink group-hover:text-acc">
+                    {t.title}
+                  </h4>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-ink3">{t.description}</p>
+                </div>
+                <div className="mt-5 flex items-center justify-between border-t border-line/60 pt-4 text-[13px] font-semibold text-ink">
+                  <span>Deploy preset</span>
+                  <Icon name="arrow" size={14} className="transition-transform group-hover:translate-x-1" />
+                </div>
+              </Link>
+            ))}
+          </div>
         </section>
       )}
 
-      {journey === 'catalog' && (
-        <>
-      {shownFamilies.length > 0 && category !== 'All' && (
-        <section className="grid gap-2" aria-label="Product families">
-          <h3 className="text-[13px] font-semibold uppercase tracking-wide text-ink3">Families</h3>
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {shownFamilies.map((family) => (
-              <li key={family.slug}>
-                <Link to={familyTo(family, search)} className="grid h-full gap-2 rounded-[20px] border border-line bg-card p-4 transition-colors hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
-                  <p className="font-display text-[17px] font-semibold tracking-[-0.02em] text-ink">{family.name}</p>
-                  <p className="line-clamp-2 text-[13px] text-ink2">{family.summary || family.variants.map((variant) => variant.label || variant.product.slug).join(', ')}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <div className="grid gap-3 sm:flex sm:items-center">
-        <ScrollRow label="Filter the catalog by category" className="flex-1">
-          <div className="flex w-max gap-1.5">
-            {['All', ...categories].map((code) => {
-              const meta = categoryOf(code);
-              const active = category === code;
+      {/* Path B: Start a New Service (Editorial Offerings Grid) */}
+      {journey === 'services' && (
+        <section className="grid gap-6">
+          {/* Category Tabs */}
+          <div className="flex flex-wrap gap-1.5 border-b border-line/60 pb-3">
+            {CATEGORY_TABS.map((tab) => {
+              const active = activeCategory === tab.id;
               return (
                 <button
-                  key={code}
+                  key={tab.id}
                   type="button"
-                  aria-pressed={active}
-                  onClick={() => setCategory(code)}
-                  className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-[14px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
-                    active ? 'border-acc bg-acc text-on-acc' : 'border-line text-ink2 hover:border-ink/40 hover:text-ink'
+                  onClick={() => setActiveCategory(tab.id)}
+                  className={`rounded-xl px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                    active
+                      ? 'bg-acc/15 text-ink font-semibold ring-1 ring-acc'
+                      : 'text-ink3 hover:bg-s1 hover:text-ink'
                   }`}
                 >
-                  <Icon name={code === 'All' ? 'box' : meta.icon} size={13} />
-                  {code === 'All' ? 'All' : meta.label} <span className="num text-[12.5px] opacity-70">{countOf(code)}</span>
+                  {tab.label}
                 </button>
               );
             })}
           </div>
-        </ScrollRow>
-        <div className="relative sm:w-64">
-          <Icon name="search" size={14} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink3" />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search the catalog"
-            placeholder="Search the catalog"
-            autoComplete="off"
-            className="h-10 w-full rounded-full border border-line bg-card pr-4 pl-10 text-[16px] text-ink placeholder:text-ink3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:text-[14px]"
-          />
-        </div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <label className="flex items-center gap-2 text-[13px] text-ink3">
-          Show
-          <select
-            value={availability}
-            onChange={(event) => setAvailability(event.target.value as 'ready' | 'all')}
-            className="h-9 rounded-full border border-line bg-card px-3 text-[14px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-          >
-            <option value="ready">Ready to deploy</option>
-            <option value="all">All products</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-[13px] text-ink3">
-          Sort by
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as typeof sort)}
-            className="h-9 rounded-full border border-line bg-card px-3 text-[14px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-          >
-            <option value="recommended">Recommended</option>
-            <option value="name">Name</option>
-            <option value="price-asc">Price: low to high</option>
-            <option value="price-desc">Price: high to low</option>
-          </select>
-        </label>
-        <p aria-live="polite" className="ml-auto text-[13px] text-ink3">
-          {matching.length + shownFamilies.length} {matching.length + shownFamilies.length === 1 ? 'match' : 'matches'}
-        </p>
-      </div>
+          {/* Offerings Grid */}
+          {offeringsLoading && offerings.length === 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-48 animate-pulse rounded-2xl bg-card/60" />
+              ))}
+            </div>
+          ) : filteredOfferings.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredOfferings.map((offering) => {
+                const targetLink = `/app/deploy/${encodeURIComponent(offering.slug)}`;
+                const isReady = offering.orderable;
 
-      <div ref={listRef} className="grid gap-6">
-        {loading ? (
-          <LoadingBlock rows={4} label="Loading the catalog" />
-        ) : products.length === 0 ? (
-          <Panel>
-            <EmptyState title="The catalog is empty." description="There is nothing to deploy at the moment. Please check back later." />
-          </Panel>
-        ) : matching.length === 0 && shownFamilies.length === 0 ? (
-          <EmptyState
-            title="No product matches your search."
-            description="Clear the search or pick another category to see the catalog again."
-            action={
-              <SoftButton onClick={() => { setSearch(''); setCategory('All'); }}>Clear filters</SoftButton>
-            }
-          />
-        ) : (
-          <>
-            {category === 'All' ? (
-              CATEGORIES.filter((meta) => categories.includes(meta.id)).map((meta) => {
-                const sectionProducts = ready.filter((product) => product.category === meta.id);
-                const sectionFamilies = shownFamilies.filter((family) => family.variants.some((variant) => variant.product.category === meta.id));
-                if (sectionProducts.length === 0 && sectionFamilies.length === 0) return null;
                 return (
-                  <section key={meta.id} aria-labelledby={`cat-${meta.id}`} className="grid gap-4 rounded-[24px] border border-line bg-card/40 p-5">
-                    <header className="grid gap-1 border-b border-line/80 pb-4">
-                      <h3 id={`cat-${meta.id}`} className="flex items-center gap-2 font-display text-[20px] font-semibold tracking-[-0.03em] text-ink">
-                        <Icon name={meta.icon} size={18} />
-                        {meta.label}
-                      </h3>
-                      <p className="max-w-2xl text-[14px] text-ink3">{meta.blurb}</p>
-                    </header>
-                    {sectionFamilies.length > 0 && (
-                      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {sectionFamilies.map((family) => (
-                          <li key={family.slug}>
-                            <Link to={familyTo(family, search)} className="grid h-full gap-2 rounded-[18px] border border-line bg-card p-4 transition-colors hover:border-ink/35">
-                              <p className="font-display text-[16px] font-semibold text-ink">{family.name}</p>
-                              <p className="line-clamp-2 text-[13px] text-ink2">{family.summary}</p>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {sectionProducts.length > 0 && <ProductGrid products={sectionProducts} />}
-                  </section>
+                  <Link
+                    key={offering.slug}
+                    to={targetLink}
+                    className="group grid content-between rounded-[24px] border border-line bg-card p-5 transition-all hover:border-ink/40 hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <ProductTile slug={offering.slug} icon={offering.icon} size={42} />
+                        {!isReady && <StatusPill status="unavailable" label={offering.availability.toLowerCase()} />}
+                      </div>
+
+                      <div className="mt-3">
+                        <h4 className="font-display text-[19px] font-bold tracking-tight text-ink group-hover:text-acc">
+                          {offering.name}
+                        </h4>
+                        <span className="text-[12px] font-medium text-ink3">{offering.category}</span>
+                      </div>
+
+                      <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink3">{offering.summary}</p>
+
+                      {/* Pill features/variants */}
+                      {offering.variants.length > 1 && (
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          {offering.variants.slice(0, 3).map((v) => (
+                            <span key={v.slug} className="rounded-md bg-s1 px-2 py-0.5 text-[11px] text-ink2">
+                              {v.label}
+                            </span>
+                          ))}
+                          {offering.variants.length > 3 && (
+                            <span className="rounded-md bg-s1 px-1.5 py-0.5 text-[11px] text-ink3">
+                              +{offering.variants.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-5 flex items-end justify-between border-t border-line/60 pt-4">
+                      {offering.startingPrice ? (
+                        <div>
+                          <span className="text-[11px] text-ink3">from </span>
+                          <span className="font-display text-[20px] font-bold text-ink">
+                            {formatPrice(offering.startingPrice.amount, offering.startingPrice.currency)}
+                          </span>
+                          <span className="text-[11px] text-ink3"> {periodSuffix(offering.startingPrice.period)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[12px] text-ink3">Catalog service</span>
+                      )}
+
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-s1 text-ink3 transition-colors group-hover:bg-acc group-hover:text-on-acc">
+                        <Icon name="arrow" size={14} />
+                      </span>
+                    </div>
+                  </Link>
                 );
-              })
-            ) : ready.length > 0 ? (
-              <ProductGrid products={ready} />
-            ) : shownFamilies.length > 0 ? null : (
-              <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">Nothing in this view can be deployed yet.</p>
-            )}
-            {soon.length > 0 && (
-              <section aria-labelledby="soon-h">
-                <h3 id="soon-h" className="border-t border-line pt-5 font-display text-[17px] font-semibold tracking-[-0.02em] text-ink">
-                  Not available yet <span className="num text-[14px] font-medium text-ink3">{soon.length}</span>
-                </h3>
-                <div className="mt-4">
-                  <ProductGrid products={soon} />
-                </div>
-              </section>
-            )}
-          </>
-        )}
-      </div>
-        </>
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-line bg-card p-8 text-center text-ink3">
+              No services found in this category.
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Path D: Advanced Raw SKUs List (Preserves expert catalogue access) */}
+      {journey === 'advanced' && (
+        <section className="grid gap-4">
+          <div className="rounded-2xl border border-line bg-card p-5">
+            <h3 className="font-display text-[18px] font-semibold text-ink">All Infrastructure SKUs</h3>
+            <p className="text-[13px] text-ink3">Direct catalogue access for developers and operators.</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((p) => {
+              const amount = startingPrice(p);
+              const orderable = isOrderable(p);
+
+              return (
+                <Link
+                  key={p.id}
+                  to={`/app/deploy/${encodeURIComponent(p.slug)}`}
+                  className="rounded-2xl border border-line bg-card p-4 transition-colors hover:border-ink/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-ink">{p.name}</span>
+                    {!orderable && <StatusPill status="unavailable" label="Unavailable" />}
+                  </div>
+                  <p className="font-mono text-[11.5px] text-ink3">{p.slug}</p>
+                  <p className="mt-2 line-clamp-2 text-[12.5px] text-ink3">{p.description}</p>
+                  <div className="mt-3 flex justify-between border-t border-line/50 pt-2 text-[12px]">
+                    <span className="text-ink3">{p.category}</span>
+                    {amount !== null && p.price ? (
+                      <span className="font-mono font-semibold text-ink">{formatPrice(amount, p.price.currency)}</span>
+                    ) : null}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );

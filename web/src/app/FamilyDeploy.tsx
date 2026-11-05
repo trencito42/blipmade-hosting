@@ -7,6 +7,7 @@ import { mailCheckoutPath, MailPlanLimitList } from './EmailHosting';
 import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, TextInput } from '../ui-app';
 import { ProductWizardShell, type WizardStep } from './deploy/ProductWizardShell';
 import { memLabel, formatPrice, periodSuffix } from '../lib/pricing';
+import DeployStudio from './deploy/DeployStudio';
 
 interface FamilyVariant {
   slug: string;
@@ -577,6 +578,9 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
 /** Family-specific configuration wizards before the shared product checkout. */
 export default function FamilyDeploy() {
   const { slug = '' } = useParams();
+  if (slug) {
+    return <DeployStudio />;
+  }
   const state = useAsync<{ family: PublicFamily }>((signal) => get(`/catalog/families/${encodeURIComponent(slug)}`, undefined, signal), [slug]);
   const family = state.data?.family;
 

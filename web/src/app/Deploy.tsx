@@ -57,6 +57,7 @@ import {
 import { mailCheckoutPath } from './EmailHosting';
 import { PLATFORM_BASE } from './Domains';
 import { mailPlanOptionLabel, onSaleMailPlans, validateMailDomainName } from './Mail';
+import DeployStudio from './deploy/DeployStudio';
 
 /**
  * Deploy flow. Every number that looks like a price comes from
@@ -424,6 +425,10 @@ function addressLabel(name: string): string {
 export default function Deploy() {
   const { slug = '' } = useParams();
   const { query, navigate } = useRouter();
+
+  if (slug) {
+    return <DeployStudio />;
+  }
 
   const [name, setName] = useState('');
   // The address under the platform's base. Empty means the one that follows from the name.

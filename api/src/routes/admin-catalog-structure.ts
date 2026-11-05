@@ -8,6 +8,10 @@ import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requirePermission, requireStaff } from '../plugins/auth.js';
 import { CATALOG_GROUPS, STRUCTURE_NOTE, assertActiveHasVariants, assertAddonShape } from '../services/catalog-structure.js';
 import { publishReadyFamilies, regroupPlanFamilies, syncCatalogDrafts } from '../services/catalog-drafts.js';
+import { publicOfferings, getOfferingBySlug, type OfferingWizardConfig } from '../services/catalog-offerings.js';
+import { buildQuote } from '../services/pricing.js';
+import { evaluateGate, gateFacts } from '../services/readiness-gate.js';
+import { deploymentAvailability } from '../services/availability.js';
 
 const slug = z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and dashes.');
 const label = z.string().trim().min(2).max(120);
@@ -450,5 +454,244 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'catalog.addon.updated', targetType: 'catalog_addon', targetId: addonId, meta: { slug: before.slug, fromVersion: before.version, version: addon.version }, ip: request.ip });
     return { addon, note: STRUCTURE_NOTE };
+  });
+
+  // --- Product Studio in Admin 3.0 -------------------------------------------
+
+  app.get('/admin/catalog/studio', { preHandler: requirePermission('products.read') }, async () => {
+    const [offerings, facts] = await Promise.all([
+      publicOfferings(),
+      gateFacts(),
+    ]);
+
+    const enriched = await Promise.all(
+      offerings.map(async (offering) => {
+        const variantReadiness = await Promise.all(
+          offering.variants.map(async (v) => {
+            const product = await prisma.product.findUnique({
+              where: { slug: v.productSlug },
+              include: { prices: { where: { active: true } } },
+            });
+            if (!product) return { slug: v.slug, ready: false, blockers: ['Product missing'], checks: [] };
+            const availability = deploymentAvailability(product);
+            const gate = evaluateGate(product as never, product.prices, v.price?.amount ?? null, facts, availability);
+            return {
+              slug: v.slug,
+              label: v.label,
+              productSlug: v.productSlug,
+              ready: gate.ready,
+              checks: gate.checks,
+              blockers: gate.blockers,
+              orderable: availability.orderable,
+            };
+          }),
+        );
+        const allReady = variantReadiness.some((vr) => vr.ready);
+        return {
+          ...offering,
+          readiness: {
+            ready: allReady,
+            variants: variantReadiness,
+          },
+        };
+      }),
+    );
+
+    return { offerings: enriched };
+  });
+
+  app.get('/admin/catalog/studio/:slug', { preHandler: requirePermission('products.read') }, async (request) => {
+    const { slug } = z.object({ slug: z.string().min(1) }).parse(request.params);
+    const offering = await getOfferingBySlug(slug);
+    if (!offering) throw notFound('Offering not found');
+
+    const settingKey = `catalog.studio_wizard.${offering.slug}`;
+    const customConfigRow = await prisma.setting.findUnique({ where: { key: settingKey } });
+    const customConfig = customConfigRow ? (customConfigRow.value as unknown as OfferingWizardConfig) : null;
+
+    const facts = await gateFacts();
+    const variantGates = await Promise.all(
+      offering.variants.map(async (v) => {
+        const prod = await prisma.product.findUnique({
+          where: { slug: v.productSlug },
+          include: { prices: { where: { active: true } } },
+        });
+        if (!prod) return { slug: v.slug, ready: false, blockers: ['Product missing'], checks: [] };
+        const availability = deploymentAvailability(prod);
+        const gate = evaluateGate(prod as never, prod.prices, v.price?.amount ?? null, facts, availability);
+        return { slug: v.slug, ready: gate.ready, checks: gate.checks, blockers: gate.blockers };
+      }),
+    );
+
+    return {
+      offering: {
+        ...offering,
+        wizardConfig: customConfig ?? offering.wizardConfig,
+        variantGates,
+      },
+    };
+  });
+
+  app.put('/admin/catalog/studio/:slug/wizard', { ...limited, preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { slug } = z.object({ slug: z.string().min(1) }).parse(request.params);
+    const offering = await getOfferingBySlug(slug);
+    if (!offering) throw notFound('Offering not found');
+
+    const body = z
+      .object({
+        version: z.number().int().min(1),
+        defaultStep: z.string().optional(),
+        steps: z.array(
+          z.object({
+            id: z.string().min(1).max(40),
+            title: z.string().min(1).max(80),
+            description: z.string().max(250).optional(),
+            component: z.string().min(1).max(50),
+            required: z.boolean().optional(),
+            fields: z.array(
+              z.object({
+                name: z.string().min(1).max(50),
+                label: z.string().min(1).max(80),
+                type: z.enum(['select', 'radio', 'checkbox', 'text', 'number', 'resources', 'region', 'domain', 'plan', 'addon', 'os_image', 'ssh_key']),
+                options: z.array(z.object({ label: z.string(), value: z.string(), description: z.string().optional() })).optional(),
+                defaultValue: z.unknown().optional(),
+                required: z.boolean().optional(),
+              }),
+            ).optional(),
+          }),
+        ).min(1).max(10),
+      })
+      .strict()
+      .parse(request.body);
+
+    const settingKey = `catalog.studio_wizard.${offering.slug}`;
+    await prisma.setting.upsert({
+      where: { key: settingKey },
+      create: { key: settingKey, value: body as never },
+      update: { value: body as never },
+    });
+
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'catalog.studio.wizard_updated',
+      targetType: 'catalog_offering',
+      targetId: offering.slug,
+      meta: { stepsCount: body.steps.length, version: body.version },
+      ip: request.ip,
+    });
+
+    return { ok: true, wizardConfig: body };
+  });
+
+  app.post('/admin/catalog/studio/:slug/test-quote', { preHandler: requirePermission('products.read') }, async (request) => {
+    const { slug } = z.object({ slug: z.string().min(1) }).parse(request.params);
+    const offering = await getOfferingBySlug(slug);
+    if (!offering) throw notFound('Offering not found');
+
+    const body = z
+      .object({
+        variantSlug: z.string().optional(),
+        ram: z.number().int().positive().optional(),
+        cpu: z.number().positive().optional(),
+        disk: z.number().int().positive().optional(),
+        optionCodes: z.array(z.string()).optional(),
+        period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
+        mailDomain: z.string().optional(),
+      })
+      .parse(request.body);
+
+    const variant = body.variantSlug
+      ? offering.variants.find((v) => v.slug === body.variantSlug)
+      : offering.variants[0];
+
+    if (!variant) throw badRequest('No matching variant for quote test.');
+
+    const quote = await buildQuote(
+      [
+        {
+          productSlug: variant.productSlug,
+          ram: variant.fulfilment === 'VPS' || variant.fulfilment === 'EMAIL' ? variant.minRam : body.ram ?? variant.defaultRam,
+          cpu: variant.fulfilment === 'VPS' || variant.fulfilment === 'EMAIL' ? variant.minCpu : body.cpu ?? variant.defaultCpu,
+          disk: variant.fulfilment === 'VPS' || variant.fulfilment === 'EMAIL' ? variant.minDisk : body.disk ?? variant.defaultDisk,
+          optionCodes: body.optionCodes ?? [],
+          mailDomain: variant.fulfilment === 'EMAIL' ? (body.mailDomain ?? 'test.blipmade.com') : undefined,
+        },
+      ],
+      undefined,
+      request.user?.id,
+      body.period,
+    );
+
+    return {
+      testQuote: {
+        total: quote.total,
+        subtotal: quote.subtotal,
+        discount: quote.discount,
+        currency: quote.currency,
+        period: body.period,
+        items: quote.items.map((i) => ({
+          productSlug: i.productSlug,
+          name: i.name,
+          unitAmount: i.unitAmount,
+          total: i.total,
+          ram: i.ram,
+          cpu: i.cpu,
+          disk: i.disk,
+        })),
+      },
+    };
+  });
+
+  app.post('/admin/catalog/studio/:slug/publish', { ...limited, preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { slug } = z.object({ slug: z.string().min(1) }).parse(request.params);
+    const offering = await getOfferingBySlug(slug);
+    if (!offering) throw notFound('Offering not found');
+
+    const facts = await gateFacts();
+    let orderableCount = 0;
+    const blockers: string[] = [];
+
+    for (const v of offering.variants) {
+      const prod = await prisma.product.findUnique({
+        where: { slug: v.productSlug },
+        include: { prices: { where: { active: true } } },
+      });
+      if (!prod) continue;
+      const availability = deploymentAvailability(prod);
+      const gate = evaluateGate(prod as never, prod.prices, v.price?.amount ?? null, facts, availability);
+      if (gate.ready) {
+        orderableCount += 1;
+      } else {
+        blockers.push(`${v.label}: ${gate.blockers.join(', ')}`);
+      }
+    }
+
+    if (orderableCount === 0) {
+      throw badRequest(`Cannot publish ${offering.name}: no variant passes the readiness gate. Blockers: ${blockers.join('; ')}`);
+    }
+
+    // If it's a family in the database, mark it prepared
+    const family = await prisma.catalogFamily.findUnique({ where: { slug: offering.slug } });
+    if (family) {
+      await prisma.catalogFamily.update({
+        where: { id: family.id },
+        data: { prepared: true, discovery: 'GROUPED' },
+      });
+    }
+
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'catalog.studio.published',
+      targetType: 'catalog_offering',
+      targetId: offering.slug,
+      meta: { readyVariants: orderableCount },
+      ip: request.ip,
+    });
+
+    return { ok: true, readyVariants: orderableCount, offering: await getOfferingBySlug(slug) };
   });
 }

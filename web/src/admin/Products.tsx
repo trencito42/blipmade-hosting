@@ -169,6 +169,7 @@ export default function Products() {
         actionBelow
         action={
           <div className="flex flex-wrap gap-2">
+            <Link to="/admin/catalog/studio" className={denseGhost}>Product Studio</Link>
             <Link to="/admin/catalog/families" className={denseGhost}>Families</Link>
             {mayWrite ? <Link to="/admin/products/new" className={densePrimary}>New product</Link> : null}
           </div>

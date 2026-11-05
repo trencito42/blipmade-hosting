@@ -45,6 +45,7 @@ import {
 } from '../ui-app';
 
 const VpsConsole = lazy(() => import('./VpsConsole'));
+import DeployStudio from './deploy/DeployStudio';
 
 export const VPS_STOREFRONT_PATH = '/vps';
 export const VPS_NEW_PATH = '/app/vps/new';
@@ -166,6 +167,10 @@ export default function VpsStorefront() {
 
 /** The order of a server: the plan, the name, the key and the address. */
 export function VpsCheckout() {
+  return <DeployStudio initialSlug="vps" />;
+}
+
+function LegacyVpsCheckout() {
   const { query } = useRouterQuery();
   const state = useAsync<{ plans: VpsPlanView[] }>((signal) => get<{ plans: VpsPlanView[] }>('/vps/plans', undefined, signal), []);
   const plans = useMemo(() => state.data?.plans ?? [], [state.data]);

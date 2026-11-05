@@ -258,6 +258,18 @@ const POLICIES: SettingPolicy[] = [
   // --- keys of the platform itself ---------------------------------------------------------
   {
     // The export of every cancelled customer lives in this record.
+    key: 'catalog.studio_wizard.',
+    prefix: true,
+    domain: 'platform',
+    read: 'products.read',
+    write: 'products.write',
+    general: false,
+    public: false,
+    effect: 'immediate',
+    managedBy: 'PUT /admin/catalog/studio/:slug/wizard',
+  },
+  {
+    // The export of every cancelled customer lives in this record.
     key: 'cancelled_instance_retention',
     domain: 'platform',
     read: 'settings.read',

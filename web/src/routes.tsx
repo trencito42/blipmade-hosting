@@ -88,6 +88,7 @@ const AdminNotificationTest = lazy(() => import('./admin/NotificationEditors').t
 const AdminCustomerAccountAction = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerAccountAction })));
 const AdminAbuseEnforcement = lazy(() => import('./admin/abuse/AbuseEnforcement'));
 const AdminProductNew = lazy(() => import('./admin/ProductNew'));
+const AdminProductStudio = lazy(() => import('./admin/catalog/ProductStudio'));
 const AdminCatalogFamilies = lazy(() => import('./admin/catalog/Families'));
 const AdminCatalogFamily = lazy(() => import('./admin/catalog/FamilyDetail'));
 const AdminCatalogFamilyNew = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.FamilyNew })));
@@ -354,6 +355,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/catalog/families/:id/addons/:addonId/edit', component: AdminCatalogAddonEdit, title: 'Edit catalogue add-on', area: 'admin', layout: 'editor' },
   { pattern: '/admin/catalog/families/:id', component: AdminCatalogFamily, title: 'Catalogue family', area: 'admin' },
   { pattern: '/admin/catalog/families', component: AdminCatalogFamilies, title: 'Catalogue families', area: 'admin' },
+  { pattern: '/admin/catalog/studio/:slug', component: AdminProductStudio, title: 'Product Studio', area: 'admin' },
+  { pattern: '/admin/catalog/studio', component: AdminProductStudio, title: 'Product Studio', area: 'admin' },
   { pattern: '/admin/products/new', component: AdminProductNew, title: 'New product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products/:id/edit', component: AdminProductEdit, title: 'Edit product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },

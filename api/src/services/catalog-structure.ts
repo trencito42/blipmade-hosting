@@ -10,6 +10,8 @@ export const CATALOG_GROUPS = [
   'tools-automation',
   'voice',
   'custom-runtime',
+  'vps',
+  'email-hosting',
 ] as const;
 
 export type CatalogGroup = (typeof CATALOG_GROUPS)[number];

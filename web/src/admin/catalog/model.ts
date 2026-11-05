@@ -6,6 +6,8 @@ export const CATALOG_GROUPS = [
   { value: 'tools-automation', label: 'Tools and automation' },
   { value: 'voice', label: 'Voice' },
   { value: 'custom-runtime', label: 'Custom runtime' },
+  { value: 'vps', label: 'Servers (VPS)' },
+  { value: 'email-hosting', label: 'Email hosting' },
 ] as const;
 
 export const DISCOVERY = [

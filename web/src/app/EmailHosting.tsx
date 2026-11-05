@@ -34,6 +34,7 @@ import {
   TextInput,
 } from '../ui-app';
 import { validateMailDomainName } from '../lib/mail-domain';
+import DeployStudio from './deploy/DeployStudio';
 
 /** The page of the storefront of hosted mail. */
 export const EMAIL_STOREFRONT_PATH = '/email';
@@ -309,6 +310,10 @@ function planPeriod(plan: MailPlanView): 'MONTHLY' | 'YEARLY' | null {
  * prices the order.
  */
 export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
+  return <DeployStudio initialSlug="email-hosting" />;
+}
+
+function LegacyEmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
   const { query } = useRouter();
   const slug = planProp?.slug ?? query.plan ?? '';
   const [domain, setDomain] = useState('');

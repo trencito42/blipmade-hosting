@@ -41,10 +41,13 @@ export default function CatalogFamilies() {
       description={state.data?.note ?? 'Families group existing products. They do not change the public catalogue.'}
       action={mayWrite ? (
         <span className="flex flex-wrap gap-2">
+          <Link to="/admin/catalog/studio" className={denseGhost}>Product Studio</Link>
           <button type="button" className={denseGhost} disabled={sync.pending} onClick={() => void sync.run()}>{sync.pending ? 'Syncing…' : 'Sync drafts'}</button>
           <Link to="/admin/catalog/families/new" className={densePrimary}>New family</Link>
         </span>
-      ) : undefined}
+      ) : (
+        <Link to="/admin/catalog/studio" className={denseGhost}>Product Studio</Link>
+      )}
     >
       {state.loading && !state.data ? <LoadingBlock rows={4} label="Loading catalogue families" />
         : state.error ? <ErrorState title="The families could not be loaded" message={state.error.message} onRetry={state.reload} />
