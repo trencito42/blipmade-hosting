@@ -39,11 +39,12 @@ psql "$HOST_URL" -At -c "select migration_name from \"_prisma_migrations\" where
 
 echo
 echo "==> applying the pending migrations"
-# Prisma reads the connection string from the environment, and the value of
-# the environment file points at the name of the container. The migration
-# runs from the host, so the address of the host is what it must use.
-export DATABASE_URL="$HOST_URL"
-npx prisma migrate deploy --schema prisma/schema.prisma
+# The host has no node_modules. npx would download the newest Prisma, which
+# does not speak this project's migrations. The image that was just built has
+# the Prisma the schema was written for, and it can see the database by its
+# compose name.
+docker compose -p blipmade -f /opt/blipmade/compose.yml -f /opt/blipmade/compose.api.yml run --rm --no-deps api \
+  npx prisma migrate deploy --schema prisma/schema.prisma
 
 echo
 echo "==> migrations after:"

@@ -95,7 +95,7 @@ export function catalogInstallPlan(productSlug: string, presetSlug: string): Cat
       presetSlug,
       files: [
         { path: '/requirements.txt', content: '' },
-        { path: '/main.py', content: 'print("blipmade bot is running")\n' },
+        { path: '/main.py', content: 'import time\nprint("blipmade bot is running")\nwhile True:\n    time.sleep(60)\n' },
       ],
       startup: 'pip install -r requirements.txt && python main.py',
       environment: {},
@@ -107,7 +107,7 @@ export function catalogInstallPlan(productSlug: string, presetSlug: string): Cat
       presetSlug,
       files: [
         { path: '/package.json', content: JSON.stringify({ name: 'blipmade-bot', private: true, main: 'index.js' }, null, 2) },
-        { path: '/index.js', content: 'console.log("blipmade bot is running");\n' },
+        { path: '/index.js', content: 'console.log("blipmade bot is running");\nsetInterval(() => {}, 60000);\n' },
       ],
       startup: 'npm install && node index.js',
       environment: {},

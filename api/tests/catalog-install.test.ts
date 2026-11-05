@@ -11,6 +11,7 @@ describe('catalogue preset install', () => {
   it('plans a blank Node bot, a blank Python bot, and leaves Git and ZIP to the existing importer', () => {
     const node = catalogInstallPlan('nodejs', 'blank');
     expect(node?.startup).toBe('npm install && node index.js');
+    expect(node?.files.find((file) => file.path === '/index.js')?.content).toMatch(/setInterval/);
     expect(node?.files.map((file) => file.path)).toEqual(['/package.json', '/index.js']);
     const python = catalogInstallPlan('python', 'blank');
     expect(python?.startup).toBe('pip install -r requirements.txt && python main.py');
