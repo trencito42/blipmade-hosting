@@ -569,13 +569,15 @@ export async function priceItems(
   for (const item of items) {
     const product = productBySlug.get(item.productSlug);
     if (!product) throw notFound(`Unknown product: ${item.productSlug}`);
-    const activePrices = await prisma.productPrice.count({ where: { productId: product.id, active: true } });
-    if (activePrices === 0) throw notFound('This product has no active price.');
     // The same rule as the catalog: a product that the panel cannot build is
     // not orderable, whatever the flag of the catalog row says. A product of
     // mail needs no panel, but it needs the sale of the mail to be open.
+    // A closed product is refused even when it has no price. An open product
+    // with no price is missing, which is not the same refusal.
     const availability = deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
     if (!availability.orderable) throw badRequest(unavailableMessage(product, availability));
+    const activePrices = await prisma.productPrice.count({ where: { productId: product.id, active: true } });
+    if (activePrices === 0) throw notFound('This product has no active price.');
     // The full gate: the egg, the provider, a real price and room on a node.
     // Visible and deployable are what the operator wants, not what is true.
     const gate = await productGate({ ...product, prices: await prisma.productPrice.findMany({ where: { productId: product.id } }) });
