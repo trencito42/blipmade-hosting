@@ -72,7 +72,7 @@ export function catalogInstallPlan(productSlug: string, presetSlug: string): Cat
     };
   }
   const runtime = productSlug === 'discord-bot' || productSlug === 'nodejs' || productSlug === 'python';
-  if (runtime && presetSlug === 'blank' && productSlug === 'python') {
+  if ((productSlug === 'python' && (presetSlug === 'blank' || presetSlug === 'py-blank'))) {
     return {
       productSlug,
       presetSlug,
@@ -96,8 +96,8 @@ export function catalogInstallPlan(productSlug: string, presetSlug: string): Cat
       environment: {},
     };
   }
-  if (runtime && (presetSlug === 'git' || presetSlug === 'zip')) {
-    return { productSlug, presetSlug, files: [], startup: null, environment: {} };
+  if (runtime && (presetSlug === 'git' || presetSlug === 'zip' || presetSlug === 'py-git' || presetSlug === 'py-zip')) {
+    return null;
   }
   if (productSlug === 'minecraft-paper' && presetSlug === 'paper-survival') {
     return {

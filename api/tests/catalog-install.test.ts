@@ -15,8 +15,10 @@ describe('catalogue preset install', () => {
     const python = catalogInstallPlan('python', 'blank');
     expect(python?.startup).toBe('pip install -r requirements.txt && python main.py');
     expect(python?.files.map((file) => file.path)).toEqual(['/requirements.txt', '/main.py']);
-    expect(catalogInstallPlan('discord-bot', 'git')).toEqual({ productSlug: 'discord-bot', presetSlug: 'git', files: [], startup: null, environment: {} });
-    expect(catalogInstallPlan('discord-bot', 'zip')?.files).toEqual([]);
+    expect(catalogInstallPlan('discord-bot', 'git')).toBeNull();
+    expect(catalogInstallPlan('discord-bot', 'zip')).toBeNull();
+    expect(catalogInstallPlan('python', 'py-blank')?.files.map((file) => file.path)).toEqual(['/requirements.txt', '/main.py']);
+    expect(catalogInstallPlan('nodejs', 'tickets')).toBeNull();
   });
 
   it('writes the Discord ticket bot and installs its dependency on startup', () => {

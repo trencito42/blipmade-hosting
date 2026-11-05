@@ -269,6 +269,54 @@ export const DRAFT_PLUGIN_PRESETS = [
   { slug: 'paper-skyblock', name: 'Paper skyblock', summary: 'Island gamemodes with BentoBox.', notes: 'BentoBox and LuckPerms. The island gamemode addons are chosen after the first start.', plugins: ['bentobox', 'luckperms'], ramMb: 6144, cpu: 2, diskGb: 20 },
 ] as const;
 
+/** Unpublished bot presets. Git and ZIP write no files; checkout import already carries the repository or the archive. */
+export const DRAFT_BOT_PRESETS = [
+  { family: 'discord-bot', variant: 'discord-bot', slug: 'blank', name: 'Blank', summary: 'A Node.js bot that starts and waits for DISCORD_TOKEN.' },
+  { family: 'discord-bot', variant: 'discord-bot', slug: 'git', name: 'Git repository', summary: 'No files are written. The repository is deployed with the existing Git import.' },
+  { family: 'discord-bot', variant: 'discord-bot', slug: 'zip', name: 'ZIP upload', summary: 'No files are written. The archive is deployed with the existing ZIP import.' },
+  { family: 'custom-runtime', variant: 'nodejs', slug: 'blank', name: 'Blank Node.js', summary: 'A Node.js process that starts with node index.js.' },
+  { family: 'custom-runtime', variant: 'nodejs', slug: 'git', name: 'Git repository', summary: 'No files are written. Use the existing Git import.' },
+  { family: 'custom-runtime', variant: 'nodejs', slug: 'zip', name: 'ZIP upload', summary: 'No files are written. Use the existing ZIP import.' },
+  { family: 'custom-runtime', variant: 'python', slug: 'py-blank', name: 'Blank Python', summary: 'A Python process that starts with python main.py.' },
+  { family: 'custom-runtime', variant: 'python', slug: 'py-git', name: 'Git repository', summary: 'No files are written. Use the existing Git import.' },
+  { family: 'custom-runtime', variant: 'python', slug: 'py-zip', name: 'ZIP upload', summary: 'No files are written. Use the existing ZIP import.' },
+] as const;
+
+export async function ensureDraftBotPresets(dryRun = false): Promise<{ created: string[]; existing: string[]; missing: string[] }> {
+  const created: string[] = [];
+  const existing: string[] = [];
+  const missing: string[] = [];
+  for (const preset of DRAFT_BOT_PRESETS) {
+    const family = await prisma.catalogFamily.findUnique({ where: { slug: preset.family }, select: { id: true } });
+    const variant = family
+      ? await prisma.catalogVariant.findFirst({ where: { slug: preset.variant, familyId: family.id }, select: { id: true } })
+      : null;
+    if (!family || !variant) {
+      missing.push(`${preset.family}/${preset.slug}`);
+      continue;
+    }
+    const key = `${preset.family}/${preset.slug}`;
+    if (await prisma.catalogPreset.findUnique({ where: { familyId_slug: { familyId: family.id, slug: preset.slug } }, select: { id: true } })) {
+      existing.push(key);
+      continue;
+    }
+    if (!dryRun) {
+      await prisma.catalogPreset.create({
+        data: {
+          familyId: family.id,
+          variantId: variant.id,
+          slug: preset.slug,
+          name: preset.name,
+          sortOrder: 40,
+          versions: { create: { version: 1, summary: preset.summary, publishedAt: null } },
+        },
+      });
+    }
+    created.push(key);
+  }
+  return { created, existing, missing };
+}
+
 export async function ensureDraftPluginPresets(dryRun = false): Promise<{ created: string[]; existing: string[]; missingFamily: boolean }> {
   const family = await prisma.catalogFamily.findUnique({ where: { slug: 'minecraft' }, select: { id: true } });
   const variant = family ? await prisma.catalogVariant.findFirst({ where: { slug: 'minecraft-paper', familyId: family.id }, select: { id: true } }) : null;
