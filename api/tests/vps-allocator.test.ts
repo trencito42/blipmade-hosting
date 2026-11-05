@@ -45,17 +45,21 @@ vi.mock('../src/services/proxmox.js', () => ({
 const { createVpsService, provisionVps, destroyVps, machineOwnership, vpsAllocationReport, applyAllocationReport, vmidOfSlot, maxSlot } = await import('../src/services/vps.js');
 
 let seq = 0;
-async function fixture() {
+async function fixture(productId?: string) {
   // Taken before the first await: orders built at the same moment must not share a number.
   const n = (seq += 1);
   const user = await prisma.user.create({
     data: { email: `vps${n}@blipmade.test`, passwordHash: await hashPassword(VALID_PASSWORD), role: 'CUSTOMER', firstName: 'V', lastName: 'P', emailVerifiedAt: new Date() },
   });
-  const product = await prisma.product.upsert({
-    where: { slug: 'vps-test' },
-    update: {},
-    create: { slug: 'vps-test', name: 'VPS test', category: 'DEVELOPER_TOOLS', description: 'x', icon: 'server' },
-  });
+  // Eight orders are created together. Each one upserting the same product
+  // races on the unique slug, so the product is created once and reused.
+  const product = productId
+    ? { id: productId }
+    : await prisma.product.upsert({
+        where: { slug: 'vps-test' },
+        update: {},
+        create: { slug: 'vps-test', name: 'VPS test', category: 'DEVELOPER_TOOLS', description: 'x', icon: 'server' },
+      });
   const order = await prisma.order.create({ data: { number: `T-${n}-${Date.now()}`, userId: user.id, total: 100 } });
   const item = await prisma.orderItem.create({ data: { orderId: order.id, productId: product.id, name: 'VPS', unitAmount: 100, total: 100 } });
   return { user, product, item };
@@ -91,7 +95,12 @@ beforeEach(async () => {
 
 describe('the allocator of the slots', () => {
   it('hands out different slots, vmids, addresses and ports to orders at the same moment', async () => {
-    const fixtures = await Promise.all(Array.from({ length: 8 }, () => fixture()));
+    const product = await prisma.product.upsert({
+      where: { slug: 'vps-test' },
+      update: {},
+      create: { slug: 'vps-test', name: 'VPS test', category: 'DEVELOPER_TOOLS', description: 'x', icon: 'server' },
+    });
+    const fixtures = await Promise.all(Array.from({ length: 8 }, () => fixture(product.id)));
     const created = await Promise.all(
       fixtures.map(({ user, product, item }, index) =>
         createVpsService({ userId: user.id, productId: product.id, orderItemId: item.id, subscriptionId: null, name: `c${index}`, ram: 512, cpu: 1, disk: 5, sshPublicKey: 'k', dedicatedIp: false }),
