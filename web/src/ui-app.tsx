@@ -1060,6 +1060,7 @@ export function Select({
         <select
           {...props}
           id={selectId}
+          data-own-arrow=""
           className={cn(selectBase, error && errorRing, props.className)}
         >
           {children}

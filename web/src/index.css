@@ -351,7 +351,7 @@ html[data-theme='light'] {
 }
 
 /* One arrow for every dropdown that is not the shared Select (that one draws its own): the browser's own arrow differs from one system to the next. */
-select:not([multiple]):not([size]) {
+select:not([multiple]):not([size]):not([data-own-arrow]) {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238a8f98' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;

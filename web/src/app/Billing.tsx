@@ -618,6 +618,51 @@ export default function Billing() {
 
       {tab === 'overview' && (
         <>
+      <Panel title="Your billing at a glance" description="What the platform holds for this account. Every amount comes from your subscriptions and invoices.">
+        {summaryState.loading && !summary ? (
+          <LoadingBlock rows={2} label="Loading your billing" />
+        ) : summaryState.error ? (
+          <ErrorState title="Could not load your billing" message={summaryState.error.message} onRetry={summaryState.reload} />
+        ) : (
+          <div className="grid gap-4">
+            <dl className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl bg-s2 p-4">
+                <dt className="text-[12.5px] text-ink3">Every month</dt>
+                <dd className="mt-1 font-mono text-[22px] font-semibold tracking-[-0.03em] text-ink">
+                  {(summary?.monthlyByCurrency?.length ? summary.monthlyByCurrency : [{ currency: summary?.currency ?? 'EUR', amount: summary?.monthlyEstimate ?? 0 }]).map((row) => (
+                    <span key={row.currency} className="block"><Money amount={row.amount} currency={row.currency} /></span>
+                  ))}
+                </dd>
+              </div>
+              <div className="rounded-2xl bg-s2 p-4">
+                <dt className="text-[12.5px] text-ink3">Next renewal</dt>
+                <dd className="mt-1 text-[15px] text-ink">
+                  {summary?.nextRenewal ? (
+                    <><span className="block font-mono text-[22px] font-semibold tracking-[-0.03em]"><Money amount={summary.nextRenewal.amount} currency={summary.nextRenewal.currency} /></span><span className="text-[13px] text-ink3">on {formatDate(summary.nextRenewal.at)}</span></>
+                  ) : (
+                    <span className="text-ink3">Nothing is due.</span>
+                  )}
+                </dd>
+              </div>
+              <div className="rounded-2xl bg-s2 p-4">
+                <dt className="text-[12.5px] text-ink3">Payment method</dt>
+                <dd className="mt-1 text-[15px] text-ink">{summary?.paymentMethod ? describePaymentMethod(summary.paymentMethod) : summary?.hasStripeCustomer ? 'Managed in the Stripe billing portal.' : 'None on file.'}</dd>
+              </div>
+            </dl>
+            <p className="text-[13.5px] text-ink2">
+              {subscriptions.filter((entry) => entry.status === 'active' || entry.status === 'ACTIVE').length} active subscription{subscriptions.filter((entry) => entry.status === 'active' || entry.status === 'ACTIVE').length === 1 ? '' : 's'}.{' '}
+              <Link to="/app/billing?tab=subscriptions" className="font-semibold text-acc hover:underline">Subscriptions</Link>
+              {' · '}
+              <Link to="/app/billing?tab=invoices" className="font-semibold text-acc hover:underline">Invoices</Link>
+              {' · '}
+              <Link to="/app/billing?tab=credit" className="font-semibold text-acc hover:underline">Credit</Link>
+              {' · '}
+              <Link to="/app/billing?tab=payment" className="font-semibold text-acc hover:underline">Payment method</Link>
+            </p>
+          </div>
+        )}
+      </Panel>
+
       {(closedState.data?.services.length ?? 0) > 0 && (
         <Panel title="Closed services" description="These were cancelled. Their files are kept until the date below, then removed for good. You cannot open them any more; download what you need from a backup before then.">
           <ul className="grid">
