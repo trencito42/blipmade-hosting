@@ -318,6 +318,13 @@ export function parseMcPlugins(raw: string | undefined): { slug: string; version
     .slice(0, 15);
 }
 
+/** Git and ZIP presets use the existing project import. Blank writes a starter and needs no project. */
+export function importPresetKind(slug: string | null | undefined): 'git' | 'zip' | null {
+  if (slug === 'git' || slug === 'py-git') return 'git';
+  if (slug === 'zip' || slug === 'py-zip') return 'zip';
+  return null;
+}
+
 export function catalogInstallFromQuery(query: Record<string, string | undefined>): { gameVersion?: string; plugins?: { slug: string; version: string }[] } | undefined {
   const gameVersion = query.mcVersion;
   const plugins = parseMcPlugins(query.mcPlugins);

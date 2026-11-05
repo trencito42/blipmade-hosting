@@ -120,4 +120,6 @@ Core: `NODE_ENV PORT HOST DATABASE_URL REDIS_URL SESSION_SECRET DATA_ENCRYPTION_
 
 GitHub `main` is `f26ba9c1`. Actions run [42067609717](https://github.com/trencito42/blipmade-hosting/actions/runs/42067609717) is success on every job. That commit contains `39e5c01c` (Git and ZIP presets return no file plan, so `applyCatalogInstall` does not restart the server) and the test fixes in `KNOWN-ISSUES.md`. An earlier push of `39e5c01c` was rejected by GitHub with `fatal error in commit_refs`; a later fast-forward of the same history succeeded. Main was not force-pushed.
 
-Do not deploy until the owner asks. Draft catalog products stay unpublished. The next catalogue work is issue #20: a Discord Bot Blank preset must start from the written plan, and Git/ZIP must go through the import path rather than the file installer. Live panel proof is still missing.
+Do not deploy until the owner asks. Draft catalog products stay unpublished.
+
+Discord Blank, Git and ZIP are wired through the existing order and import path. A blank preset is stored on the order and waits for the file installer. A Git or ZIP preset is refused until an import of the same kind and product is attached, and that import is what provisioning runs. The family wizard collects the repository or archive before checkout. Proven on the bench by `discord-deploy.test.ts` and in the browser by the Git-preset e2e, both with fakes. A live Pterodactyl install is still UNVERIFIED. Node.js and Python were not given a second product. Draft presets were not published.

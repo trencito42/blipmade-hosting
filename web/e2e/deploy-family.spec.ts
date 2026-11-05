@@ -158,3 +158,35 @@ test('a search for a variant or a preset opens its family with that choice alrea
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('radio', { name: /Survival/ })).toBeChecked();
 });
+
+test('a Git preset stays on the family until the repository matches the product', async ({ page }) => {
+  const family = {
+    slug: 'discord-bot',
+    name: 'Discord Bot',
+    summary: 'Bots',
+    group: 'discord-bots',
+    variants: [{ slug: 'discord-bot', label: 'Discord Bot', product: { slug: 'discord-bot', name: 'Discord Bot', description: 'A bot', defaultRam: 1024, defaultCpu: 1, defaultDisk: 10, orderable: true, availability: 'DEPLOYABLE' } }],
+    presets: [
+      { slug: 'blank', name: 'Blank', variantSlug: 'discord-bot', version: 1, summary: 'Starts a Node bot.', recommendedRamMb: null, recommendedCpu: null, recommendedDiskGb: null },
+      { slug: 'git', name: 'Git repository', variantSlug: 'discord-bot', version: 1, summary: 'Deploys a repository.', recommendedRamMb: null, recommendedCpu: null, recommendedDiskGb: null },
+    ],
+    addons: [],
+  };
+  await stubAdmin(page, (path) => {
+    if (path === '/catalog/families/discord-bot') return { family };
+    if (path === '/catalog/import/plans') return { plan: { id: 'imp-1', productSlug: 'discord-bot' } };
+    if (path === '/catalog/products/discord-bot') return { product: { slug: 'discord-bot', name: 'Discord Bot', category: 'DEVELOPER_TOOLS', description: 'A bot', icon: 'bot', options: [], price: { currency: 'EUR', period: 'MONTHLY', baseAmount: 100, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0 }, minRam: 512, maxRam: 4096, minCpu: 1, maxCpu: 2, minDisk: 5, maxDisk: 20, defaultRam: 1024, defaultCpu: 1, defaultDisk: 10, deployable: true, visible: true, availability: { orderable: true, state: 'DEPLOYABLE', blockers: [] }, customerVariables: [] } };
+    return undefined;
+  });
+  await page.goto('/app/deploy/families/discord-bot');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('radio', { name: /Git repository/ }).check();
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
+  await page.getByLabel('Repository URL').fill('https://github.com/example/bot');
+  await page.getByRole('button', { name: 'Check repository' }).click();
+  await expect(page.getByText('will be deployed after payment')).toBeVisible();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue to checkout' }).click();
+  await expect(page).toHaveURL(/preset=git/);
+  await expect(page).toHaveURL(/import=imp-1/);
+});

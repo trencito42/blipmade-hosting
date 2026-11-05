@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendOnce, catalogInstallPlan, mergeProperties, presetOutcome, runCatalogInstall, safeInstallPath } from '../src/services/catalog-install.js';
+import { appendOnce, catalogInstallPlan, importPresetKind, mergeProperties, presetAwaitingFiles, presetOutcome, runCatalogInstall, safeInstallPath } from '../src/services/catalog-install.js';
 
 describe('catalogue preset install', () => {
   it('does not call a preset installed until the server is running', () => {
@@ -19,6 +19,12 @@ describe('catalogue preset install', () => {
     expect(catalogInstallPlan('discord-bot', 'zip')).toBeNull();
     expect(catalogInstallPlan('python', 'py-blank')?.files.map((file) => file.path)).toEqual(['/requirements.txt', '/main.py']);
     expect(catalogInstallPlan('nodejs', 'tickets')).toBeNull();
+    expect(importPresetKind('git')).toBe('git');
+    expect(importPresetKind('py-zip')).toBe('zip');
+    expect(importPresetKind('blank')).toBeNull();
+    expect(presetAwaitingFiles('discord-bot', { catalog: { preset: { slug: 'blank' } } })).toBe(true);
+    expect(presetAwaitingFiles('discord-bot', { catalog: { preset: { slug: 'git' } } })).toBe(false);
+    expect(presetAwaitingFiles('nodejs', { catalog: { preset: { slug: 'blank' } } })).toBe(true);
   });
 
   it('writes the Discord ticket bot and installs its dependency on startup', () => {

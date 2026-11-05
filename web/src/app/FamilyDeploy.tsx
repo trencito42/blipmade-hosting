@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { get, type MailPlanView } from '../lib/api';
+import { get, post, type MailPlanView } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { useParams, useRouter } from '../router';
-import { deployPathFor, type ResourceConfiguration } from '../lib/pricing-contract';
+import { deployPathFor, importPresetKind, type ResourceConfiguration } from '../lib/pricing-contract';
 import { mailCheckoutPath, MailPlanLimitList } from './EmailHosting';
 import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, TextInput } from '../ui-app';
 import { ProductWizardShell, type WizardStep } from './deploy/ProductWizardShell';
@@ -416,6 +416,11 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
   const presets = family.presets.filter((preset) => preset.variantSlug === null || preset.variantSlug === variant?.slug);
   const [presetSlug, setPresetSlug] = useState<string | null>(null);
   const preset = presets.find((entry) => entry.slug === presetSlug) ?? null;
+  const projectKind = importPresetKind(preset?.slug);
+  const [projectUrl, setProjectUrl] = useState('');
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [projectPending, setProjectPending] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const steps: WizardStep[] = [
     { id: 'product', title: 'Choose product', description: family.summary || 'Pick the runtime that matches your workload.' },
@@ -440,13 +445,34 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
       navigate(`/app/vps/new?plan=${encodeURIComponent(variant.product.slug)}`);
       return;
     }
+    if (projectKind && !projectId) return;
     navigate(
       deployPathFor(variant.product.slug, config, [], {
         family: family.slug,
         variant: variant.slug,
         ...(preset ? { preset: preset.slug, presetVersion: String(preset.version) } : {}),
+        ...(projectId ? { import: projectId } : {}),
       }),
     );
+  };
+
+  const checkProject = async (zipBase64?: string) => {
+    if (!variant || !projectKind) return;
+    setProjectPending(true);
+    setProjectError(null);
+    setProjectId(null);
+    try {
+      const answer = await post<{ plan: { id: string; productSlug: string } }>('/catalog/import/plans', zipBase64 ? { zipBase64 } : { url: projectUrl.trim() });
+      if (answer.plan.productSlug !== variant.product.slug) {
+        setProjectError(`This project is for ${answer.plan.productSlug}. Choose that product, or use a project that matches ${variant.label}.`);
+        return;
+      }
+      setProjectId(answer.plan.id);
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : 'The project could not be read.');
+    } finally {
+      setProjectPending(false);
+    }
   };
 
   return (
@@ -458,7 +484,7 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
       steps={steps}
       stepIndex={stepIndex}
       onStep={setStepIndex}
-      canContinue={Boolean(variant?.product.orderable)}
+      canContinue={Boolean(variant?.product.orderable) && (steps[stepIndex]?.id !== 'preset' || !projectKind || Boolean(projectId))}
       onContinue={() => (steps[stepIndex]?.id === 'review' ? finish() : setStepIndex((value) => value + 1))}
       summary={
         variant ? (
@@ -479,7 +505,7 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
                 title={entry.label}
                 body={entry.product.description ?? entry.product.name}
                 meta={entry.product.orderable ? 'Ready' : entry.product.availability}
-                onSelect={() => { setVariantSlug(entry.slug); setPresetSlug(null); }}
+                onSelect={() => { setVariantSlug(entry.slug); setPresetSlug(null); setProjectId(null); setProjectError(null); }}
               />
             </li>
           ))}
@@ -492,16 +518,49 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
           ) : (
             <div className="grid gap-2">
               <label className="flex min-h-10 items-center gap-3 rounded-xl bg-s1 px-3 text-[14px]">
-                <input type="radio" name="preset" checked={presetSlug === null} onChange={() => setPresetSlug(null)} /> No preset
+                <input type="radio" name="preset" checked={presetSlug === null} onChange={() => { setPresetSlug(null); setProjectId(null); setProjectError(null); }} /> No preset
               </label>
               {presets.map((entry) => (
                 <label key={entry.slug} className="flex min-h-10 items-center gap-3 rounded-xl bg-s1 px-3 text-[14px]">
-                  <input type="radio" name="preset" checked={presetSlug === entry.slug} onChange={() => setPresetSlug(entry.slug)} />
+                  <input type="radio" name="preset" checked={presetSlug === entry.slug} onChange={() => { setPresetSlug(entry.slug); setProjectId(null); setProjectError(null); }} />
                   <span>{entry.name}<span className="mt-0.5 block text-[12.5px] text-ink3">Revision {entry.version}. {entry.summary}</span></span>
                 </label>
               ))}
             </div>
           )}
+          {projectKind === 'git' && (
+            <div className="mt-4 grid gap-2">
+              <TextInput label="Repository URL" value={projectUrl} onChange={(event) => { setProjectUrl(event.target.value); setProjectId(null); }} placeholder="https://github.com/you/bot" />
+              <SoftButton type="button" onClick={() => void checkProject()} disabled={projectPending || !projectUrl.trim()}>{projectPending ? 'Checking…' : 'Check repository'}</SoftButton>
+            </div>
+          )}
+          {projectKind === 'zip' && (
+            <div className="mt-4 grid gap-2">
+              <label className="text-[13px] font-medium text-ink">Project archive
+                <input
+                  className="mt-1 block w-full text-[14px]"
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 8 * 1024 * 1024) {
+                      setProjectError('The zip must be at most 8 MB.');
+                      return;
+                    }
+                    void file.arrayBuffer().then((buffer) => {
+                      const bytes = new Uint8Array(buffer);
+                      let binary = '';
+                      for (const byte of bytes) binary += String.fromCharCode(byte);
+                      void checkProject(btoa(binary));
+                    });
+                  }}
+                />
+              </label>
+            </div>
+          )}
+          {projectError ? <p className="mt-3 text-[13.5px] text-bad" role="alert">{projectError}</p> : null}
+          {projectId ? <p className="mt-3 text-[13.5px] text-ink2">The project matches this product and will be deployed after payment.</p> : null}
         </Panel>
       )}
       {steps[stepIndex]?.id === 'review' && (

@@ -20,6 +20,7 @@ import { enqueueProvisioning } from '../services/queue.js';
 import { notifyOrderCanceled, notifyOrderCreated, notifyPaymentRequired } from '../services/notifications.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { catalogSelectionSchema, resolveCatalogSelection } from '../services/catalog-projection.js';
+import { importPresetKind } from '../services/catalog-install.js';
 import { missingCompanions, quoteItemsForImport } from '../services/project-links.js';
 import { companionProduct } from '../services/import-dependencies.js';
 import type { PricedItem } from '../services/pricing.js';
@@ -223,11 +224,24 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const savedAddress = await prisma.user.findUnique({ where: { id: user.id }, select: { billingAddress: true } });
       const billingAddress = body.billingAddress ?? savedAddress?.billingAddress ?? null;
 
-      const catalogByLine = body.items.some((item) => item.catalog)
+      const catalogInputs = body.items.some((item) => item.catalog)
         ? await Promise.all(body.items.map((item) => (item.catalog ? resolveCatalogSelection(item.productSlug, item.optionCodes ?? [], item.catalog) : Promise.resolve(null))))
         : [];
-      if (catalogByLine.length > 0 && catalogByLine.length !== quote.items.length) {
+      if (catalogInputs.length > quote.items.length) {
         throw badRequest('The catalogue choice could not be attached to this order.');
+      }
+      const catalogByLine = quote.items.map((_, index) => catalogInputs[index] ?? null);
+      for (let index = 0; index < catalogByLine.length; index += 1) {
+        const presetSlug = catalogByLine[index]?.preset?.slug;
+        const kind = presetSlug ? importPresetKind(presetSlug) : null;
+        if (!kind) continue;
+        const importId = importSourceIdForOrderLine(orderItems[index], quote.items[index]!);
+        const source = importId
+          ? await prisma.importSource.findFirst({ where: { id: importId, userId: user.id, appliedAt: null } })
+          : null;
+        if (!source || source.kind !== kind || source.productSlug !== quote.items[index]!.productSlug) {
+          throw badRequest('This preset deploys a project. Add a matching repository or archive before checkout.');
+        }
       }
       const order = await prisma.order.create({
         data: {

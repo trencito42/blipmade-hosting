@@ -21,7 +21,7 @@ import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import { ArchiveError, verifyBackupStream } from './backup-archive.js';
 import { applyCatalogInstall, applyCatalogOrderInstall } from './catalog-install-apply.js';
-import { presetChosen } from './catalog-install.js';
+import { presetAwaitingFiles } from './catalog-install.js';
 import { applyInstallVariables } from './install-variables.js';
 import { applyStoredImport, linkImportSourceToOrderItem, syncOrderFulfillment } from './import-apply.js';
 import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, repurposeVerdict, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
@@ -2068,7 +2068,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
 
     const importPending = await importStillWaiting(instance);
     const presetPending = instance.orderItemId
-      ? presetChosen((await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } }))?.config)
+      ? presetAwaitingFiles(instance.product.slug, (await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } }))?.config)
       : false;
     await beginProvisioning(instance, 'activated');
     await prisma.instance.update({

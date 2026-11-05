@@ -14,9 +14,26 @@ export interface CatalogInstallPlan {
   environment: Record<string, string>;
 }
 
-export function presetChosen(config: unknown): boolean {
+export function presetSlugOf(config: unknown): string | null {
   const slug = (config as { catalog?: { preset?: { slug?: unknown } } } | null)?.catalog?.preset?.slug;
-  return typeof slug === 'string' && slug.length > 0;
+  return typeof slug === 'string' && slug.length > 0 ? slug : null;
+}
+
+export function presetChosen(config: unknown): boolean {
+  return presetSlugOf(config) !== null;
+}
+
+/** Git and ZIP presets deploy through the import already stored on the order. */
+export function importPresetKind(presetSlug: string): 'git' | 'zip' | null {
+  if (presetSlug === 'git' || presetSlug === 'py-git') return 'git';
+  if (presetSlug === 'zip' || presetSlug === 'py-zip') return 'zip';
+  return null;
+}
+
+/** True when the preset writes files. An import preset does not hold the server in that state. */
+export function presetAwaitingFiles(productSlug: string, config: unknown): boolean {
+  const slug = presetSlugOf(config);
+  return slug !== null && catalogInstallPlan(productSlug, slug) !== null;
 }
 
 /** A preset is installed only after the server process is running. Five tries, then it stops. */
