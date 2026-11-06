@@ -1,7 +1,7 @@
 # Backlog checkpoint
 
 resume_sha: work/disable-checkout CRM engine unify + firstPaid + referral 400 + campaign worker
-production_before: bab6067442bf825900379fc9e76316ddb6b02c52
+production_before: 247f4170060786725818597c16174213b85c598b
 flags:
   PAYMENTS_ENABLED: false
   MAIL_SALES_ENABLED: false
@@ -35,7 +35,9 @@ missing_for_github_close:
   GitHub issue write
 
 next_executable:
-  commit this CRM slice, push via VM103 relay, deploy, then remaining #20/#19/#22/#18/#21/#24/#25/#26/#27 gaps that are still independently executable under flags-off
+  catalog preset rollback Admin button + structure test, then remaining #19/#22/#18/#21/#24/#25/#26/#27 under flags-off
+
+ci: GitHub Actions not listed from this host (no gh). Confirm on github.com after push.
 
 external:
   SMART_DEPLOY_SANDBOX

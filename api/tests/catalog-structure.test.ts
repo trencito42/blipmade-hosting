@@ -163,6 +163,13 @@ describe('catalogue families', () => {
     const changed = await client.request('PATCH', `/api/admin/catalog/preset-versions/${next.body.version.id}`, { plugins: ['spark'] });
     expect(changed.body.version.plugins).toEqual(['spark']);
     expect((await prisma.catalogPresetVersion.findUniqueOrThrow({ where: { id: versionId } })).plugins).toEqual(['essentialsx', 'luckperms']);
+    expect((await client.request('POST', `/api/admin/catalog/preset-versions/${versionId}/rollback`, {})).status).toBe(409);
+    await client.request('POST', `/api/admin/catalog/preset-versions/${next.body.version.id}/publish`, {});
+    const rolled = await client.request('POST', `/api/admin/catalog/preset-versions/${versionId}/rollback`, {});
+    expect(rolled.status).toBe(201);
+    expect(rolled.body.version.version).toBe(3);
+    expect(rolled.body.version.plugins).toEqual(['essentialsx', 'luckperms']);
+    expect(rolled.body.version.publishedAt).toBeNull();
 
     const software = await client.request('POST', `/api/admin/catalog/families/${familyId}/addons`, {
       slug: 'spark',

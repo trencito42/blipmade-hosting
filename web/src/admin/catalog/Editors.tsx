@@ -289,6 +289,7 @@ export function PresetEdit() {
     return post(`/admin/catalog/presets/${encodeURIComponent(presetId)}/versions`, body);
   });
   const publish = useAction(async () => post(`/admin/catalog/preset-versions/${encodeURIComponent(draftVersion!.id)}/publish`, {}));
+  const rollback = useAction(async (versionId: string) => post(`/admin/catalog/preset-versions/${encodeURIComponent(versionId)}/rollback`, {}));
   const numbersOk = (shownRam === '' || /^\d+$/.test(shownRam)) && (shownCpu === '' || /^\d+(\.\d)?$/.test(shownCpu)) && (shownDisk === '' || /^\d+$/.test(shownDisk));
   const ok = mayWrite && changed && numbersOk && pluginsValid(shownPlugins) && shownSummary.trim().length >= 2 && !save.pending;
   return (
@@ -305,7 +306,14 @@ export function PresetEdit() {
           <div className="grid gap-3">
             <p className="font-mono text-[12.5px] text-ink3">{preset.slug} · latest v{latest.version} {latest.publishedAt ? 'published' : 'draft'}</p>
             <ul className="grid gap-1 text-[13px] text-ink2">
-              {preset.versions.map((version) => <li key={version.id}>v{version.version} · {version.publishedAt ? 'published' : 'draft'} · {version.summary}</li>)}
+              {preset.versions.map((version) => (
+                <li key={version.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <span>v{version.version} · {version.publishedAt ? 'published' : 'draft'} · {version.summary}</span>
+                  {mayWrite && version.publishedAt && !draftVersion ? (
+                    <SoftButton type="button" disabled={rollback.pending} onClick={() => void rollback.run(version.id).then((result) => { if (!result) return; toast.push(`A draft was created from v${version.version}.`, 'ok'); state.reload(); })}>Roll back to v{version.version}</SoftButton>
+                  ) : null}
+                </li>
+              ))}
             </ul>
             <TextInput label={draftVersion ? 'Draft summary' : 'New version summary'} value={shownSummary} disabled={!mayWrite} onChange={(event) => setSummary(event.target.value)} />
             <Field label="Notes" htmlFor="preset-notes"><textarea id="preset-notes" className={`${denseSelect} h-28 py-2`} value={shownNotes} disabled={!mayWrite} onChange={(event) => setNotes(event.target.value)} /></Field>
@@ -313,7 +321,7 @@ export function PresetEdit() {
             <TextInput label="Recommended vCPU" inputMode="decimal" value={shownCpu} disabled={!mayWrite} onChange={(event) => setCpu(event.target.value)} />
             <TextInput label="Recommended disk (GB)" inputMode="numeric" value={shownDisk} disabled={!mayWrite} onChange={(event) => setDisk(event.target.value)} />
             <PluginsField id="preset-plugins" value={shownPlugins} disabled={!mayWrite} onChange={setPlugins} />
-            <Err message={save.error ?? publish.error} />
+            <Err message={save.error ?? publish.error ?? rollback.error} />
           </div>
         )}
     </PageEditorShell>
