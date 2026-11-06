@@ -127,7 +127,7 @@ Owner token setup (least privilege for Admin list): sign in at `https://errors.b
 | `databases/…/s261_muratura` | 6 files, 942 875 B; newest 2026-11-06 |
 | Box used | 1 897 005 056 / 1 099 511 627 776 bytes (~0.17%) |
 
-Encryption: `age` recipient is the public half of the VM 103 identity (prefix not restated here). Identity file exists on **vm103 only** (184 B, 0600). Hypervisor has public recipient only. After deploy, drill posts `decrypt-verified`, not restore-verified. Isolated restore not done.
+Encryption: Storage Box objects are sealed to the public recipient in `/etc/blipmade/offsite.env` (prefix `age10qn5sgtz…`). That is the Bitwarden identity the owner used on 2026-11-06. The file `/home/debian/.blipmade-backup.age` on VM103 is a **different** identity (prefix `age1v3rpdzrr…`) and **does not** decrypt PVE or database archives (`age -d`: no identity matched). Do not rotate or copy keys. After deploy, drill posts `decrypt-verified`, not restore-verified.
 
 Unprotected vs INFRA vzdump: Mailcow (VM104), panel (VM100), observability (VM105), proxy (VM102), platform disk (VM103) wait on first infra job. Wings/game files have customer+DB copies. VM101 excluded from INFRA by design.
 
@@ -138,7 +138,7 @@ Unprotected vs INFRA vzdump: Mailcow (VM104), panel (VM100), observability (VM10
 ### Remaining BM (Priority 5)
 
 - **BM-003** `DATA_ENCRYPTION_SECRET` still unset. Dual-read code deployed. No key generated. No reencrypt.
-- **BM-004** live egg 16 `python generic` still `done="change this part"`. Git `pterodactyl-eggs/python.json` is `"Python "`. Egg 84 already `"Python "`. Panel write not done.
+- **BM-004** live egg 16 `config_startup.done` set to `"Python "` on 2026-11-06 (0 servers on that egg). Git egg already matched.
 - **onboot** 100–105 and 1001–1002 = 1. Running API `vps.js` `onboot: 1`.
 - **BM-005** VM103 disk **72%**.
 - **BM-012** `STRIPE_TAX_ENABLED` missing (off). Payments remain false.
