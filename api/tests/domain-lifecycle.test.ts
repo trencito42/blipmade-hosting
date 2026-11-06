@@ -50,6 +50,7 @@ describe('game capability registry', () => {
   it('exposes plugins only on Paper/Folia and connect only on verified profiles', () => {
     expect(hasCapability('minecraft-paper', 'minecraft-plugins')).toBe(true);
     expect(hasCapability('minecraft-forge', 'minecraft-plugins')).toBe(false);
+    expect(hasCapability('minecraft-forge', 'minecraft-modpacks')).toBe(true);
     expect(hasCapability('rust', 'smart-connect')).toBe(false);
     expect(capabilitiesFor('nodejs')).toBeNull();
   });

@@ -7,6 +7,7 @@ export type GameCapability =
   | 'config-env'
   | 'config-file'
   | 'minecraft-plugins'
+  | 'minecraft-modpacks'
   | 'minecraft-worlds'
   | 'minecraft-players'
   | 'minecraft-performance'
@@ -44,7 +45,7 @@ export const GAME_CAPABILITIES: GameCapabilityProfile[] = [
   {
     slug: 'minecraft-forge',
     title: 'Minecraft Forge',
-    capabilities: [...SHARED, 'minecraft-worlds', 'minecraft-players', 'addons', 'smart-connect'],
+    capabilities: [...SHARED, 'minecraft-worlds', 'minecraft-players', 'minecraft-modpacks', 'addons', 'smart-connect'],
     configFile: '/server.properties',
     configKeys: [],
   },

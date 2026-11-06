@@ -177,6 +177,8 @@ export default function MinecraftTab({ instance }: TabProps) {
   const [version, setVersion] = useState('');
   const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'performance' | 'crossplay' | 'settings'>('players');
   const versions = useAsync<{ supported: boolean; versions: string[]; current: string | null }>((signal) => get(`${base}/versions`, undefined, signal), [instance.id]);
+  const capabilities = useAsync<{ profile: { capabilities: string[] } | null }>((signal) => get(`/instances/${encodeURIComponent(instance.id)}/game-capabilities`, undefined, signal), [instance.id]);
+  const can = (capability: string) => Boolean(capabilities.data?.profile?.capabilities.includes(capability));
   const plugins = useAsync<{ installed: { name: string; size: number; enabled: boolean }[] }>((signal) => get(`${base}/plugins`, undefined, signal), [instance.id]);
   const data = state.data;
   const gameVersion = (data?.status.version ?? '').match(/\d+\.\d+(\.\d+)?/)?.[0] ?? versions.data?.current ?? '';
@@ -272,11 +274,11 @@ export default function MinecraftTab({ instance }: TabProps) {
         value={section}
         onChange={setSection}
         options={[
-          { value: 'players', label: 'Players' },
-          { value: 'addons', label: 'Add-ons' },
-          { value: 'worlds', label: 'Worlds' },
-          { value: 'performance', label: 'Lag' },
-          ...(instance.product.slug === 'minecraft-paper' ? [{ value: 'crossplay' as const, label: 'Bedrock players' }] : []),
+          ...(can('minecraft-players') ? [{ value: 'players' as const, label: 'Players' }] : []),
+          ...(can('minecraft-plugins') || can('minecraft-modpacks') ? [{ value: 'addons' as const, label: 'Add-ons' }] : []),
+          ...(can('minecraft-worlds') ? [{ value: 'worlds' as const, label: 'Worlds' }] : []),
+          ...(can('minecraft-performance') ? [{ value: 'performance' as const, label: 'Lag' }] : []),
+          ...(can('minecraft-crossplay') ? [{ value: 'crossplay' as const, label: 'Bedrock players' }] : []),
           { value: 'settings', label: 'Settings' },
         ]}
       />
@@ -359,7 +361,7 @@ export default function MinecraftTab({ instance }: TabProps) {
         </Panel>
       )}
 
-      {section === 'addons' && versions.data?.supported && (
+      {section === 'addons' && can('minecraft-plugins') && versions.data?.supported && (
         <Panel title="Plugins" description={gameVersion ? `From Modrinth, only files built for Minecraft ${gameVersion}. They are downloaded by the node to the plugins folder.` : 'Start the server once so the version is known.'}>
           <div className="grid gap-3">
             <div className="flex flex-wrap items-end gap-2">
@@ -398,7 +400,7 @@ export default function MinecraftTab({ instance }: TabProps) {
           </div>
         </Panel>
       )}
-      {section === 'addons' && instance.product.slug === 'minecraft-forge' && (
+      {section === 'addons' && can('minecraft-modpacks') && (
         <Panel title="Modpacks" description="Forge modpacks from Modrinth. A backup is made first. Only files hosted on the Modrinth CDN are downloaded, at most 40.">
           <div className="grid gap-3">
             <div className="flex flex-wrap items-end gap-2">
@@ -421,15 +423,15 @@ export default function MinecraftTab({ instance }: TabProps) {
           </div>
         </Panel>
       )}
-      {section === 'addons' && !versions.data?.supported && instance.product.slug !== 'minecraft-forge' && (
-        <Panel title="Add-ons" description="Paper can install plugins from here. Forge and Folia do not.">
-          <p className="text-[14px] text-ink2">Put mod files in the mods folder from Files. No other installer runs from this page.</p>
+      {section === 'addons' && !can('minecraft-plugins') && !can('minecraft-modpacks') && (
+        <Panel title="Add-ons" description="This game has no verified installer here.">
+          <p className="text-[14px] text-ink2">Use the Files tab for files this game actually loads. Nothing is simulated.</p>
         </Panel>
       )}
-      {section === 'performance' && <LagCheck instanceId={instance.id} />}
-      {section === 'crossplay' && <Crossplay instanceId={instance.id} gameVersion={gameVersion} address={data.address} />}
-      {section === 'worlds' && <WorldList instanceId={instance.id} />}
-      {section === 'worlds' && (
+      {section === 'performance' && can('minecraft-performance') && <LagCheck instanceId={instance.id} />}
+      {section === 'crossplay' && can('minecraft-crossplay') && <Crossplay instanceId={instance.id} gameVersion={gameVersion} address={data.address} />}
+      {section === 'worlds' && can('minecraft-worlds') && <WorldList instanceId={instance.id} />}
+      {section === 'worlds' && can('minecraft-worlds') && (
         <Panel title="Worlds" description="A new seed applies to a new world. It does not rewrite the world that is already there. Copies of the world are the Backups tab.">
           <div className="grid gap-3 sm:grid-cols-2">
             {Object.entries(data.properties).filter(([key]) => WORLD_KEYS.has(key)).map(([key, value]) => (
