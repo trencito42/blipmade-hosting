@@ -536,6 +536,7 @@ export default function InstanceDetail() {
     const access = data?.instance.access ?? 'owner';
     // Deploy from Git is for the runtimes where the customer brings the code.
     if (entry.value === 'minecraft' && !MINECRAFT_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
+    if (entry.value === 'game' && !GAME_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
     if (entry.value === 'git' && !['nodejs', 'discord-bot'].includes(data?.instance.product.slug ?? '')) return false;
     if (access === 'owner') return true;
     if (OWNER_ONLY.includes(entry.value)) return false;

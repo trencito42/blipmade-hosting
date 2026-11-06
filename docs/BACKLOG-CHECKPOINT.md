@@ -1,7 +1,7 @@
 # Backlog checkpoint
 
 resume_sha: work/disable-checkout CRM engine unify + firstPaid + referral 400 + campaign worker
-production_before: 247f4170060786725818597c16174213b85c598b
+production_before: 7db4de34b (catalog rollback Admin). Next: hide Game tab for unsupported products.
 flags:
   PAYMENTS_ENABLED: false
   MAIL_SALES_ENABLED: false
