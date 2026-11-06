@@ -125,7 +125,15 @@ export function stepAutomation(input: {
 }): { state: AutoState; effects: { type: AutoNode['type']; payload?: unknown; nodeId: string }[] } {
   const now = input.now ?? new Date();
   const effects: { type: AutoNode['type']; payload?: unknown; nodeId: string }[] = [];
-  let state: AutoState = { applied: [], steps: 0, ...input.state };
+  let state: AutoState = {
+    nodeId: input.state.nodeId,
+    status: input.state.status,
+    waitUntil: input.state.waitUntil,
+    attempts: input.state.attempts,
+    lastError: input.state.lastError,
+    applied: input.state.applied ?? [],
+    steps: input.state.steps ?? 0,
+  };
   if (state.status === 'waiting' && state.waitUntil && state.waitUntil > now) return { state, effects };
   if (state.status === 'succeeded' || state.status === 'stopped' || state.status === 'failed' || state.status === 'dead') return { state, effects };
   if (state.steps >= MAX_STEPS) return { state: { ...state, status: 'dead', lastError: 'The workflow exceeded its step limit.' }, effects };

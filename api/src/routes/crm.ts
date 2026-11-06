@@ -268,7 +268,7 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
           }
         }
         status = gate.deliver ? 'queued' : 'planned';
-        skipReason = gate.deliver ? null : gate.reason;
+        skipReason = gate.deliver ? '' : gate.reason;
         planned += 1;
       } else skipped += 1;
       await prisma.campaignSend.upsert({
