@@ -331,9 +331,9 @@ check. Do not copy or rotate the VM 103 file. Do not edit the Bitwarden item.
 
 | What | Where |
 |---|---|
-| The path, in the environment of the platform | `OFFSITE_AGE_IDENTITY=/home/debian/.blipmade-backup.age` in `/opt/blipmade/.env` |
-| The file on the host | `/home/debian/.blipmade-backup.age`, owner `debian`, mode `600` |
-| The public half, which is safe | `OFFSITE_AGE_RECIPIENT` in `/opt/blipmade/.env`, an `age1...` string |
+| The path, in the environment of the platform | `OFFSITE_AGE_IDENTITY=/home/debian/.blipmade-backup-bitwarden.age` in `/etc/blipmade/offsite.env` on VM 103 |
+| The file on the host | `/home/debian/.blipmade-backup-bitwarden.age`, owner `debian`, mode `600` (owner copy of the Bitwarden identity). Leftover unused file `/home/debian/.blipmade-backup.age` must stay untouched. |
+| The public half, which is safe | `OFFSITE_AGE_RECIPIENT` in `/etc/blipmade/offsite.env`, an `age1...` string |
 
 The file holds a private key. **It is never written into a backup and it
 never travels with a copy.** This document names the path of the file, never
@@ -345,25 +345,14 @@ in hypervisor `/etc/blipmade/offsite.env` (same string as
 identity: the owner decrypted `pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age`
 with it (exit 0; listing and isolated restore were not run).
 
-The file `/home/debian/.blipmade-backup.age` on VM 103 is a **different**
-identity. `age-keygen -y` on that file does not equal `OFFSITE_AGE_RECIPIENT`.
-`age -d` of a PVE archive and of `s261_muratura` dumps on VM 103 fails with
-`no identity matched any of the recipients`. Do not copy, rotate, or paste
-either private key. Automated decrypt drills on VM 103 cannot succeed until
-the operator places the Bitwarden identity there, or until drills run on
-another host that already holds it.
-
-**Verifier recommendation:** keep Bitwarden as the independent recovery copy.
-Do not put the identity on the hypervisor (it is RAID 0). A dedicated
-offline/laptop verifier is safest. If the operator wants scheduled drills,
-replace the unused VM 103 file with the Bitwarden identity using an
-owner-only copy; keep Bitwarden as the second copy. Until then, destination
-probes report `identityMatchesRecipient=false` when
-`OFFSITE_AGE_IDENTITY` is set.
-
-**Checked 2026-11-06:** VM 103 file exists (`0600`, 184 bytes) but does not
-open Storage Box objects. Hypervisor holds public recipient only. Full
-disaster recovery is not verified.
+**Checked 2026-11-06 later:** owner copied the Bitwarden identity to
+`/home/debian/.blipmade-backup-bitwarden.age` (`debian:debian`, `0600`).
+`age-keygen -y` on that file **MATCH**es `OFFSITE_AGE_RECIPIENT`. The leftover
+`/home/debian/.blipmade-backup.age` is still a different unused identity and
+was not overwritten. Destination probes report `identityMatchesRecipient=true`.
+Decrypt drills on VM 103 now open Storage Box objects. Do not copy, rotate, or
+paste either private key. Keep Bitwarden as the second copy. Do not put the
+identity on the hypervisor (RAID 0).
 
 ### Verify the Bitwarden copy (owner laptop only)
 

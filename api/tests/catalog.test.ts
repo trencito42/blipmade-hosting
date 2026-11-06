@@ -185,6 +185,28 @@ describe('staff catalog', () => {
   });
 });
 
+describe('catalog offerings contract', () => {
+  it('exposes variant productSlug, preset plugins and addon kind without a second catalog', async () => {
+    await seedProduct({ slug: 'discord-bot', amount: 749, eggId: 4 });
+    const client = makeClient(app);
+    const response = await client.request('GET', '/api/catalog/offerings');
+    expect(response.status).toBe(200);
+    const offerings = response.body.offerings as Array<{
+      slug: string;
+      variants: Array<{ slug: string; productSlug: string }>;
+      presets: Array<{ slug: string; plugins: string[] }>;
+      addons: Array<{ slug: string; kind: string }>;
+    }>;
+    const offering = offerings.find((row) => row.variants.some((variant) => variant.productSlug === 'discord-bot'));
+    expect(offering).toBeTruthy();
+    expect(offering!.variants.every((variant) => typeof variant.productSlug === 'string' && variant.productSlug.length > 0)).toBe(true);
+    expect(Array.isArray(offering!.presets)).toBe(true);
+    expect(offering!.presets.every((preset) => Array.isArray(preset.plugins))).toBe(true);
+    expect(Array.isArray(offering!.addons)).toBe(true);
+    expect(offering!.addons.every((addon) => typeof addon.kind === 'string')).toBe(true);
+  });
+});
+
 describe('a single product', () => {
   it('does not expose a hidden product to the public', async () => {
     await seedProduct({ slug: 'secret-bot', amount: 749, visible: false });

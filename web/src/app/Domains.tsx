@@ -283,6 +283,14 @@ export default function Domains() {
 
   return (
     <div className="grid gap-4">
+      <Panel title="Registrar and nameservers" description="Nothing here changes a registrar or nameserver. Mail DNS is not written automatically.">
+        <ol className="grid list-decimal gap-2 pl-5 text-[13.5px] text-ink2">
+          <li>Keep the domain at the current registrar unless you already decided to move it.</li>
+          <li>Leave nameservers where they are if you only need one TXT or A record. Changing nameservers moves every record at once.</li>
+          <li>Optional: connect one Cloudflare zone below with a scoped token. Blipmade still previews writes and waits for approval.</li>
+          <li>Mail MX, SPF, DKIM and DMARC stay copy-paste until automation is approved separately. Existing mail must not be broken.</li>
+        </ol>
+      </Panel>
       <Panel title="Cloudflare zone" description="Optional. A token that can edit DNS on exactly one zone you own. Blipmade writes only the records shown for a hostname, and only when you press the button. Nameservers are not changed.">
         <p className="text-[13.5px] text-ink2">{zone.data?.connected ? `Connected zone: ${zone.data.zoneName}` : 'No zone connected. Manual records still work.'}</p>
         <div className="mt-3 flex flex-wrap items-end gap-2">

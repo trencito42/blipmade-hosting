@@ -18,3 +18,11 @@ test('domain rename and deletion use dedicated pages', async () => {
   assert.match(page, /useUnsavedChangesGuard/);
   assert.match(page, /Type “\$\{domain\.hostname\}” exactly/);
 });
+
+test('domains list includes registrar and nameserver guides without DNS automation', async () => {
+  const list = await read('src/app/Domains.tsx');
+  assert.match(list, /Registrar and nameservers/);
+  assert.match(list, /Leave nameservers where they are/);
+  assert.match(list, /Mail MX, SPF, DKIM and DMARC stay copy-paste/);
+  assert.doesNotMatch(list, /change nameservers for you|migrate nameservers automatically/i);
+});
