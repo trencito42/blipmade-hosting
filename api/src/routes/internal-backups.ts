@@ -80,7 +80,7 @@ export async function registerInternalBackupRoutes(app: FastifyInstance): Promis
     }).parse(request.body ?? {});
     const done = await prisma.offsiteBackup.updateMany({
       where: { remotePath: body.remotePath, state: 'OFFSITE_VERIFIED' },
-      data: { restoreVerifiedAt: new Date() },
+      data: { restoreVerifiedAt: new Date(), isolatedRestore: true },
     });
     if (done.count === 0) throw badRequest('That copy is not a verified one.');
     await audit({ action: 'backup.restore_verified', targetType: 'offsite_backup', targetId: body.remotePath, meta: { note: body.note ?? null, isolatedRestore: true } });

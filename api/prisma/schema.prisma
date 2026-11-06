@@ -2421,8 +2421,10 @@ model OffsiteBackup {
   verifiedAt        DateTime?
   /// Set when a copy was decrypted and its archive listing or gzip/zstd test passed. That is not a restore.
   decryptVerifiedAt DateTime?
-  /// Set only after an isolated restore of this workload (scratch database, isolated VM storage, or isolated mail). Decrypting is not enough.
+  /// Timestamp kept for history. Only isolatedRestore means an isolated restore of this workload.
   restoreVerifiedAt DateTime?
+  /// True only after a scratch restore of this workload. Legacy drills leave this false.
+  isolatedRestore   Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

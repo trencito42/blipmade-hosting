@@ -24,6 +24,7 @@ function copy(overrides: Partial<OffsiteCopyView>): OffsiteCopyView {
     verifiedAt: NOW,
     decryptVerifiedAt: null,
     restoreVerifiedAt: null,
+    isolatedRestore: false,
     sizeBytes: 10,
     error: null,
     instanceId: null,
@@ -64,10 +65,18 @@ describe('backup coverage', () => {
   });
 
   it('records isolated restore separately from decrypt', () => {
-    const row = coverageFor(policy, [copy({ decryptVerifiedAt: NOW, restoreVerifiedAt: NOW })], NOW);
+    const row = coverageFor(policy, [copy({ decryptVerifiedAt: NOW, restoreVerifiedAt: NOW, isolatedRestore: true })], NOW);
     expect(row.state).toBe('restore_verified');
     expect(row.verification).toBe('restore_tested');
     expect(row.reason).toMatch(/operational recovery/i);
+  });
+
+  it('does not treat a legacy drill restoreVerifiedAt as an isolated restore', () => {
+    const row = coverageFor(policy, [copy({ restoreVerifiedAt: NOW, isolatedRestore: false })], NOW);
+    expect(row.state).toBe('decrypt_verified');
+    expect(row.verification).toBe('decrypt_opened');
+    expect(row.lastRestoreAt).toBeNull();
+    expect(row.lastDecryptAt).toBe(NOW.toISOString());
   });
 
   it('does not call vacant absence healthy', () => {

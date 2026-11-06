@@ -6,9 +6,19 @@ Start: 2026-11-06. Production was `8b07cd2d`. Audit IDs unchanged.
 
 **P0 age identity.** Live private file remains on VM 103 (`/home/debian/.blipmade-backup.age`, 184 B, `0600`). Independent copy: Bitwarden item `age-blipmade-backups` (Blipmade collection). Owner 2026-11-06, Windows PC, no VM103 key: downloaded authentic `pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age` from the Storage Box and decrypted with the Bitwarden identity (`age -d` exit 0, plaintext discarded). **Independent identity usable for that object. Off-site decrypt PASSED.** Archive listing/`tar -t` **not** run. Isolated restore **not** run. Full disaster recovery **not** verified. Do not copy, rotate, or export the VM 103 file. Do not request the private identity.
 
-**P1 evidence.** `offsite-agent.sh drill` posts `decrypt-verified` (decrypt + archive test) with EXIT cleanup. `restore-verified` requires `isolatedRestore: true`. An old drill body without that field is rejected and does not clear existing `restoreVerifiedAt`. Coverage: remote read-back, `decrypt_verified`, isolated restore. Admin labels match. Migration `20261106140000_offsite_decrypt_verified` is additive (`decryptVerifiedAt` nullable). Not deployed.
+**P1 evidence.** `offsite-agent.sh drill` posts `decrypt-verified`. `restore-verified` requires `isolatedRestore: true` and sets `isolatedRestore` on the row. Coverage ignores `restoreVerifiedAt` unless that flag is true. Migrations (not deployed): `20261106140000_offsite_decrypt_verified` (nullable `decryptVerifiedAt`), `20261106150000_offsite_isolated_restore` (flag default false; copies legacy restore timestamps into `decryptVerifiedAt`; does not delete `restoreVerifiedAt` or audit rows).
 
-**Not restore-verified:** no isolated Postgres/VM/Mailcow restore this pass. Isolated procedures written in DR §10.5.1.
+**Historical restore claims (production, read 2026-11-06, not mutated):** 3 rows, all `backup.restore_verified` note `opened by drill on n7030e1`:
+
+| kind | path | restoreVerifiedAt |
+|---|---|---|
+| CUSTOMER | `customers/games-node-01/843254bf-…tar.gz.age` | 2026-11-01 02:34:08Z |
+| DATABASE | `…/s261_muratura-20261101T023300Z.sql.gz.age` | 2026-11-01 02:34:23Z |
+| VPS | `vps/n7030e1/vm1001/…vma.zst.age` | 2026-11-01 02:54:06Z |
+
+PLATFORM 0. No isolated-restore flag exists yet. After deploy those three stay as decrypt evidence (`isolatedRestore=false`). AuditLog 3 events kept.
+
+**Not restore-verified:** no isolated Postgres/VM/Mailcow restore this pass. Isolated procedures: DR §10.5.1. Host-loss runbook: DR §11. RAID 0 stays.
 
 **INFRA timer:** `blipmade-offsite-infra.timer` `OnCalendar=Sun *-*-* 03:30:00` RandomizedDelaySec=300. Next: Sun 2026-11-08 03:31:43 UTC. Default VMIDs 100 102 103 104 105. VM101 excluded. `infra/` still empty. VPS timer Sun 02:00. PVE timer Sat 01:43.
 

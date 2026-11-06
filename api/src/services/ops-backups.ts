@@ -21,6 +21,7 @@ function asCopy(row: {
   verifiedAt: Date | null;
   decryptVerifiedAt: Date | null;
   restoreVerifiedAt: Date | null;
+  isolatedRestore: boolean;
   sizeBytes: bigint;
   error: string | null;
   instanceId: string | null;
@@ -34,6 +35,7 @@ function asCopy(row: {
     verifiedAt: row.verifiedAt,
     decryptVerifiedAt: row.decryptVerifiedAt,
     restoreVerifiedAt: row.restoreVerifiedAt,
+    isolatedRestore: row.isolatedRestore,
     sizeBytes: row.sizeBytes,
     error: row.error,
     instanceId: row.instanceId,
@@ -65,6 +67,7 @@ export async function backupCoverage(now = new Date()): Promise<{
         verifiedAt: true,
         decryptVerifiedAt: true,
         restoreVerifiedAt: true,
+        isolatedRestore: true,
         sizeBytes: true,
         error: true,
         instanceId: true,
@@ -97,10 +100,10 @@ export async function backupCoverage(now = new Date()): Promise<{
     .map((c) => c.verifiedAt?.getTime() ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
   const lastDecrypt = views
-    .map((c) => c.decryptVerifiedAt?.getTime() ?? 0)
+    .map((c) => (c.decryptVerifiedAt ?? (!c.isolatedRestore ? c.restoreVerifiedAt : null))?.getTime() ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
   const lastRestore = views
-    .map((c) => c.restoreVerifiedAt?.getTime() ?? 0)
+    .map((c) => (c.isolatedRestore ? c.restoreVerifiedAt?.getTime() ?? 0 : 0))
     .reduce((a, b) => Math.max(a, b), 0);
   return {
     destination: {
@@ -156,6 +159,7 @@ export async function backupHistory(query: { kind?: string; state?: string; q?: 
       verifiedAt: true,
       decryptVerifiedAt: true,
       restoreVerifiedAt: true,
+      isolatedRestore: true,
       updatedAt: true,
     },
   });
@@ -171,8 +175,8 @@ export async function backupHistory(query: { kind?: string; state?: string; q?: 
       encrypted: true,
       transfer: row.state,
       integrity: row.state === 'OFFSITE_VERIFIED',
-      decryptVerified: Boolean(row.decryptVerifiedAt),
-      restoreVerified: Boolean(row.restoreVerifiedAt),
+      decryptVerified: Boolean(row.decryptVerifiedAt || (!row.isolatedRestore && row.restoreVerifiedAt)),
+      restoreVerified: Boolean(row.isolatedRestore && row.restoreVerifiedAt),
       takenAt: row.takenAt,
       uploadedAt: row.uploadedAt,
       verifiedAt: row.verifiedAt,

@@ -85,5 +85,14 @@ describe('offsite evidence is not a restore', () => {
     });
     expect(row.restoreVerifiedAt).not.toBeNull();
     expect(row.restoreVerifiedAt?.toISOString()).not.toBe('2026-11-01T00:00:00.000Z');
+    expect(row.isolatedRestore).toBe(true);
+  });
+
+  it('leaves a legacy drill row as not an isolated restore', async () => {
+    const row = await prisma.offsiteBackup.findUniqueOrThrow({
+      where: { remotePath: 'platform/blipmade-platform/sample.tar.gz.age' },
+    });
+    expect(row.restoreVerifiedAt?.toISOString()).toBe('2026-11-01T00:00:00.000Z');
+    expect(row.isolatedRestore).toBe(false);
   });
 });

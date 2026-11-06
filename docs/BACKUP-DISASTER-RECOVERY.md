@@ -704,10 +704,9 @@ games-node-01                      hypervisor                          platform 
   `OFFSITE_VERIFIED` (read back from the box and the hash matched), `FAILED` (with the reason). An uploaded file is not
   "verified" until it was read back. `decryptVerifiedAt` is set by `offsite-agent.sh drill` after decrypt plus
   archive listing/gzip/zstd. That is not a restore. `restoreVerifiedAt` is set only by
-  `POST /internal/backups/restore-verified` with `isolatedRestore: true` after a scratch restore of that
-  workload (Postgres dump into a disposable database, VM copy onto isolated storage, Mailcow in an isolated
-  environment). Operational recovery of live service is a separate operator check and is not stored as
-  restore-verified.
+  `POST /internal/backups/restore-verified` with `isolatedRestore: true`, which sets `isolatedRestore` on
+  the row. A legacy `restoreVerifiedAt` without that flag is decrypt/listing only. Operational recovery
+  of live service is a separate operator check.
 
 ### 10.2 Encryption and the key
 
@@ -797,3 +796,75 @@ on the box, Mailcow is not covered by INFRA.
 * The box is a single destination in one provider. It is independent of this hardware, but it is not a second copy.
 * Retention by age can only keep what the panel still reports: a service that was deleted keeps its copies 30 days.
 * A database is dumped once a day: changes since the last dump are not recoverable.
+
+### 10.8 Recovery time targets (not promises)
+
+Do not publish these until a timed host-loss rehearsal exists. RAID 0 stays.
+
+| Service | Off-site method | RPO target | RTO target after a new host exists |
+|---|---|---|---|
+| Platform Postgres + config | daily `platform/` `.age` | 26 h | hours: decrypt, restore dump, start compose |
+| Customer files | daily panel archives | 2 d | hours per server: unpack volume |
+| Customer MariaDB | daily dumps | 26 h | hours: restore dump to named DB |
+| Customer VPS | weekly vzdump | 9 d | hours: `qmrestore` to new VMID |
+| Mailcow / panel / proxy / obs | weekly INFRA vzdump (first run 2026-11-08) | 9 d after first copy exists | hours: restore VM, fix IPs |
+| PVE configs | daily `pve/` | 26 h | minutes: unpack `/etc/pve` onto rebuilt node |
+| Wings/game node | customer+DB file jobs; VM101 not in INFRA | 2 d files / 26 h DB | rebuild Wings, re-import, restore archives |
+
+---
+
+## 11. RAID 0 host loss (replace the machine, keep RAID 0)
+
+The hypervisor uses RAID 0 on purpose. Do not convert it. A disk or host loss
+destroys local disks. Recovery is a **new host** plus Storage Box copies plus
+the Bitwarden age identity.
+
+### 11.1 Before the new host is trusted
+
+1. Bitwarden `age-blipmade-backups` and Storage Box SSH key (not on the dead host).
+2. Secret store: `.env` values in DR §7. `SESSION_SECRET` is not rotated unless
+   the owner authorizes it (it wraps customer panel keys).
+3. Newest `pve/`, `platform/`, `customers/`, `databases/`, `vps/`, and `infra/`
+   objects. If `infra/` is empty, Mailcow/panel/proxy/obs have no VM-level copy.
+
+### 11.2 Hardware and Proxmox
+
+1. Install Proxmox on the replacement. Leave storage as RAID 0 if that is still
+   the owner's disk layout. Do not migrate arrays.
+2. Restore PVE config from `pve/n7030e1/pve-config-*.tar.gz.age` onto the new
+   node after decrypt. Fix node name, NICs, bridges (`vmbr0`, `10.77.0.0/24`).
+3. Recreate the public IP and Cloudflare/DNS for `blipmade.com` and
+   `mail.blipmade.com` if the address changed.
+
+### 11.3 Networks and credentials
+
+1. Recreate the internal bridge and VM IDs 100–105, 1001–1002 only after the
+   corresponding disks exist.
+2. Put Storage Box known_hosts and keys back under `/etc/blipmade/` from the
+   secret store, not from a backup of the key that lived only on the dead host
+   unless that copy is in the vault.
+3. Install the age identity from Bitwarden at
+   `/home/debian/.blipmade-backup.age` mode 600. Do not invent a new recipient
+   until existing `.age` objects are restored.
+
+### 11.4 Workloads, in order
+
+1. **Platform (VM 103):** decrypt newest `platform/` archive, restore
+   `database.dump` into Postgres, restore uploads volume, checkout the git SHA
+   that matches `_prisma_migrations`, start compose. Keep payments and mail
+   sales flags as they were (`false` until the owner opens them).
+2. **Panel (VM 100) and Wings (VM 101):** INFRA vzdump if it exists; otherwise
+   rebuild panel from install docs and restore customer archives onto Wings
+   volumes.
+3. **Edge (VM 102), Mailcow (VM 104), obs (VM 105):** INFRA vzdump or rebuild.
+4. **Customer VPS:** `qmrestore` each `vps/` object to a new VMID, isolated NIC
+   first.
+5. **Customer game/DB:** unpack archives and MariaDB dumps per §10.5.
+
+### 11.5 After it boots
+
+Run `scripts/smoke-production.sh`. Compare instance list to panel. Tell
+customers the cut-off time of the restore. Do not declare operational recovery
+until that smoke and a login work.
+
+This section is a runbook, not a completed rehearsal.

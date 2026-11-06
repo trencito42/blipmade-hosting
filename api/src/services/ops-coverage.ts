@@ -33,6 +33,7 @@ export interface OffsiteCopyView {
   verifiedAt: Date | null;
   decryptVerifiedAt: Date | null;
   restoreVerifiedAt: Date | null;
+  isolatedRestore: boolean;
   sizeBytes: bigint | number;
   error: string | null;
   instanceId: string | null;
@@ -190,6 +191,18 @@ function iso(value: Date | null | undefined): string | null {
   return value ? value.toISOString() : null;
 }
 
+/** Decrypt or listing. A legacy drill timestamp is decrypt, not a restore. */
+export function decryptEvidenceAt(copy: OffsiteCopyView): Date | null {
+  if (copy.decryptVerifiedAt) return copy.decryptVerifiedAt;
+  if (!copy.isolatedRestore) return copy.restoreVerifiedAt;
+  return null;
+}
+
+/** Isolated restore only. restoreVerifiedAt from an old drill does not count. */
+export function isolatedRestoreAt(copy: OffsiteCopyView): Date | null {
+  return copy.isolatedRestore ? copy.restoreVerifiedAt : null;
+}
+
 function hoursSince(at: Date | null | undefined, now: Date): number | null {
   if (!at) return null;
   return (now.getTime() - at.getTime()) / 3_600_000;
@@ -216,8 +229,8 @@ export function coverageFor(policy: WorkloadPolicy, copies: OffsiteCopyView[], n
   const failed = latest(matched.filter((c) => c.state === 'FAILED'), (c) => c.uploadedAt ?? c.takenAt);
   const pending = latest(matched.filter((c) => c.state === 'OFFSITE_PENDING'), (c) => c.uploadedAt ?? c.takenAt);
   const verified = latest(matched.filter((c) => c.state === 'OFFSITE_VERIFIED'), (c) => c.verifiedAt ?? c.uploadedAt ?? c.takenAt);
-  const decrypted = latest(matched.filter((c) => c.decryptVerifiedAt), (c) => c.decryptVerifiedAt);
-  const restored = latest(matched.filter((c) => c.restoreVerifiedAt), (c) => c.restoreVerifiedAt);
+  const decrypted = latest(matched.filter((c) => decryptEvidenceAt(c)), decryptEvidenceAt);
+  const restored = latest(matched.filter((c) => isolatedRestoreAt(c)), isolatedRestoreAt);
   const any = verified ?? pending ?? failed;
   const lastLocal = latest(matched, (c) => c.takenAt);
   const lastOffsite = latest(matched, (c) => c.uploadedAt);
@@ -235,8 +248,8 @@ export function coverageFor(policy: WorkloadPolicy, copies: OffsiteCopyView[], n
     lastLocalAt: iso(lastLocal?.takenAt ?? null),
     lastOffsiteAt: iso(lastOffsite?.uploadedAt ?? null),
     lastVerifiedAt: iso(lastVerified?.verifiedAt ?? null),
-    lastDecryptAt: iso(decrypted?.decryptVerifiedAt ?? null),
-    lastRestoreAt: iso(restored?.restoreVerifiedAt ?? null),
+    lastDecryptAt: iso(decrypted ? decryptEvidenceAt(decrypted) : null),
+    lastRestoreAt: iso(restored ? isolatedRestoreAt(restored) : null),
     sizeBytes: Number.isFinite(size) ? size : null,
     source: matched.length ? ('offsite_backup' as const) : ('none' as const),
   };
@@ -314,7 +327,7 @@ export function coverageFor(policy: WorkloadPolicy, copies: OffsiteCopyView[], n
     };
   }
 
-  const restoreAge = hoursSince(restored.restoreVerifiedAt, now);
+  const restoreAge = hoursSince(isolatedRestoreAt(restored), now);
   if (restoreAge !== null && restoreAge > policy.freshnessHours * 8) {
     return {
       ...base,

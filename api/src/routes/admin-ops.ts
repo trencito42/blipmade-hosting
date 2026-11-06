@@ -236,7 +236,7 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
       prisma.offsiteBackup.findMany({ where: { state: 'FAILED', updatedAt: { gte: new Date(Date.now() - 7 * day) } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { id: true, kind: true, sourceId: true, error: true, updatedAt: true } }),
       prisma.offsiteBackup.findFirst({ where: { state: 'OFFSITE_VERIFIED' }, orderBy: { verifiedAt: 'desc' }, select: { verifiedAt: true, kind: true } }),
       prisma.offsiteBackup.groupBy({ by: ['kind'], where: { state: 'OFFSITE_VERIFIED' }, _max: { verifiedAt: true } }),
-      prisma.offsiteBackup.groupBy({ by: ['kind'], where: { restoreVerifiedAt: { not: null } }, _max: { restoreVerifiedAt: true } }),
+      prisma.offsiteBackup.groupBy({ by: ['kind'], where: { isolatedRestore: true, restoreVerifiedAt: { not: null } }, _max: { restoreVerifiedAt: true } }),
       prisma.instance.findMany({ where: { pterodactylUuid: { not: null }, status: { in: ['ONLINE', 'STOPPED', 'DEGRADED', 'RESTARTING'] } }, select: { id: true, name: true } }),
       prisma.offsiteBackup.findMany({ where: { kind: 'CUSTOMER', state: 'OFFSITE_VERIFIED', instanceId: { not: null }, verifiedAt: { gte: new Date(Date.now() - 2 * day) } }, select: { instanceId: true }, distinct: ['instanceId'] }),
       backupCoverage(),
