@@ -43,7 +43,15 @@ echo "==> applying the pending migrations"
 # does not speak this project's migrations. The image that was just built has
 # the Prisma the schema was written for, and it can see the database by its
 # compose name.
-docker compose -p blipmade -f /opt/blipmade/compose.yml -f /opt/blipmade/compose.api.yml run --rm --no-deps api \
+# compose.api.yml sets CHECK_MIGRATIONS=true, so the entrypoint would refuse
+# to start before this command ran. The check is for long-running api/worker.
+# The API role cannot ALTER TYPE; pass the owner URL into the one-shot container.
+COMPOSE_URL="${HOST_URL/@localhost:/@postgres:}"
+COMPOSE_URL="${COMPOSE_URL/@127.0.0.1:/@postgres:}"
+docker compose -p blipmade -f /opt/blipmade/compose.yml -f /opt/blipmade/compose.api.yml run --rm --no-deps \
+  -e CHECK_MIGRATIONS=false \
+  -e DATABASE_URL="$COMPOSE_URL" \
+  api \
   npx prisma migrate deploy --schema prisma/schema.prisma
 
 echo
