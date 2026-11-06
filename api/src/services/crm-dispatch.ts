@@ -66,6 +66,7 @@ export async function runAutomation(input: {
   eventId: string;
   user: { id: string; tags: string[]; createdAt: Date; notificationPreference: { marketing: boolean } | null; customerFacts: { key: string; value: string; numericValue?: number | null; occurredAt?: Date | null }[] };
   runId?: string;
+  consentOverride?: boolean;
 }): Promise<boolean> {
   let started = input.runId
     ? await prisma.automationRun.findUnique({ where: { id: input.runId } })
@@ -118,7 +119,7 @@ export async function runAutomation(input: {
       createdAt: input.user.createdAt,
       userId: input.user.id,
     },
-    consent: input.user.notificationPreference?.marketing === true,
+    consent: (input.consentOverride ?? true) && input.user.notificationPreference?.marketing === true,
   });
   await prisma.$transaction(async (tx) => {
     for (const effect of stepped.effects) {

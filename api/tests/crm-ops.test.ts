@@ -209,6 +209,15 @@ describe('CRM operations', () => {
     expect(missing.valid).toBe(false);
     const unknown = await resolvePromotion('FAMONLY', customer.id, { productSlugs: ['no-such-product'] });
     expect(unknown.valid).toBe(false);
+
+    await prisma.order.create({
+      data: { userId: customer.id, number: 'ORD-CRM-FIRST', status: 'PAID', total: 500, paidAt: new Date() },
+    });
+    const again = await admin.request('GET', '/api/admin/crm/analytics');
+    expect(again.body.period.firstPaid).toBeGreaterThanOrEqual(1);
+    const announced = await admin.request('POST', '/api/admin/crm/community-announce', { body: 'Test community note' });
+    expect(announced.status).toBe(200);
+    expect(announced.body.delivered).toBe(false);
   });
 
   it('attributes a paid referral and reverses it on refund of that order', async () => {
@@ -220,6 +229,14 @@ describe('CRM operations', () => {
       data: { email: 'referred@blipmade.test', passwordHash, firstName: 'Ref', lastName: 'Erred', emailVerifiedAt: new Date() },
     });
     const code = await ensureReferralCode(referrer.id);
+    const refused = await makeClient(app).request('POST', '/api/auth/register', {
+      email: 'badref@blipmade.test',
+      password: VALID_PASSWORD,
+      firstName: 'Bad',
+      lastName: 'Ref',
+      referralCode: 'NOSUCH1',
+    });
+    expect(refused.status).toBe(400);
     expect((await claimReferral(referrer.id, code)).ok).toBe(false);
     expect((await claimReferral(referred.id, code)).ok).toBe(true);
     await prisma.order.create({

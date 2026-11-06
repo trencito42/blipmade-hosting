@@ -12,6 +12,7 @@ import {
   validateTemplate,
 } from '../src/services/crm.js';
 import { backoffMs, parseGraph, stepAutomation } from '../src/services/crm-automation.js';
+import { planCommunityAnnouncement } from '../src/services/crm-campaigns.js';
 
 const ctx = {
   facts: [
@@ -221,5 +222,13 @@ describe('crm automation', () => {
       consent: true,
     });
     expect(result.effects.some((effect) => effect.type === 'tag')).toBe(true);
+  });
+
+  it('records community announcements without delivering them', async () => {
+    process.env.DISCORD_ANNOUNCE_ADAPTER = 'memory';
+    const planned = await planCommunityAnnouncement('hello');
+    expect(planned.delivered).toBe(false);
+    expect(planned.adapter).toBe('memory');
+    expect((globalThis as { __crmAnnounce?: string[] }).__crmAnnounce?.at(-1)).toBe('hello');
   });
 });

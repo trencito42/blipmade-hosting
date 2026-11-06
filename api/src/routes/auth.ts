@@ -25,7 +25,7 @@ import { emailIdentity, isDisposableEmail } from '../lib/email-identity.js';
 import { acceptStaffInvitation } from '../services/staff-lifecycle.js';
 import { verifyTurnstile } from '../services/promotion-policy.js';
 import { dispatchCrmEvent } from '../services/crm-dispatch.js';
-import { claimReferral } from '../services/crm-referral.js';
+import { claimReferral, lookupReferralCode } from '../services/crm-referral.js';
 
 /** The token of the human check in a request body, if any. */
 function turnstileTokenOf(body: unknown): string | undefined {
@@ -334,6 +334,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         select: { id: true },
       });
       if (existing) throw conflict('An account already uses this email address.');
+      if (body.referralCode) {
+        const lookup = await lookupReferralCode(body.referralCode);
+        if (!lookup.ok) throw badRequest(lookup.reason);
+      }
 
       const passwordHash = await hashPassword(body.password);
       const user = await prisma.user.create({
@@ -352,7 +356,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const mail = await sendVerificationEmail(user.id, user.email, fullName(user));
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.register', targetType: 'user', targetId: user.id, ip: request.ip });
       if (body.referralCode) {
-        await claimReferral(user.id, body.referralCode);
+        const claimed = await claimReferral(user.id, body.referralCode);
+        if (!claimed.ok) throw badRequest(claimed.reason);
       }
       await dispatchCrmEvent({ trigger: 'registration', userId: user.id, eventId: `registration:${user.id}` }).catch(() => undefined);
 

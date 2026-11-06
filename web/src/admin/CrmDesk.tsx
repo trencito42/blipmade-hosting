@@ -166,6 +166,8 @@ function CampaignsPane({ mayWrite }: { mayWrite: boolean }) {
   const [body, setBody] = useState('Hello {{firstName}}');
   const [segmentId, setSegmentId] = useState('');
   const [objective, setObjective] = useState('retain');
+  const [announce, setAnnounce] = useState('');
+  const [announceNote, setAnnounceNote] = useState('');
   const create = useAction(async () => {
     await post('/admin/crm/campaigns', { name: name.trim(), body: body.trim(), segmentId: segmentId || null, objective, channel: 'email' });
     setName('');
@@ -178,6 +180,11 @@ function CampaignsPane({ mayWrite }: { mayWrite: boolean }) {
   const queue = useAction(async (id: string) => {
     await post(`/admin/crm/campaigns/${encodeURIComponent(id)}/queue`, {});
     campaigns.reload();
+  });
+  const community = useAction(async () => {
+    await post('/admin/crm/community-announce', { body: announce.trim() });
+    setAnnounce('');
+    setAnnounceNote('Announcement recorded. Production Discord was not posted to.');
   });
   return (
     <Panel title="Campaign studio" description="Draft, approve, pause, queue. Queue re-reads marketing consent per customer. Discord DMs are refused.">
@@ -198,7 +205,8 @@ function CampaignsPane({ mayWrite }: { mayWrite: boolean }) {
           <PrimaryButton type="button" disabled={!name.trim() || !body.trim() || create.pending} onClick={() => void create.run()}>Create draft</PrimaryButton>
         </div>
       )}
-      {(create.error || act.error || queue.error) && <p role="alert" className="mb-2 text-[13px] text-bad">{create.error || act.error || queue.error}</p>}
+      {(create.error || act.error || queue.error || community.error) && <p role="alert" className="mb-2 text-[13px] text-bad">{create.error || act.error || queue.error || community.error}</p>}
+      {announceNote && <p className="mb-2 text-[13px] text-ink3">{announceNote}</p>}
       <ul className="grid gap-2">
         {(campaigns.data?.campaigns ?? []).map((campaign) => (
           <li key={campaign.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-3 py-2">
@@ -222,6 +230,12 @@ function CampaignsPane({ mayWrite }: { mayWrite: boolean }) {
         ))}
         {(campaigns.data?.campaigns ?? []).length === 0 && <EmptyState title="No campaigns." description="Create a draft. It cannot be sent without approval and consent." />}
       </ul>
+      {mayWrite && (
+        <div className="mt-4 grid gap-2">
+          <TextArea label="Community announcement (never posts live)" value={announce} onChange={(event) => setAnnounce(event.target.value)} />
+          <SoftButton type="button" disabled={!announce.trim() || community.pending} onClick={() => void community.run()}>Record announcement (no Discord post)</SoftButton>
+        </div>
+      )}
     </Panel>
   );
 }

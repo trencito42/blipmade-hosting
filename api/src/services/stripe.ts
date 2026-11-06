@@ -345,10 +345,14 @@ export async function createSponsoredSubscriptionCheckout(
     customerId = customer.id;
   }
 
+  const promotion = await prisma.promotion.findUnique({ where: { id: order.promotionId } });
+  const periods = promotion?.recurringPeriods && promotion.recurringPeriods > 0 ? promotion.recurringPeriods : 0;
   const coupon = await stripe.coupons.create(
     {
       percent_off: 100,
-      duration: 'once',
+      duration: periods > 0 ? 'repeating' : 'once',
+      // shortcut: Stripe months, yearly terms need duration_in_months mapping when billing is yearly
+      ...(periods > 0 ? { duration_in_months: periods } : {}),
       name: `Blipmade promotion · ${order.number}`,
       metadata: { orderId: order.id, promotionId: order.promotionId },
     },

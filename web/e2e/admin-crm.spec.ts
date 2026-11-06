@@ -12,6 +12,7 @@ test.describe('admin CRM desk', () => {
         return { campaigns: [{ id: 'c1', name: 'Spring', status: 'approved', objective: 'retain' }], delivery: false };
       }
       if (path === '/admin/crm/campaigns/c1/queue') return { planned: 40, skipped: 40, delivery: false, note: 'Rows were planned. No message was sent.' };
+      if (path === '/admin/crm/community-announce') return { delivered: false, planned: true, adapter: 'off' };
       if (path === '/admin/crm/automations') return { automations: [{ id: 'a1', name: 'Welcome', trigger: 'registration', status: 'draft', paused: false }], triggers: ['registration'] };
       if (path === '/admin/crm/templates') return { templates: [] };
       if (path === '/admin/crm/tasks') return { tasks: [{ id: 't1', title: 'Call back', status: 'open', userId: 'u1' }] };
@@ -34,6 +35,9 @@ test.describe('admin CRM desk', () => {
     await page.getByRole('button', { name: 'Campaigns' }).click();
     await expect(page.getByText('Delivery enabled: no')).toBeVisible();
     await page.getByRole('button', { name: 'Queue (no live send)' }).click();
+    await page.getByLabel('Community announcement (never posts live)').fill('Hello community');
+    await page.getByRole('button', { name: 'Record announcement (no Discord post)' }).click();
+    await expect(page.getByText('Announcement recorded. Production Discord was not posted to.')).toBeVisible();
     await page.getByRole('button', { name: 'Analytics' }).click();
     await expect(page.getByText('MRR cents (snapshot)')).toBeVisible();
     await expect(page.getByText('1400')).toBeVisible();

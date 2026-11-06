@@ -21,6 +21,14 @@ export async function ensureReferralCode(userId: string): Promise<string> {
   throw new Error('A referral code could not be allocated.');
 }
 
+export async function lookupReferralCode(code: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const trimmed = code.trim().toUpperCase();
+  if (!trimmed) return { ok: false, reason: 'The referral code is missing.' };
+  const referrer = await prisma.user.findUnique({ where: { referralCode: trimmed }, select: { id: true } });
+  if (!referrer) return { ok: false, reason: 'This referral code is not valid.' };
+  return { ok: true };
+}
+
 export async function claimReferral(referredId: string, code: string): Promise<{ ok: true } | { ok: false; reason: string }> {
   const trimmed = code.trim().toUpperCase();
   if (!trimmed) return { ok: false, reason: 'The referral code is missing.' };
