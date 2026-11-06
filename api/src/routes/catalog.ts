@@ -17,7 +17,7 @@ import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
 import { getOfferingBySlug, publicOfferings, searchOfferings } from '../services/catalog-offerings.js';
-import { importProductFor, inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-inspect.js';
+import { archiveLayoutProblem, importProductFor, inspectArchive, inspectGitUrl, inspectZip } from '../services/import-inspect.js';
 import { IMPORT_ZIP_TTL_MS, zipQuotaProblem } from '../services/import-lifecycle.js';
 import { purgeExpiredImportArchives } from '../services/import-apply.js';
 import { cleanCommand, cleanRepoUrl } from '../services/git-deploy.js';
@@ -278,7 +278,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         zipBase64: z.string().max(12_000_000).optional(),
       }).parse(request.body ?? {});
       if (body.zipBase64) {
-        const proposal = inspectZip(Buffer.from(body.zipBase64, 'base64'));
+        const proposal = inspectArchive(Buffer.from(body.zipBase64, 'base64'));
         return { proposal: enrichImportServices(proposal) };
       }
       if (body.url) {
@@ -304,7 +304,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       }).parse(request.body ?? {});
       const zip = body.zipBase64 ? Buffer.from(body.zipBase64, 'base64') : null;
       if (zip) {
-        const problem = zipLayoutProblem(zip);
+        const problem = archiveLayoutProblem(zip);
         if (problem) throw badRequest(problem);
         await purgeExpiredImportArchives();
         const held = await prisma.importSource.findMany({
@@ -314,7 +314,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         const quota = zipQuotaProblem(held.map((row) => ({ bytes: row.zipBytesLength })), zip.length);
         if (quota) throw badRequest(quota);
       }
-      const proposal = zip ? inspectZip(zip) : body.url ? await inspectGitUrl(body.url) : null;
+      const proposal = zip ? inspectArchive(zip) : body.url ? await inspectGitUrl(body.url) : null;
       if (!proposal?.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
       const chosen = importProductFor(proposal, body.productSlug);
       if ('error' in chosen) throw badRequest(chosen.error);

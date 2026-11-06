@@ -48,6 +48,25 @@ function isPlatformHostname(hostname: string): boolean {
 
 
 /** Ownership proof and DNS records of one domain. Own page, not the list. */
+function MailDnsPreview({ domainId }: { domainId: string }) {
+  const state = useAsync<{ records: { name: string; type: string; value: string; purpose: string }[]; note: string }>(
+    (signal) => get(`/domains/${encodeURIComponent(domainId)}/mail-dns-preview`, undefined, signal),
+    [domainId],
+  );
+  if (state.loading || !state.data) return null;
+  return (
+    <div className="mt-4 rounded-2xl bg-s1 p-4">
+      <p className="text-[14px] font-medium text-ink">Mail DNS preview</p>
+      <p className="mt-1 text-[12.5px] text-ink3">{state.data.note}</p>
+      <ul className="mt-2 grid gap-1 font-mono text-[12px] text-ink2">
+        {state.data.records.map((record) => (
+          <li key={`${record.type}:${record.name}`}>{record.type} {record.name} → {record.value}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: string, label: string) => void | Promise<void> }) {
   const { push } = useToast();
   const [preview, setPreview] = useState<string | null>(null);
@@ -145,6 +164,7 @@ export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: 
                   </div>
                 )}
 
+                <MailDnsPreview domainId={domain.id} />
                 {!(domain.platform ?? isPlatformHostname(domain.hostname)) && (
                 <div className="mt-4">
                   <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">

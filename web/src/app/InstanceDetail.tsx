@@ -131,7 +131,7 @@ const TABS: { value: Tab; label: string }[] = [
 /** The sections shown first. The others open with More. */
 const PRIMARY_TABS: Tab[] = ['overview', 'console', 'files', 'databases', 'backups', 'settings', 'minecraft'];
 const MINECRAFT_SLUGS = ['minecraft-paper', 'minecraft-folia', 'minecraft-forge'];
-const GAME_SLUGS = ['minecraft-bedrock', 'rust', 'fivem', 'counter-strike-1-6', 'counter-strike-2', 'valheim'];
+const GAME_SLUGS = ['minecraft-bedrock', 'rust', 'fivem', 'counter-strike-1-6', 'counter-strike-2', 'valheim', 'factorio'];
 
 function primaryTabsFor(slug: string | undefined): Tab[] {
   if (slug && MINECRAFT_SLUGS.includes(slug)) return ['overview', 'console', 'minecraft', 'backups', 'settings'];

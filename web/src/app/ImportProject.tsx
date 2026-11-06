@@ -132,7 +132,7 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
         <div className="grid gap-1">
           <h3 className="font-display text-[20px] font-semibold tracking-[-0.03em] text-ink">Import your repository or zip</h3>
           <p className="max-w-2xl text-[14px] leading-relaxed text-ink3">
-            Blipmade reads manifest files from public URLs, authorized private GitHub repositories, or a zip up to 8 MB.
+            Blipmade reads manifest files from public URLs, authorized private GitHub repositories, or a zip/tar up to 8 MB. The archive is never executed.
           </p>
         </div>
       )}
@@ -146,7 +146,7 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
       </div>
       <Panel
         title={compact ? 'Source' : undefined}
-        description={compact ? 'Public GitHub or GitLab URL, authorized private GitHub repos, or a zip up to 8 MB.' : undefined}
+        description={compact ? 'Public GitHub or GitLab URL, authorized private GitHub repos, or a zip/tar up to 8 MB.' : undefined}
         className={compact ? '' : 'border-line/80 bg-s1/40'}
       >
         {sourceMode === 'github' ? (
@@ -233,8 +233,8 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
                 {inspect.pending ? 'Inspecting…' : 'Inspect'}
               </SoftButton>
               <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line px-4 text-[14px] font-semibold text-ink">
-                Zip file
-                <input type="file" accept=".zip,application/zip" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void inspectZip.run(file); }} />
+                Zip or tar
+                <input type="file" accept=".zip,.tar,.gz,.tgz,application/zip,application/x-tar,application/gzip" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void inspectZip.run(file); }} />
               </label>
             </div>
             {zipName && <p className="mt-2 text-[13px] text-ink3">Attached: {zipName}</p>}

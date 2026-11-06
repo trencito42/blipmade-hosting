@@ -1,4 +1,4 @@
-import { inflateRawSync } from 'node:zlib';
+import { gunzipSync, inflateRawSync } from 'node:zlib';
 
 /**
  * Reads public project manifests and proposes a catalogue product.
@@ -88,6 +88,10 @@ function suggestServices(files: { path: string; text: string }[]): SuggestedServ
   }
   if (keys.has('redis') || keys.has('ioredis') || python.includes('redis')) add('redis', 'The project declares Redis.', 'confirmed');
   if (keys.has('mongodb') || keys.has('mongoose') || python.includes('pymongo')) add('mongodb', 'The project declares MongoDB.', 'confirmed');
+  const procfile = files.find((file) => file.path === 'Procfile');
+  if (procfile && /^\s*(worker|clock|release)\s*:/im.test(procfile.text)) {
+    add('worker', 'A Procfile worker or clock process was found. Blipmade does not start a second process automatically. Run it inside the same start command, or say so before checkout.', 'possible');
+  }
   return services;
 }
 
@@ -278,6 +282,38 @@ export function manifestUrls(raw: string): string[] {
 
 const MAX_ZIP = 8 * 1024 * 1024;
 
+/** Zip, tar or gzip tar the container is allowed to unpack. Returns the reason it is refused, or null. */
+export function archiveLayoutProblem(buf: Buffer): string | null {
+  if (buf.length > MAX_ZIP) return 'The archive must be at most 8 MB.';
+  if (looksLikeZip(buf)) return zipLayoutProblem(buf);
+  let tar = buf;
+  if (looksLikeGzip(buf)) {
+    try { tar = gunzipSync(buf); } catch { return 'That file is not a readable gzip archive.'; }
+    if (tar.length > 80 * 1024 * 1024) return 'The archive expands to more than 80 MB.';
+  }
+  if (!looksLikeTar(tar)) return 'That file is not a zip or tar archive.';
+  return tarLayoutProblem(tar);
+}
+
+function tarLayoutProblem(tar: Buffer): string | null {
+  let cursor = 0;
+  let declared = 0;
+  let members = 0;
+  while (cursor + 512 <= tar.length && members < 4_000) {
+    const header = tar.subarray(cursor, cursor + 512);
+    if (header.every((byte) => byte === 0)) return null;
+    const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
+    const size = tarOctal(header, 124, 12);
+    if (!name || name.startsWith('/') || name.includes('..') || name.includes('\0')) return 'The archive contains a path that leaves its folder.';
+    declared += size;
+    if (declared > 80 * 1024 * 1024) return 'The archive expands to more than 80 MB.';
+    members += 1;
+    cursor += 512 + Math.ceil(size / 512) * 512;
+  }
+  if (members >= 4_000) return 'The archive has too many files.';
+  return null;
+}
+
 /** Names inside a zip the container is allowed to unpack. Returns the reason it is refused, or null. */
 export function zipLayoutProblem(zip: Buffer): string | null {
   if (zip.length < 22 || zip.length > MAX_ZIP) return 'The zip must be a zip file of at most 8 MB.';
@@ -386,15 +422,76 @@ export function readZipText(zip: Buffer, baseName: string): string | null {
   return null;
 }
 
+function looksLikeZip(buf: Buffer): boolean {
+  return buf.length >= 4 && buf.readUInt32LE(0) === 0x04034b50;
+}
+
+function looksLikeGzip(buf: Buffer): boolean {
+  return buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
+}
+
+function looksLikeTar(buf: Buffer): boolean {
+  return buf.length >= 262 && buf.subarray(257, 262).toString('ascii') === 'ustar';
+}
+
+function tarOctal(buf: Buffer, start: number, length: number): number {
+  const raw = buf.subarray(start, start + length).toString('ascii').replace(/\0/g, '').trim();
+  const parsed = Number.parseInt(raw, 8);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Pulls known manifests from an uncompressed tar. Other members are skipped. Nothing is executed. */
+export function readTarManifests(tar: Buffer): { path: string; text: string }[] {
+  if (tar.length < 512 || tar.length > 80 * 1024 * 1024) return [];
+  const wanted = new Set<string>(MANIFESTS);
+  const files: { path: string; text: string }[] = [];
+  let cursor = 0;
+  while (cursor + 512 <= tar.length && files.length < wanted.size) {
+    const header = tar.subarray(cursor, cursor + 512);
+    if (header.every((byte) => byte === 0)) break;
+    const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '').replaceAll('\\', '/');
+    const size = tarOctal(header, 124, 12);
+    const type = String.fromCharCode(header[156] ?? 0);
+    cursor += 512;
+    const dataEnd = cursor + size;
+    if (!name || name.startsWith('/') || name.includes('..') || size < 0 || dataEnd > tar.length) break;
+    const relative = name.replace(/^\.\//, '');
+    const base = relative.split('/').pop() ?? '';
+    const kept = relative === 'prisma/schema.prisma' || relative === '.env.example' || relative === '.env.sample' ? relative : base;
+    if ((type === '0' || type === '\0') && wanted.has(kept) && size <= MAX_BYTES) {
+      files.push({ path: kept, text: tar.subarray(cursor, dataEnd).toString('utf8') });
+    }
+    cursor += Math.ceil(size / 512) * 512;
+  }
+  return files;
+}
+
+function unpackArchive(buf: Buffer): { files: { path: string; text: string }[]; kind: 'zip' | 'tar'; error?: string } {
+  if (buf.length > MAX_ZIP) return { files: [], kind: 'zip', error: 'The archive is larger than 8 MB.' };
+  if (looksLikeZip(buf)) return { files: readZipManifests(buf), kind: 'zip' };
+  let tar = buf;
+  if (looksLikeGzip(buf)) {
+    try { tar = gunzipSync(buf); } catch { return { files: [], kind: 'tar', error: 'The gzip archive could not be read. Nothing was executed.' }; }
+    if (tar.length > 80 * 1024 * 1024) return { files: [], kind: 'tar', error: 'The archive expands to more than 80 MB.' };
+  }
+  if (looksLikeTar(tar)) return { files: readTarManifests(tar), kind: 'tar' };
+  return { files: [], kind: 'zip', error: 'No supported zip or tar archive was found. The file was not run.' };
+}
+
 export function inspectZip(zip: Buffer): ImportProposal {
-  if (zip.length > MAX_ZIP) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['The zip is larger than 8 MB.'], envNames: [], recommendedRam: null };
+  return inspectArchive(zip);
+}
+
+/** Inspects a zip, tar or .tar.gz. Manifests only. The payload is never executed. */
+export function inspectArchive(buf: Buffer): ImportProposal {
+  const unpacked = unpackArchive(buf);
+  if (unpacked.error) {
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: [unpacked.error], envNames: [], recommendedRam: null };
   }
-  const files = readZipManifests(zip);
-  if (!files.length) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['No supported manifest was inside the zip. The archive was not run.'], envNames: [], recommendedRam: null };
+  if (!unpacked.files.length) {
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: [`No supported manifest was inside the ${unpacked.kind}. The archive was not run.`], envNames: [], recommendedRam: null };
   }
-  return inspectManifests(files);
+  return inspectManifests(unpacked.files);
 }
 
 export async function inspectGitUrl(raw: string): Promise<ImportProposal> {

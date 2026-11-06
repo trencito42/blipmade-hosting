@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { VITE_START, importProductFor, inspectManifests, manifestUrls } from '../src/services/import-inspect.js';
+import { gzipSync } from 'node:zlib';
+import { VITE_START, importProductFor, inspectArchive, inspectManifests, manifestUrls } from '../src/services/import-inspect.js';
 
 describe('import runtime plans', () => {
   it('builds Next.js and starts it on the server port', () => {
@@ -92,5 +93,33 @@ describe('import runtime plans', () => {
     const notNode = importProductFor(pythonBot, 'discord-bot');
     expect('error' in notNode && notNode.error).toMatch(/runs on Python/);
     expect('error' in notNode && notNode.error).toMatch(/Choose Python/);
+  });
+
+  it('flags a Procfile worker without inventing a second product', () => {
+    const plan = inspectManifests([
+      { path: 'package.json', text: JSON.stringify({ scripts: { start: 'node server.js' } }) },
+      { path: 'Procfile', text: 'web: node server.js\nworker: node jobs.js\n' },
+    ]);
+    expect(plan.services.map((service) => service.slug)).toContain('worker');
+    expect(plan.services.find((service) => service.slug === 'worker')?.certainty).toBe('possible');
+  });
+
+  it('reads a tar.gz without executing it', () => {
+    const content = Buffer.from(JSON.stringify({ scripts: { start: 'node index.js' } }));
+    const header = Buffer.alloc(512);
+    header.write('package.json');
+    const size = content.length.toString(8).padStart(11, '0') + '\0';
+    header.write(size, 124, 12, 'latin1');
+    header.write('0', 156);
+    header.write('ustar', 257);
+    header.write('        ', 148);
+    let sum = 0;
+    for (const byte of header) sum += byte;
+    header.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148);
+    const pad = (512 - (content.length % 512)) % 512;
+    const tar = Buffer.concat([header, content, Buffer.alloc(pad), Buffer.alloc(1024)]);
+    const plan = inspectArchive(gzipSync(tar));
+    expect(plan.productSlug).toBe('nodejs');
+    expect(plan.start).toBe('node index.js');
   });
 });

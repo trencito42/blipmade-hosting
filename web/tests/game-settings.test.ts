@@ -5,7 +5,7 @@ import { GAME_WORKSPACES, mergeConfigLines, readConfigValue } from '../src/app/i
 describe('game settings', () => {
   it('covers the games that do not share a plugin installer', () => {
     const slugs = GAME_WORKSPACES.map((workspace) => workspace.slug);
-    assert.deepEqual(slugs, ['minecraft-bedrock', 'rust', 'fivem', 'counter-strike-1-6', 'counter-strike-2', 'valheim']);
+    assert.deepEqual(slugs, ['minecraft-bedrock', 'rust', 'fivem', 'counter-strike-1-6', 'counter-strike-2', 'valheim', 'factorio']);
     assert.equal(GAME_WORKSPACES.some((workspace) => workspace.summary.toLowerCase().includes('plugin installer') && workspace.slug !== 'minecraft-bedrock' && workspace.slug !== 'rust' && workspace.slug !== 'counter-strike-2'), false);
   });
 

@@ -74,6 +74,12 @@ export const GAME_WORKSPACES: GameWorkspace[] = [
     summary: 'The world name is the egg variable WORLD. It applies on the next start.',
     fields: [{ key: 'WORLD', label: 'World', source: 'env' }],
   },
+  {
+    slug: 'factorio',
+    title: 'Factorio',
+    summary: 'Autosave interval is the egg variable. There is no shared add-on catalogue.',
+    fields: [{ key: 'AUTOSAVE_INTERVAL', label: 'Autosave interval (minutes)', source: 'env' }],
+  },
 ];
 
 export function gameWorkspace(slug: string): GameWorkspace | null {

@@ -136,6 +136,8 @@ describe('resource changes', () => {
     expect(response.body.quote.newPrice).toBe(574);
     expect(response.body.quote.priceDelta).toBe(200);
     expect(response.body.quote.requiresPayment).toBe(true);
+    expect(response.body.quote.tax.amount).toBe(0);
+    expect(response.body.quote.tax.total).toBe(200);
 
     const unchanged = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(unchanged?.ram).toBe(1024);

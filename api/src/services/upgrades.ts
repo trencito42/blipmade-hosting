@@ -4,6 +4,8 @@ import { nextOrderNumber } from './order-numbers.js';
 import { badRequest } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { instanceTerm, priceConfiguration, resourceRates, validateConfiguration, yearlyDiscountPercent } from './pricing.js';
+import { companyDetails, taxOf } from './billing.js';
+import { paymentsAreEnabled } from '../env.js';
 import { findStripeCustomerId, giveBalanceCredit, refundPayment, updateSubscriptionAmount } from './stripe.js';
 import { notifyUpgradeCompleted, notifyUpgradeFailed } from './notifications.js';
 import * as pteroApp from './pterodactyl/application.js';
@@ -96,6 +98,8 @@ export interface ResourceQuote {
   fingerprint: string;
   /** The quote is frozen for a short time. After it the customer has to look at the price again. */
   expiresAt: string;
+  /** VAT on the amount due now. Zero when Stripe Tax is used or no rate is configured. Not a legal opinion. */
+  tax: { rate: number | null; amount: number; applies: boolean; total: number; note: string | null };
 }
 
 export const QUOTE_TTL_MS = 15 * 60 * 1000;
@@ -386,6 +390,10 @@ export async function quoteResourceChange(
   const creditWithheld = prorated.dueNow < 0 && uncollected ? 'The current period is not paid, so there is no credit for the unused time. The lower price applies from the next period.' : null;
   if (creditWithheld) prorated.dueNow = 0;
 
+  const company = await companyDetails();
+  const taxApplies = company.taxApplies && !paymentsAreEnabled();
+  const taxAmount = taxApplies && company.taxRate !== null && prorated.dueNow > 0 ? taxOf(prorated.dueNow, company.taxRate) : 0;
+
   return {
     currentPrice,
     newPrice,
@@ -399,6 +407,13 @@ export async function quoteResourceChange(
     nextChangeAt,
     requiresPayment: prorated.dueNow > 0,
     creditWithheld,
+    tax: {
+      rate: company.taxRate,
+      amount: taxAmount,
+      applies: taxApplies,
+      total: Math.max(0, prorated.dueNow) + taxAmount,
+      note: company.taxNote ?? (company.taxApplies && paymentsAreEnabled() ? 'No VAT is added to this price while card payments collect tax elsewhere.' : null),
+    },
     fingerprint: quoteFingerprint({
       from: currentConfig,
       to: request,
