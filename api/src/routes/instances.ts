@@ -231,17 +231,90 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     // customer is told that it works again.
     const wasSuspended = instance.status === 'SUSPENDED';
 
+    const isKill = action === 'kill';
     const cooldownKey = `instance:power:${instance.id}`;
-    const acquired = await redis.set(cooldownKey, action, 'EX', 30, 'NX');
-    if (acquired !== 'OK') throw new AppError(429, 'power_cooldown', 'Wait 30 seconds before another power action.');
+    const cooldownSecs = isKill ? 5 : 30;
+    const acquired = await redis.set(cooldownKey, action, 'EX', cooldownSecs, 'NX');
+    if (acquired !== 'OK') {
+      if (isKill) {
+        // Force kill is an emergency action; allow overriding power cooldown to unstick hung containers
+        await redis.set(cooldownKey, action, 'EX', 5);
+      } else {
+        throw new AppError(429, 'power_cooldown', 'Wait 30 seconds before another power action.');
+      }
+    }
+
     try {
       const token = await clientTokenFor(instance);
-      await client.sendPower(token, instance.pterodactylUuid, action);
+      if (action === 'kill') {
+        await client.sendPower(token, instance.pterodactylUuid, 'kill');
+      } else if (action === 'stop') {
+        let isStopping = false;
+        try {
+          const res = await client.getResources(token, instance.pterodactylUuid);
+          if (res.state === 'stopping') isStopping = true;
+        } catch {
+          // ignore observation errors
+        }
+
+        if (isStopping) {
+          // If already stopping, Wings rejects normal stop; escalate to kill to finish halting
+          await client.sendPower(token, instance.pterodactylUuid, 'kill');
+        } else {
+          try {
+            await client.sendPower(token, instance.pterodactylUuid, 'stop');
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('stopping') || msg.includes('502')) {
+              await client.sendPower(token, instance.pterodactylUuid, 'kill');
+            } else {
+              throw err;
+            }
+          }
+        }
+      } else if (action === 'restart') {
+        let isStopping = false;
+        try {
+          const res = await client.getResources(token, instance.pterodactylUuid);
+          if (res.state === 'stopping') isStopping = true;
+        } catch {
+          // ignore observation errors
+        }
+
+        if (isStopping) {
+          // If stuck on stopping, kill first then start freshly
+          await client.sendPower(token, instance.pterodactylUuid, 'kill');
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await client.sendPower(token, instance.pterodactylUuid, 'start');
+        } else {
+          try {
+            await client.sendPower(token, instance.pterodactylUuid, 'restart');
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('stopping') || msg.includes('502')) {
+              await client.sendPower(token, instance.pterodactylUuid, 'kill');
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              await client.sendPower(token, instance.pterodactylUuid, 'start');
+            } else {
+              throw err;
+            }
+          }
+        }
+      } else {
+        await client.sendPower(token, instance.pterodactylUuid, action);
+      }
     } catch (error) {
       await redis.del(cooldownKey);
       if (isPanelServerMissing(error)) await failPanelServerMissing(instance.id);
       throw error;
     }
+
+    // Persist intentional state change and clear down alert triggers
+    const nextStatus = action === 'stop' || action === 'kill' ? 'STOPPED' : 'ONLINE';
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: { status: nextStatus, downSince: null, downAlertedAt: null },
+    });
 
     // The panel accepted the signal. That is not the container having reached the new state.
     await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'power', message: `Power action accepted: ${action}. The container state changes when the node reports it.` } });

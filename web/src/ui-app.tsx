@@ -1681,7 +1681,6 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const count = useRef(0);
-  const opened = useRef(false);
   const showing = useRef(false);
 
   /** The last messages of the customer, for the menu of the bell. */
@@ -1702,7 +1701,6 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
    */
   const applyCount = useCallback(
     (next: number) => {
-      if (count.current === next) return;
       count.current = next;
       setUnread(next);
       // The menu is read again, so it shows the messages of the number.
@@ -1726,9 +1724,18 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
       }
     };
 
+    const handleSync = () => {
+      void poll();
+      void readRecent();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('blipmade:notifications-sync', handleSync);
+    }
+
     const startPolling = () => {
       if (timer) return;
-      timer = window.setInterval(() => void poll(), 60000);
+      timer = window.setInterval(() => void poll(), 30000);
     };
 
     void poll();
@@ -1755,10 +1762,13 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
 
     return () => {
       stopped = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('blipmade:notifications-sync', handleSync);
+      }
       source?.close();
       if (timer) window.clearInterval(timer);
     };
-  }, [applyCount]);
+  }, [applyCount, readRecent]);
 
   // A new page closes the menu.
   useEffect(() => {
@@ -1797,7 +1807,13 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
       setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, readAt: new Date().toISOString() } : entry)));
       count.current = Math.max(0, count.current - 1);
       setUnread(count.current);
-      void post(`/notifications/${encodeURIComponent(item.id)}/read`).catch(() => undefined);
+      void post(`/notifications/${encodeURIComponent(item.id)}/read`)
+        .catch(() => undefined)
+        .finally(() => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('blipmade:notifications-sync'));
+          }
+        });
     }
     navigate(item.actionUrl && item.actionUrl.startsWith('/') ? item.actionUrl : to);
   };
@@ -1806,8 +1822,7 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
     const next = !showing.current;
     showing.current = next;
     setOpen(next);
-    if (next && !opened.current) {
-      opened.current = true;
+    if (next) {
       setLoading(true);
       void readRecent().finally(() => setLoading(false));
     }

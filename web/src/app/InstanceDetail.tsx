@@ -54,7 +54,7 @@ type Tab =
   | 'minecraft'
   | 'game'
   | 'access';
-type PowerAction = 'start' | 'restart' | 'stop';
+type PowerAction = 'start' | 'restart' | 'stop' | 'kill';
 
 /**
  * The sections of the instance, one after the other.
@@ -150,6 +150,7 @@ const POWER_LABEL: Record<PowerAction, string> = {
   start: 'Start',
   restart: 'Restart',
   stop: 'Stop',
+  kill: 'Force Stop',
 };
 
 const KNOWN_ICONS: readonly IconName[] = [
@@ -568,7 +569,7 @@ export default function InstanceDetail() {
   const onPower = async (action: PowerAction) => {
     const done = await power.run(action);
     if (done) {
-      setPowerCooldown(30);
+      setPowerCooldown(action === 'kill' ? 5 : 30);
       push(`${POWER_LABEL[action]} requested.`, 'ok');
     }
   };
@@ -600,9 +601,11 @@ export default function InstanceDetail() {
     diskBytes: observed.sample?.diskBytes,
     readable: !observed.loading && !observed.error && !!observed.sample,
   });
+  const isStopping = live.power === 'stopping';
   const canStart = live.power === 'stopped' || live.power === 'unknown' && (status === 'stopped' || status === 'failed');
   const canStop = live.power === 'running' || live.power === 'starting' || (live.power === 'unknown' && (status === 'online' || status === 'degraded'));
-  const canRestart = canStart || canStop;
+  const canRestart = canStart || canStop || isStopping;
+  const canKill = isStopping || live.power === 'running' || live.power === 'starting' || status === 'online' || status === 'degraded';
 
   return (
     <div className="grid gap-4">
@@ -643,10 +646,21 @@ export default function InstanceDetail() {
             {instance.access !== 'viewer' && !closed && (
               <ButtonGroup label="Power" className="w-full sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
                 <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending || powerCooldown > 0} title={canStart ? 'Start the instance' : 'Already running'}>Start</SoftButton>
-                <SoftButton onClick={() => onPower('restart')} disabled={!canRestart || power.pending || powerCooldown > 0} title="Restart the instance">
-                  {powerCooldown > 0 ? `Restart (${powerCooldown}s)` : 'Restart'}
+                <SoftButton onClick={() => onPower('restart')} disabled={!canRestart || power.pending || (powerCooldown > 0 && !isStopping)} title="Restart the instance">
+                  {powerCooldown > 0 && !isStopping ? `Restart (${powerCooldown}s)` : 'Restart'}
                 </SoftButton>
-                <SoftButton onClick={() => onPower('stop')} disabled={!canStop || power.pending || powerCooldown > 0} title={canStop ? 'Stop the instance' : 'Not running'}>Stop</SoftButton>
+                {isStopping ? (
+                  <SoftButton onClick={() => onPower('kill')} disabled={power.pending} title="Force kill the stopping container" className="text-bad hover:border-bad/40 font-semibold">
+                    Force Stop
+                  </SoftButton>
+                ) : (
+                  <SoftButton onClick={() => onPower('stop')} disabled={!canStop || power.pending || powerCooldown > 0} title={canStop ? 'Stop the instance' : 'Not running'}>Stop</SoftButton>
+                )}
+                {!isStopping && canKill && (
+                  <SoftButton onClick={() => onPower('kill')} disabled={power.pending} title="Force stop (SIGKILL) if container is unresponsive" className="text-bad/70 hover:text-bad">
+                    Kill
+                  </SoftButton>
+                )}
               </ButtonGroup>
             )}
           </div>

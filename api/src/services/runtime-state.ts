@@ -457,27 +457,27 @@ export async function reconcileRuntimeState(
     // about the service, and a container that is still starting is neither up nor down.
     if (!observation.unreachable) {
       const now = conditionOf(observation);
-      if (now === 'serving' || now === 'stopped') {
+      if (instance.status === 'STOPPED') {
+        if (instance.downSince || instance.downAlertedAt) {
+          await prisma.instance.update({ where: { id: instance.id }, data: { downSince: null, downAlertedAt: null } });
+        }
+      } else if (now === 'serving' || now === 'stopped') {
         await recordUptimeCheck(instance, now === 'serving').catch((error) => console.error('[uptime] a check could not be recorded', error));
       }
     }
 
-    // A state that is transitional is resolved by what the node says: an
-    // instance the platform shows as restarting, whose container serves, is
-    // online again. Before, the run skipped every instance whose container
-    // was healthy, so an instance whose container ran stayed "restarting" for
-    // good and the customer saw a service that was up and running as broken.
-    if (condition === 'serving' && instance.status === 'RESTARTING') {
+    // A state that is transitional or stopped is resolved by what the node says: an
+    // instance whose container serves is online again.
+    if (condition === 'serving' && (instance.status === 'RESTARTING' || instance.status === 'STOPPED')) {
       await resolveRestartingInstance(instance.id, observation);
       reconciled += 1;
       continue;
     }
 
     // A container that runs and that the node confirms is what the platform
-    // promised: there is nothing to write down. Everything else is written
-    // down, so an operator sees a container that does not serve and the doubt
-    // of a container that serves but is not confirmed.
-    if (observation.running) continue;
+    // promised: there is nothing to write down. An intentionally stopped instance
+    // also needs no runtime alert.
+    if (observation.running || instance.status === 'STOPPED') continue;
 
     await recordRuntimeState(observation);
   }
@@ -499,8 +499,8 @@ async function resolveRestartingInstance(
 ): Promise<void> {
   const moment = new Date().toISOString();
   const changed = await prisma.instance.updateMany({
-    where: { id: instanceId, status: 'RESTARTING' },
-    data: { status: 'ONLINE' },
+    where: { id: instanceId, status: { in: ['RESTARTING', 'STOPPED'] } },
+    data: { status: 'ONLINE', downSince: null, downAlertedAt: null },
   });
   if (changed.count === 0) return;
 

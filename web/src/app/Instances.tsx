@@ -203,7 +203,7 @@ export default function Instances() {
     items.push(menuKit.copy('copy-id', 'service ID', instance.id, { separated: true }));
     if (instance.url) items.push(menuKit.copy('copy-url', 'address', instance.url));
     if (!closed && access !== 'viewer') {
-      const power = (action: 'start' | 'restart', done: string) => async () => {
+      const power = (action: 'start' | 'restart' | 'stop' | 'kill', done: string) => async () => {
         try {
           await post(`/instances/${id}/power`, { action });
           menuKit.toast.push(done, 'ok');
@@ -214,9 +214,11 @@ export default function Instances() {
       };
       const canStart = instance.status === 'stopped' || instance.status === 'failed';
       const canRestart = instance.status === 'online' || instance.status === 'degraded' || instance.status === 'stopped';
+      const canStop = instance.status === 'online' || instance.status === 'degraded';
       items.push(
         { key: 'start', label: 'Start', icon: 'rocket', separated: true, disabled: !canStart, reason: 'It is not stopped.', onSelect: power('start', 'Start requested.') },
         { key: 'restart', label: 'Restart', icon: 'restart', disabled: !canRestart, reason: instance.status === 'provisioning' || instance.status === 'pending' ? 'Unavailable while it is being set up.' : 'It cannot be restarted now.', onSelect: power('restart', 'Restart requested.') },
+        { key: 'stop', label: 'Stop', icon: 'box', disabled: !canStop, reason: 'It is not running.', onSelect: power('stop', 'Stop requested.') },
       );
     }
     return items;

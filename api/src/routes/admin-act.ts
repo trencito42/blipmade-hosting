@@ -325,7 +325,7 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
 
     const status = action === 'stop' || action === 'kill' ? 'STOPPED' : action === 'start' ? 'ONLINE' : 'RESTARTING';
     await prisma.$transaction([
-      prisma.instance.update({ where: { id: instance.id }, data: { status } }),
+      prisma.instance.update({ where: { id: instance.id }, data: { status, downSince: null, downAlertedAt: null } }),
       prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'staff_power', message: `Staff requested ${action}.` } }),
     ]);
     await audit({ actorId: actor.id, actorEmail: actor.email, action: `admin.instance.power.${action}`, targetType: 'instance', targetId: instance.id, meta: { reason }, ip: request.ip });

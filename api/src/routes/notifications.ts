@@ -199,15 +199,20 @@ export async function registerNotificationRoutes(app: FastifyInstance): Promise<
     let last = -1;
     let closed = false;
     const timer = setInterval(() => {
+      if (closed) return;
       void prisma.notification
         .count({ where: { userId: user.id, readAt: null } })
         .then((unread) => {
-          if (closed || unread === last) return;
-          last = unread;
-          reply.raw.write(`event: unread\ndata: ${JSON.stringify({ unread })}\n\n`);
+          if (closed) return;
+          if (unread !== last) {
+            last = unread;
+            reply.raw.write(`event: unread\ndata: ${JSON.stringify({ unread })}\n\n`);
+          } else {
+            reply.raw.write(': ping\n\n');
+          }
         })
         .catch(() => undefined);
-    }, 3000);
+    }, 5000);
 
     const stop = () => {
       closed = true;

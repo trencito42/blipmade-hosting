@@ -39,10 +39,18 @@ const duration = (ms: number): string => {
 
 /** Writes the check down and tells the owner when the service has been down long enough, and when it is back. */
 export async function recordUptimeCheck(
-  instance: { id: string; name: string; userId: string; downSince: Date | null; downAlertedAt: Date | null; alertsEnabled: boolean },
+  instance: { id: string; name: string; userId: string; downSince: Date | null; downAlertedAt: Date | null; alertsEnabled: boolean; status?: string },
   up: boolean,
   now: Date = new Date(),
 ): Promise<void> {
+  // If the service is intentionally stopped, suspended, or cancelled, it must never trigger outage/incident alerts.
+  if (instance.status === 'STOPPED' || instance.status === 'SUSPENDED' || instance.status === 'CANCELLED') {
+    if (instance.downSince || instance.downAlertedAt) {
+      await prisma.instance.update({ where: { id: instance.id }, data: { downSince: null, downAlertedAt: null } });
+    }
+    return;
+  }
+
   await prisma.instanceCheck.create({ data: { instanceId: instance.id, at: now, up } });
   const step = nextAlertStep(instance, up, now);
   if (step.kind === 'none') return;

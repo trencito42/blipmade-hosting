@@ -222,6 +222,9 @@ export default function Notifications() {
     setItems((current) => current.map((item) => (item.id === id ? { ...item, readAt: moment } : item)));
     toast.push('The notification is marked as read', 'ok');
     void refreshCount();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('blipmade:notifications-sync'));
+    }
   };
 
   const onMarkAllRead = async () => {
@@ -231,6 +234,9 @@ export default function Notifications() {
     setItems((current) => current.map((item) => (item.readAt ? item : { ...item, readAt: moment })));
     toast.push(`${updated} notification${updated === 1 ? '' : 's'} marked as read.`, 'ok');
     void refreshCount();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('blipmade:notifications-sync'));
+    }
   };
 
   const onConfirmDelete = async () => {
@@ -242,6 +248,9 @@ export default function Notifications() {
     setItems((current) => current.filter((item) => item.id !== id));
     toast.push('The notification was deleted', 'ok');
     void refreshCount();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('blipmade:notifications-sync'));
+    }
   };
 
   const filtered = Boolean(category) || unreadOnly;
