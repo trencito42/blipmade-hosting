@@ -24,7 +24,7 @@ function requireAgent(request: FastifyRequest): void {
 const remotePath = z.string().min(3).max(300).regex(/^[A-Za-z0-9][A-Za-z0-9._/@=+-]*$/).refine((value) => !value.includes('..'), 'No way up the tree.');
 
 const reportSchema = z.object({
-  kind: z.enum(['CUSTOMER', 'DATABASE', 'VPS', 'PLATFORM']),
+  kind: z.enum(['CUSTOMER', 'DATABASE', 'VPS', 'PLATFORM', 'INFRA', 'PVE']),
   remotePath,
   sourceId: z.string().min(1).max(200),
   node: z.string().max(100).optional(),
@@ -70,7 +70,7 @@ export async function registerInternalBackupRoutes(app: FastifyInstance): Promis
   // The state of the destination, as the agent saw it: reachable or not, and how much room is left.
   app.post('/internal/backups/destination', async (request) => {
     requireAgent(request);
-    const body = z.object({ reachable: z.boolean(), totalBytes: z.number().int().min(0).optional(), usedBytes: z.number().int().min(0).optional(), error: z.string().max(300).optional(), node: z.string().max(100).optional() }).parse(request.body ?? {});
+    const body = z.object({ reachable: z.boolean(), totalBytes: z.number().int().min(0).optional(), usedBytes: z.number().int().min(0).optional(), fileCount: z.number().int().min(0).optional(), error: z.string().max(300).optional(), node: z.string().max(100).optional() }).parse(request.body ?? {});
     const value = { ...body, at: new Date().toISOString() };
     await prisma.setting.upsert({ where: { key: 'offsite.destination' }, create: { key: 'offsite.destination', value }, update: { value } });
     return { ok: true };
@@ -80,7 +80,7 @@ export async function registerInternalBackupRoutes(app: FastifyInstance): Promis
   // to a service yet is its own source, until it is 60 days old.
   app.get('/internal/backups/protected', async (request) => {
     requireAgent(request);
-    const { kind } = z.object({ kind: z.enum(['CUSTOMER', 'DATABASE', 'VPS', 'PLATFORM']) }).parse(request.query);
+    const { kind } = z.object({ kind: z.enum(['CUSTOMER', 'DATABASE', 'VPS', 'PLATFORM', 'INFRA', 'PVE']) }).parse(request.query);
     const rows = await prisma.offsiteBackup.findMany({
       where: { kind, state: 'OFFSITE_VERIFIED' },
       orderBy: { verifiedAt: 'desc' },

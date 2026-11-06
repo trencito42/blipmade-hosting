@@ -48,7 +48,7 @@ import {
  */
 
 /** The state of a check, of the whole sweep or of a channel. */
-export type OpsState = 'ok' | 'warning' | 'critical';
+export type OpsState = 'ok' | 'warning' | 'critical' | 'unknown';
 
 /** The state of a channel: a channel can also be switched off. */
 export type OpsChannelState = OpsState | 'off';
@@ -74,7 +74,7 @@ export interface OpsCheck {
 export interface OpsHealth {
   overall: OpsState;
   checkedAt: string;
-  summary: { total: number; ok: number; warning: number; critical: number };
+  summary: { total: number; ok: number; warning: number; critical: number; unknown?: number };
   checks: OpsCheck[];
 }
 
@@ -141,10 +141,53 @@ const denseArea =
 function stateTone(state: OpsState | OpsChannelState): { status: string; label: string } {
   if (state === 'critical') return { status: 'failed', label: 'Critical' };
   if (state === 'warning') return { status: 'degraded', label: 'Warning' };
+  if (state === 'unknown') return { status: 'unavailable', label: 'Unknown' };
   if (state === 'off') return { status: 'stopped', label: 'Off' };
   // The pill of the interface capitalises what it shows, so the word is
   // written the way it is read and not the way the API writes it.
   return { status: 'active', label: 'Ok' };
+}
+
+/** Links inside Operations. Queues and incidents keep their own pages. */
+export function OpsNav() {
+  return (
+    <nav aria-label="Operations sections" className="flex flex-wrap gap-2 text-[13px]">
+      <Link to="/admin/ops" className="rounded-full bg-s2 px-3 py-1.5 font-semibold text-ink hover:bg-s3">
+        Overview
+      </Link>
+      <Link to="/admin/infrastructure" className="rounded-full bg-s2 px-3 py-1.5 font-semibold text-ink hover:bg-s3">
+        Infrastructure
+      </Link>
+      <Link to="/admin/ops/backups" className="rounded-full bg-s2 px-3 py-1.5 font-semibold text-ink hover:bg-s3">
+        Backups & recovery
+      </Link>
+      <Link to="/admin/ops/errors" className="rounded-full bg-s2 px-3 py-1.5 font-semibold text-ink hover:bg-s3">
+        Errors
+      </Link>
+      <Link to="/admin/queues" className="rounded-full bg-s2 px-3 py-1.5 font-semibold text-ink hover:bg-s3">
+        Jobs & queues
+      </Link>
+      <Link to="/admin/incidents" className="rounded-full bg-s2 px-3 py-1.5 font-semibold text-ink hover:bg-s3">
+        Alerts & incidents
+      </Link>
+    </nav>
+  );
+}
+
+function coverageTone(state: string): { status: string; label: string } {
+  if (state === 'restore_verified' || state === 'healthy') return { status: 'active', label: 'Restore verified' };
+  if (state === 'restore_untested' || state === 'remote_verified') return { status: 'verified', label: 'Backup verified, restore untested' };
+  if (state === 'uploaded') return { status: 'pending', label: 'Backup uploaded' };
+  if (state === 'stale') return { status: 'degraded', label: 'Stale evidence' };
+  if (state === 'degraded') return { status: 'degraded', label: 'Degraded' };
+  if (state === 'critical') return { status: 'failed', label: 'Critical' };
+  if (state === 'not_protected') return { status: 'failed', label: 'Not protected' };
+  if (state === 'not_configured') return { status: 'unavailable', label: 'Not configured' };
+  if (state === 'probe_failed') return { status: 'unavailable', label: 'Probe failed' };
+  if (state === 'unknown') return { status: 'unavailable', label: 'Unknown' };
+  if (state === 'reachable') return { status: 'active', label: 'Reachable' };
+  if (state === 'unreachable') return { status: 'failed', label: 'Unreachable' };
+  return { status: 'unavailable', label: state.replace(/_/g, ' ') };
 }
 
 /**
@@ -230,10 +273,12 @@ export function OpsHeadline({ health }: { health: OpsHealth }) {
             <StatusPill status={tone.status} label={tone.label} />
             <span className="text-[13.5px] text-ink2">
               {health.overall === 'ok'
-                ? 'Every check of the sweep passes.'
+                ? 'Every check of the sweep has evidence that it passes.'
                 : health.overall === 'warning'
                   ? 'Some checks of the sweep need a look.'
-                  : 'Some checks of the sweep are broken.'}
+                  : health.overall === 'unknown'
+                    ? 'Some checks have no evidence yet. Missing evidence is not healthy.'
+                    : 'Some checks of the sweep are broken.'}
             </span>
           </p>
           <p className="mt-1 text-[12.5px] text-ink3">{summary.total} checks in the sweep.</p>
@@ -245,10 +290,11 @@ export function OpsHeadline({ health }: { health: OpsHealth }) {
         </div>
       </section>
 
-      <section aria-label="The counts of the sweep" className="grid gap-3 sm:grid-cols-3">
+      <section aria-label="The counts of the sweep" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Ok" value={summary.ok} hint="checks that pass." />
         <StatTile label="Warning" value={summary.warning} hint="checks that need a look." />
         <StatTile label="Critical" value={summary.critical} hint="checks that are broken." />
+        <StatTile label="Unknown" value={summary.unknown ?? 0} hint="checks with no evidence." />
       </section>
     </div>
   );
@@ -463,19 +509,24 @@ export function OpsChannelsList({ channels }: { channels: OpsChannel[] }) {
 /** The offsite copies, their states, the destination, the gaps, and the disk of the nodes. */
 function BackupHealth() {
   const state = useAsync<{
-    offsite: 'not_configured' | 'reachable' | 'unreachable';
-    destination: { reachable: boolean; totalBytes: number | null; usedBytes: number | null; error: string | null; at: string | null } | null;
+    offsite: string;
+    destination: { reachable: boolean; totalBytes: number | null; usedBytes: number | null; fileCount?: number | null; error: string | null; at: string | null; inventory?: string; encrypted?: boolean } | null;
+    coverage?: { id: string; name: string; host: string; method: string; frequency: string; lastLocalAt: string | null; lastOffsiteAt: string | null; lastVerifiedAt: string | null; lastRestoreAt: string | null; state: string; reason: string }[];
     kinds: { kind: string; pending: number; verified: number; failed: number; lastVerifiedAt: string | null; lastRestoreCheckAt: string | null }[];
     lastVerifiedAt: string | null;
+    lastRestoreAt?: string | null;
     gaps: { id: string; name: string }[];
     vpsGaps?: { id: string; name: string; vmid: number; lastCopyAt: string | null }[];
     offsiteFailures: { id: string; kind: string; source: string; error: string | null; at: string }[];
+    nodesError?: string | null;
     nodes: { id: number; name: string; diskMb: number; allocatedMb: number; allocatedPercent: number | null }[];
     failures: { id: string; instance: string; message: string; at: string }[];
+    payments?: { mode: string; paymentsEnabled: boolean; checkoutAvailable: boolean };
   }>((signal) => get('/admin/backups/health', undefined, signal), []);
   const data = state.data;
   const gb = (bytes: number | null) => (bytes === null ? DASH : `${(bytes / 1024 ** 3).toFixed(1)} GB`);
-  const kindName: Record<string, string> = { CUSTOMER: 'Customer servers', DATABASE: 'Databases', VPS: 'Virtual servers', PLATFORM: 'Platform' };
+  const kindName: Record<string, string> = { CUSTOMER: 'Customer servers', DATABASE: 'Databases', VPS: 'Virtual servers', PLATFORM: 'Platform', INFRA: 'Infra VMs', PVE: 'Proxmox config' };
+  const destTone = coverageTone(data?.offsite ?? 'unknown');
   return (
     <Panel
       title="Offsite backups"
@@ -488,17 +539,57 @@ function BackupHealth() {
       ) : data ? (
         <div className="grid gap-3">
           <div className="grid gap-1 rounded-2xl bg-s2 p-4">
-            <p className="text-[14px] font-semibold text-ink">
-              Destination: {data.offsite === 'not_configured' ? 'not configured' : data.offsite === 'reachable' ? 'reachable' : 'NOT reachable'}
+            <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-ink">
+              Storage Box <StatusPill status={destTone.status} label={destTone.label} />
             </p>
             {data.destination && (
               <p className="font-mono text-[12.5px] text-ink2">
-                {gb(data.destination.usedBytes)} used of {gb(data.destination.totalBytes)} · checked {data.destination.at ? fmtDateTime(data.destination.at) : DASH}
+                {gb(data.destination.usedBytes)} used of {gb(data.destination.totalBytes)}
+                {data.destination.fileCount != null ? ` · ${data.destination.fileCount} remote files` : ''}
+                {' · '}checked {data.destination.at ? fmtDateTime(data.destination.at) : DASH}
                 {data.destination.error ? ` · ${data.destination.error}` : ''}
               </p>
             )}
-            <p className="text-[12.5px] text-ink3">Last verified copy: {data.lastVerifiedAt ? fmtDateTime(data.lastVerifiedAt) : 'none yet'}.</p>
+            {data.destination?.inventory && <p className="text-[12.5px] text-ink3">{data.destination.inventory}</p>}
+            <p className="text-[12.5px] text-ink3">
+              Last verified copy: {data.lastVerifiedAt ? fmtDateTime(data.lastVerifiedAt) : 'none yet'}. Last restore drill:{' '}
+              {data.lastRestoreAt ? fmtDateTime(data.lastRestoreAt) : 'none yet'}. Encryption: age (keys never shown here).
+            </p>
+            {data.payments && (
+              <p className="text-[12.5px] text-ink3">
+                Stripe {data.payments.mode}. Checkout {data.payments.checkoutAvailable ? 'available' : 'closed'}. Payments flag {data.payments.paymentsEnabled ? 'on' : 'off'}.
+              </p>
+            )}
           </div>
+
+          {(data.coverage ?? []).length > 0 && (
+            <DataTable
+              rows={data.coverage ?? []}
+              rowKey={(row) => row.id}
+              minWidth="920px"
+              columns={[
+                { key: 'name', header: 'Resource', truncate: true, render: (row) => (
+                  <span className="block min-w-0">
+                    <span className="block truncate font-bold text-ink">{row.name}</span>
+                    <span className="block truncate font-mono text-[12px] text-ink3">{row.host} · {row.method}</span>
+                  </span>
+                ) },
+                { key: 'freq', header: 'Frequency', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.frequency}</span> },
+                { key: 'offsite', header: 'Last off-site', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastOffsiteAt ? fmtDateTime(row.lastOffsiteAt) : DASH}</span> },
+                { key: 'verified', header: 'Verified', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastVerifiedAt ? fmtDateTime(row.lastVerifiedAt) : DASH}</span> },
+                { key: 'restore', header: 'Restore', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastRestoreAt ? fmtDateTime(row.lastRestoreAt) : DASH}</span> },
+                { key: 'state', header: 'State', render: (row) => {
+                  const tone = coverageTone(row.state);
+                  return (
+                    <span className="block min-w-0">
+                      <StatusPill status={tone.status} label={tone.label} />
+                      <span className="mt-1 block break-words text-[12px] text-ink3">{row.reason}</span>
+                    </span>
+                  );
+                } },
+              ]}
+            />
+          )}
 
           <ul className="grid gap-2">
             {data.kinds.map((kind) => (
@@ -541,6 +632,13 @@ function BackupHealth() {
             </ul>
           )}
 
+          {data.nodesError && (
+            <div className="grid gap-1 rounded-2xl bg-bad/12 p-4">
+              <p className="text-[14px] font-semibold text-ink">Panel node probe failed</p>
+              <p className="break-words font-mono text-[12.5px] text-bad">{data.nodesError}</p>
+              <p className="text-[12.5px] text-ink3">An empty node list is not proof that no nodes exist.</p>
+            </div>
+          )}
           <ul className="grid gap-2">
             {data.nodes.map((node) => (
               <li key={node.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 p-4">
@@ -748,6 +846,7 @@ export default function Ops() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`${checks.length} checks, ${alerts.data?.alerts.length ?? 0} alerts`} />
+      <OpsNav />
 
       <Panel
         title="Operations"

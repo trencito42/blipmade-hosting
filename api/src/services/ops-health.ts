@@ -72,7 +72,7 @@ export type OpsCheckId =
 export type OpsSeverity = 'critical' | 'warning';
 
 /** The state of a check. */
-export type OpsState = 'ok' | 'warning' | 'critical';
+export type OpsState = 'ok' | 'warning' | 'critical' | 'unknown';
 
 /**
  * The state of a channel.
@@ -354,17 +354,28 @@ async function checkBackup(now: Date): Promise<OpsCheckResult> {
       subject: target,
       payload: { target, reason: `the newest backup is ${Math.round(age)} hours old` },
     });
+  } else if (!receipt) {
+    findings.push({
+      fingerprint: 'backup:no-receipt',
+      severity: 'warning',
+      title: 'No backup receipt',
+      detail: 'A missing receipt is not a successful backup.',
+      type: 'ops.backup_failed',
+      subject: target,
+      payload: { target, reason: 'no backup receipt' },
+    });
   }
 
+  const missing = !receipt;
   return {
     id: 'backup',
     title: 'Backup',
-    state: findings.length > 0 ? 'critical' : 'ok',
+    state: findings.some((f) => f.severity === 'critical') ? 'critical' : findings.length > 0 ? 'warning' : missing ? 'unknown' : 'ok',
     summary: findings.length > 0
       ? findings[0].title
-      : age !== null
-        ? `The last backup is ${Math.round(age)} hours old.`
-        : 'No receipt of a backup has been read yet.',
+      : missing
+        ? 'No backup receipt. A missing receipt is not a successful backup.'
+        : `The last backup is ${Math.round(age ?? 0)} hours old.`,
     detail: at ? `the last backup ran at ${at.toISOString()}` : 'the scripts of the backup write no receipt yet',
     checkedAt: now.toISOString(),
     durationMs: 0,
@@ -419,17 +430,28 @@ async function checkOffsite(now: Date): Promise<OpsCheckResult> {
       subject: target,
       payload: { target },
     });
+  } else if (!receipt) {
+    findings.push({
+      fingerprint: 'offsite:no-receipt',
+      severity: 'warning',
+      title: 'No off-site receipt',
+      detail: 'A missing receipt is not a copy on the Storage Box.',
+      type: 'ops.offsite_backup_missing',
+      subject: target,
+      payload: { target },
+    });
   }
 
+  const missing = !receipt;
   return {
     id: 'offsite',
     title: 'Copy off the host',
-    state: findings.length > 0 ? (findings[0].severity === 'critical' ? 'critical' : 'warning') : 'ok',
+    state: findings.length > 0 ? (findings[0].severity === 'critical' ? 'critical' : 'warning') : missing ? 'unknown' : 'ok',
     summary: findings.length > 0
       ? findings[0].title
-      : age !== null
-        ? `The last copy that left the host is ${Math.round(age)} hours old.`
-        : 'No receipt of a copy that leaves the host has been read yet.',
+      : missing
+        ? 'No off-site receipt. A missing receipt is not a copy on the Storage Box.'
+        : `The last copy that left the host is ${Math.round(age ?? 0)} hours old.`,
     detail: at ? `the copy was made at ${at.toISOString()}` : 'the scripts of the backup write no receipt yet',
     checkedAt: now.toISOString(),
     durationMs: 0,
@@ -468,12 +490,12 @@ async function checkRestore(): Promise<OpsCheckResult> {
   return {
     id: 'restore',
     title: 'Restore drill',
-    state: findings.length > 0 ? 'critical' : 'ok',
+    state: findings.length > 0 ? 'critical' : result === 'success' ? 'ok' : 'unknown',
     summary: findings.length > 0
       ? findings[0].title
       : result === 'success'
         ? 'The last drill restored the copy.'
-        : 'No drill has been recorded yet.',
+        : 'No restore drill has been recorded. A verified upload is not a restore.',
     detail: checks.length > 0 ? `${checks.length} check(s) of the drill` : '',
     checkedAt: new Date().toISOString(),
     durationMs: 0,
@@ -757,16 +779,23 @@ async function checkCertificates(now: Date): Promise<OpsCheckResult> {
     }
   }
 
+  const probeFailed = parts.some((part) => part.includes(': unknown'));
   return {
     id: 'certificate',
     title: 'Certificates',
-    state: findings.length > 0 ? (findings[0].severity === 'critical' ? 'critical' : 'warning') : 'ok',
+    state: findings.length > 0
+      ? (findings[0].severity === 'critical' ? 'critical' : 'warning')
+      : targets.length === 0 || probeFailed
+        ? 'unknown'
+        : 'ok',
     summary:
       findings.length > 0
         ? findings[0].title
         : targets.length === 0
           ? 'No address with a certificate is configured.'
-          : 'Every certificate of the platform has room.',
+          : probeFailed
+            ? 'At least one certificate probe failed. That is unknown, not healthy.'
+            : 'Every certificate of the platform has room.',
     detail: parts.join(' · '),
     checkedAt: now.toISOString(),
     durationMs: 0,
@@ -964,8 +993,8 @@ export async function runOpsChecks(now: Date = new Date()): Promise<OpsCheckResu
       results.push({
         id: check.id,
         title: check.id,
-        state: 'warning',
-        summary: 'The check could not be run.',
+        state: 'unknown',
+        summary: 'The check could not be run. That is unknown, not healthy.',
         detail: (error as Error).message.slice(0, 300),
         checkedAt: now.toISOString(),
         durationMs: Date.now() - started,
@@ -998,7 +1027,7 @@ export async function runOpsCheck(id: OpsCheckId, now: Date = new Date()): Promi
 export interface OpsHealthSnapshot {
   overall: OpsState;
   checkedAt: string;
-  summary: { total: number; ok: number; warning: number; critical: number };
+  summary: { total: number; ok: number; warning: number; critical: number; unknown: number };
   checks: OpsCheckResult[];
 }
 
@@ -1016,8 +1045,10 @@ export async function opsHealthSnapshot(): Promise<OpsHealthSnapshot> {
     ok: checks.filter((c) => c.state === 'ok').length,
     warning: checks.filter((c) => c.state === 'warning').length,
     critical: checks.filter((c) => c.state === 'critical').length,
+    unknown: checks.filter((c) => c.state === 'unknown').length,
   };
-  const overall: OpsState = summary.critical > 0 ? 'critical' : summary.warning > 0 ? 'warning' : 'ok';
+  const overall: OpsState =
+    summary.critical > 0 ? 'critical' : summary.warning > 0 ? 'warning' : summary.unknown > 0 ? 'unknown' : 'ok';
   return { overall, checkedAt: new Date().toISOString(), summary, checks };
 }
 

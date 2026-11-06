@@ -53,3 +53,18 @@ Reuse Storage Box + `blipmade-offsite-agent`. No RAID change. No PBS.
 | VM103 disk | 85% → **71%** after `docker builder prune --filter until=72h`; timer installed |
 | Checkout | still `PAYMENTS_ENABLED=false` |
 | Stripe test subs | left in place per owner |
+
+## Ops Center 3.0 — 2026-11-06 (code, not deployed)
+
+Reuse existing `/admin/ops`, `OffsiteBackup`, off-site agent, GlitchTip DSN. No second backup stack.
+
+- `OffsiteKind` gained `INFRA` and `PVE` so agent reports stop 400.
+- Missing backup/off-site/restore receipts are **unknown**, not ok.
+- `/admin/backups/health` no longer turns `listNodes()` failure into `[]`.
+- Coverage matrix + destination inventory (`fileCount` from `rsync --list-only`. Storage Box SSH has no `find`).
+- GlitchTip list is server-side (`GLITCHTIP_AUTH_TOKEN`). DSN is never returned.
+- Pages: `/admin/ops/backups`, `/admin/ops/errors`.
+- Tests: `api/tests/ops-coverage.test.ts`, `web/e2e/admin-ops-center.spec.ts`.
+
+**Not deployed.** Production still `8b07cd2d` until the owner says deploy.
+

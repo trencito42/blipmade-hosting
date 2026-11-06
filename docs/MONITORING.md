@@ -32,6 +32,9 @@ They answer different questions, so the real choice is not between the two.
   against more than a dozen services for self-hosted Sentry). The code is ready: set
   `SENTRY_DSN` for the API and the worker, and `VITE_SENTRY_DSN` when building the web. With no
   DSN nothing is sent and nothing is loaded. No cookies, headers or request bodies are sent.
+  Admin Operations lists GlitchTip issues only when `GLITCHTIP_AUTH_TOKEN` is set on the API
+  (optional `GLITCHTIP_URL`, `GLITCHTIP_ORG`, `GLITCHTIP_PROJECT`). The token stays on the server.
+  `SENTRY_RELEASE` labels exceptions with the git SHA. A DSN is not proof that events arrived.
 - **Metrics of Proxmox, the VMs, the containers and the services: Prometheus + Grafana**
   (+ Alertmanager). Collectors to add: `prometheus-pve-exporter` (Proxmox: nodes, VMs, storage),
   `node_exporter` on the host and each VM, `cadvisor` or the Docker metrics, `postgres_exporter`

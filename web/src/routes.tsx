@@ -100,6 +100,8 @@ const AdminCatalogPresetEdit = lazy(() => import('./admin/catalog/Editors').then
 const AdminCatalogAddonNew = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.AddonNew })));
 const AdminCatalogAddonEdit = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.AddonEdit })));
 const AdminOpsDeclare = lazy(() => import('./admin/OpsDeclare'));
+const AdminOpsBackups = lazy(() => import('./admin/OpsBackups'));
+const AdminOpsErrors = lazy(() => import('./admin/OpsErrors'));
 const AdminCustomerProfile = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerProfileEdit })));
 const AdminCustomerSecurity = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerSecurityActions })));
 const AdminAddonNew = lazy(() => import('./admin/CommerceEditors').then((m) => ({ default: m.AddonNew })));
@@ -399,6 +401,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/abuse/:id/reopen', component: AdminAbuseReopen, title: 'Reopen the case', area: 'admin', layout: 'editor' },
   { pattern: '/admin/abuse/:id', component: AdminAbuseDetail, title: 'Abuse report', area: 'admin' },
   { pattern: '/admin/ops/incident/declare', component: AdminOpsDeclare, title: 'Declare an incident', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/ops/backups', component: AdminOpsBackups, title: 'Backups & recovery', area: 'admin' },
+  { pattern: '/admin/ops/errors', component: AdminOpsErrors, title: 'Errors', area: 'admin' },
   { pattern: '/admin/ops', component: AdminOps, title: 'Operations', area: 'admin' },
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
   { pattern: '/admin/mail/plans/new', component: AdminMailPlanEdit, title: 'New mail plan', area: 'admin', layout: 'editor' },

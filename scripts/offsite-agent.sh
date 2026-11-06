@@ -329,12 +329,20 @@ mode_retention() {
 }
 
 # ----------------------------------------------------------------- destination
+t_count() {  # number of files under the base; listing only, never a download
+  # Storage Box SSH is a restricted shell: find/echo are not there. rsync --list-only is.
+  if [ "$OFFSITE_TRANSPORT" = local ]; then find "${OFFSITE_LOCAL_DIR:?}" -type f 2>/dev/null | wc -l
+  else rsync_ssh -r --list-only "$OFFSITE_HOST:$OFFSITE_BASE/" 2>/dev/null | awk 'NF && $1 ~ /^-/ { n++ } END { print n+0 }'; fi
+}
+
 mode_destination() {
-  local line total used
+  local line total used files
   if line="$(t_df 2>/dev/null)" && [ -n "$line" ]; then
     read -r total used <<<"$line"
-    post destination "$(printf '{"reachable":true,"totalBytes":%s,"usedBytes":%s,"node":"%s"}' "$total" "$used" "$NODE_NAME")"
-    log "destination reachable: $used of $total bytes used"
+    files="$(t_count 2>/dev/null | tr -dc '0-9' || true)"
+    files="${files:-0}"
+    post destination "$(printf '{"reachable":true,"totalBytes":%s,"usedBytes":%s,"fileCount":%s,"node":"%s"}' "$total" "$used" "$files" "$NODE_NAME")"
+    log "destination reachable: $used of $total bytes used, $files files"
   else
     post destination "{\"reachable\":false,\"error\":\"the destination could not be reached\",\"node\":\"$NODE_NAME\"}"
     die "the destination could not be reached"

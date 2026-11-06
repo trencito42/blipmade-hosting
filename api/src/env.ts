@@ -280,6 +280,14 @@ const schema = z.object({
   STAFF_SECURITY_OFF: z.string().default(''),
   SENTRY_DSN: z.string().default(''),
   SENTRY_ENVIRONMENT: z.string().default('production'),
+  /** Optional release label sent with exceptions (git SHA). Empty omits it. */
+  SENTRY_RELEASE: z.string().default(''),
+  /** GlitchTip origin. Empty uses the host of SENTRY_DSN, else https://errors.blipmade.com. */
+  GLITCHTIP_URL: z.string().default(''),
+  /** Auth token for the GlitchTip REST API. Empty keeps Admin from listing issues. */
+  GLITCHTIP_AUTH_TOKEN: z.string().default(''),
+  GLITCHTIP_ORG: z.string().default(''),
+  GLITCHTIP_PROJECT: z.string().default(''),
   LOG_LEVEL: z.string().default('info'),
 
   /**

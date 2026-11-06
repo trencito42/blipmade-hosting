@@ -373,7 +373,7 @@ describe('the headline of the sweep', () => {
         }),
       ),
     );
-    assert.match(html, /Every check of the sweep passes/);
+    assert.match(html, /Every check of the sweep has evidence that it passes/);
     assert.match(html, /Ok<\/p><p class="[^"]*">11</);
   });
 });

@@ -15,7 +15,8 @@ export function initErrorReporting(service: 'api' | 'worker'): void {
   if (!env.SENTRY_DSN || active) return;
   Sentry.init({
     dsn: env.SENTRY_DSN,
-    environment: env.SENTRY_ENVIRONMENT,
+    environment: env.SENTRY_ENVIRONMENT || 'production',
+    release: env.SENTRY_RELEASE || undefined,
     serverName: service,
     tracesSampleRate: 0,
     beforeSend(event, hint) {
@@ -36,5 +37,8 @@ export function initErrorReporting(service: 'api' | 'worker'): void {
 
 export function reportError(error: unknown, context: Record<string, unknown> = {}): void {
   if (!active) return;
-  Sentry.captureException(error, { extra: context });
+  Sentry.captureException(error, {
+    extra: context,
+    tags: typeof context.requestId === 'string' ? { request_id: context.requestId } : undefined,
+  });
 }

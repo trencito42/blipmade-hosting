@@ -2390,6 +2390,8 @@ enum OffsiteKind {
   DATABASE
   VPS
   PLATFORM
+  INFRA
+  PVE
 }
 
 enum OffsiteState {
