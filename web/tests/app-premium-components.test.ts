@@ -132,14 +132,21 @@ describe('premium customer controls', () => {
     assert.match(html, />Save</);
   });
 
-  it('sticks the actions of a long form to the content column and never to the viewport', () => {
+  it('keeps long-form actions in the card even when stickyActions is still passed', () => {
     const html = render(createElement(ui.PageEditorShell, {
       eyebrow: 'Support', title: 'Open a ticket', backTo: '/app/tickets', backLabel: 'Back to support', stickyActions: true,
       actions: createElement('button', null, 'Save'), children: createElement('p', null, 'Form'),
     }));
-    assert.match(html, /sticky bottom-3/);
+    assert.doesNotMatch(html, /sticky bottom-3/);
     assert.doesNotMatch(html, /fixed inset-x-0/);
-    assert.doesNotMatch(html, /Unsaved changes/);
+    assert.doesNotMatch(html, /backdrop-blur/);
+    assert.match(html, />Save</);
+  });
+
+  it('keeps the ticket reply composer in document flow', () => {
+    const src = readFileSync(join(webRoot, 'src/app/TicketDetail.tsx'), 'utf8');
+    assert.doesNotMatch(src, /sticky bottom-3/);
+    assert.doesNotMatch(src, /shadow-\[0_8px_30px/);
   });
 });
 

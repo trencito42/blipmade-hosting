@@ -665,8 +665,7 @@ export function useUnsavedChangesGuard(dirty: boolean, message = 'Discard your u
  * One heading, one way back, one action region:
  * - the way back is shown in the top bar of the shell (the route is marked `layout: 'editor'`), not repeated here;
  * - the heading is the only `h1` of the page; the eyebrow above it names the section;
- * - the actions follow the form, aligned to its edge. A long form sets `stickyActions`, and the region then sticks
- *   to the bottom of the content column without crossing the sidebar, the legal footer or the phone bar.
+ * - the actions follow the form, aligned to its edge, in document flow. They do not float over the page.
  */
 export function PageEditorShell({
   eyebrow,
@@ -678,7 +677,6 @@ export function PageEditorShell({
   aside,
   actions,
   dirty = false,
-  stickyActions = false,
   wide = false,
 }: {
   eyebrow: string;
@@ -690,7 +688,7 @@ export function PageEditorShell({
   aside?: ReactNode;
   actions: ReactNode;
   dirty?: boolean;
-  /** For a long, multi-section form: the actions stay in view while the form scrolls. A short form keeps them in the card. */
+  /** Kept so existing editors compile. Actions always sit in the form card, not over the page. */
   stickyActions?: boolean;
   /** A step wizard with its own summary column: it uses the full width of the page, like the other deploy pages. */
   wide?: boolean;
@@ -727,19 +725,12 @@ export function PageEditorShell({
       <div className={cn('grid gap-5', Boolean(aside) && 'lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start')}>
         <section className="min-w-0 rounded-2xl bg-s1 p-4 sm:p-6">
           {children}
-          {!stickyActions && <div className="mt-6 border-t border-line pt-4">{actionRow}</div>}
+          <div className="mt-6 border-t border-line pt-4" role="group" aria-label="Actions">
+            {actionRow}
+          </div>
         </section>
         {aside}
       </div>
-      {stickyActions && (
-        <div
-          role="group"
-          aria-label="Actions"
-          className="sticky bottom-3 z-10 rounded-2xl border border-line bg-bg/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur"
-        >
-          {actionRow}
-        </div>
-      )}
     </div>
   );
 }
