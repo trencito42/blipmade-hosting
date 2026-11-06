@@ -32,7 +32,7 @@ vi.mock('stripe', () => {
   class FakeStripe {
     refunds = { create: mocks.refundCreate };
   }
-  return { default: FakeStripe };
+  return { default: FakeStripe, Stripe: FakeStripe };
 });
 
 // The panel is replaced as well, because it is the panel that refuses the
@@ -77,6 +77,7 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
 
 const { prisma } = await import('../src/db.js');
 const { env } = await import('../src/env.js');
+const { setStripeClient } = await import('../src/services/stripe.js');
 const { applyUpgradeOrder, decideUpgradeRefund } = await import('../src/services/upgrades.js');
 const { closeApp, getApp, registerAndLogin, resetDatabase } = await import('./helpers.js');
 
@@ -243,6 +244,7 @@ describe('a paid resource change that the panel refuses', () => {
 
   afterAll(async () => {
     setStripeEnabled(ORIGINAL_STRIPE_ENABLED);
+    setStripeClient(null);
     await closeApp();
   });
 
@@ -256,10 +258,12 @@ describe('a paid resource change that the panel refuses', () => {
     mocks.panel.hold = null;
     mocks.panel.release = null;
     setStripeEnabled(true);
+    setStripeClient({ refunds: { create: mocks.refundCreate } } as never);
   });
 
   afterEach(async () => {
     setStripeEnabled(ORIGINAL_STRIPE_ENABLED);
+    setStripeClient(null);
   });
 
   it('returns the money and leaves the order in the state that tells the truth', async () => {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { env } from '../src/env.js';
+import { prisma } from '../src/db.js';
 
 /**
  * The links a customer follows.
@@ -26,18 +27,10 @@ vi.mock('stripe', () => {
     checkout = { sessions: { create: mocks.checkoutCreate } };
     billingPortal = { sessions: { create: mocks.portalCreate } };
   }
-  return { default: FakeStripe };
+  return { default: FakeStripe, Stripe: FakeStripe };
 });
 
-vi.mock('../src/db.js', () => ({
-  prisma: {
-    order: { update: mocks.orderUpdate },
-    payment: { findFirst: mocks.paymentFindFirst },
-    auditLog: { create: mocks.auditCreate },
-  },
-}));
-
-const { createBillingPortal, createCheckout, paymentState } = await import('../src/services/stripe.js');
+const { createBillingPortal, createCheckout, paymentState, setStripeClient } = await import('../src/services/stripe.js');
 
 const ORIGINAL = {
   paymentsEnabled: env.paymentsEnabled,
@@ -68,6 +61,8 @@ afterEach(() => {
   setEnv('APP_PUBLIC_URL', ORIGINAL.appPublicUrl);
   if (ORIGINAL.stripeTestMode === undefined) delete process.env.STRIPE_TEST_MODE;
   else process.env.STRIPE_TEST_MODE = ORIGINAL.stripeTestMode;
+  setStripeClient(null);
+  vi.restoreAllMocks();
   mocks.checkoutCreate.mockReset();
   mocks.portalCreate.mockReset();
   mocks.orderUpdate.mockReset();
@@ -79,8 +74,14 @@ describe('the links of the checkout', () => {
   it('are built from the public origin and not from the address of the API', async () => {
     setEnv('paymentsEnabled', true);
     setEnv('stripeEnabled', true);
+    vi.spyOn(prisma.order, 'update').mockImplementation(mocks.orderUpdate);
+    setStripeClient({
+      checkout: { sessions: { create: mocks.checkoutCreate } },
+      billingPortal: { sessions: { create: mocks.portalCreate } },
+    } as never);
     // The address the API has in the deployed environment.
     setEnv('APP_PUBLIC_URL', 'http://127.0.0.1:3000');
+    mocks.orderUpdate.mockResolvedValue({});
     mocks.checkoutCreate.mockResolvedValue({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
 
     const result = await createCheckout(ORDER);
@@ -96,6 +97,12 @@ describe('the links of the checkout', () => {
   it('keeps the line items and the metadata of the order', async () => {
     setEnv('paymentsEnabled', true);
     setEnv('stripeEnabled', true);
+    vi.spyOn(prisma.order, 'update').mockImplementation(mocks.orderUpdate);
+    setStripeClient({
+      checkout: { sessions: { create: mocks.checkoutCreate } },
+      billingPortal: { sessions: { create: mocks.portalCreate } },
+    } as never);
+    mocks.orderUpdate.mockResolvedValue({});
     mocks.checkoutCreate.mockResolvedValue({ id: 'cs_test_2', url: 'https://checkout.stripe.com/c/pay/cs_test_2' });
 
     await createCheckout(ORDER);
@@ -112,7 +119,12 @@ describe('the links of the checkout', () => {
   it('sends the customer back to the public origin after the billing portal', async () => {
     setEnv('paymentsEnabled', true);
     setEnv('stripeEnabled', true);
+    setStripeClient({
+      checkout: { sessions: { create: mocks.checkoutCreate } },
+      billingPortal: { sessions: { create: mocks.portalCreate } },
+    } as never);
     setEnv('APP_PUBLIC_URL', 'http://127.0.0.1:3000');
+    vi.spyOn(prisma.payment, 'findFirst').mockImplementation(mocks.paymentFindFirst);
     mocks.paymentFindFirst.mockResolvedValue({ stripeCustomerId: 'cus_test_1' });
     mocks.portalCreate.mockResolvedValue({ url: 'https://billing.stripe.com/p/session/test' });
 
@@ -170,6 +182,8 @@ describe('the state of the payments', () => {
     setEnv('paymentsEnabled', false);
     setEnv('stripeEnabled', false);
     process.env.STRIPE_TEST_MODE = 'true';
+    vi.spyOn(prisma.order, 'update').mockImplementation(mocks.orderUpdate);
+    mocks.orderUpdate.mockResolvedValue({});
 
     const result = await createCheckout(ORDER);
 

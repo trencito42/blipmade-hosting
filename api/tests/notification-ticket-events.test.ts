@@ -1,9 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 /**
- * The environment of the platform is replaced, so the suite does not depend
- * on the addresses of the machine it runs on.
- *
  * The address of the operator is the inbox of the alarms of the platform, and
  * it is the one that is told when nobody of the staff may read the queue. The
  * file of the tests leaves it empty, which is the default of the environment,
@@ -15,17 +12,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * a real configuration the address is different, and the test would then
  * expect an address that the machine never sends to.
  */
-vi.mock('../src/env.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/env.js')>();
-  return {
-    ...actual,
-    env: {
-      ...actual.env,
-      MAIL_OPERATOR_EMAIL: '',
-      MAIL_SUPPORT_EMAIL: 'support@example.test',
-    },
-  };
-});
 
 import { prisma } from '../src/db.js';
 import { closeApp, createAdmin, getApp, registerAndLogin, resetDatabase } from './helpers.js';
@@ -46,12 +32,20 @@ import type { FastifyInstance } from 'fastify';
  */
 
 let app: FastifyInstance;
+const originalSupportInbox = process.env.MAIL_SUPPORT_EMAIL;
+const originalOperatorInbox = process.env.MAIL_OPERATOR_EMAIL;
 
 beforeAll(async () => {
+  process.env.MAIL_SUPPORT_EMAIL = 'support@example.test';
+  process.env.MAIL_OPERATOR_EMAIL = '';
   app = await getApp();
 });
 
 afterAll(async () => {
+  if (originalSupportInbox === undefined) delete process.env.MAIL_SUPPORT_EMAIL;
+  else process.env.MAIL_SUPPORT_EMAIL = originalSupportInbox;
+  if (originalOperatorInbox === undefined) delete process.env.MAIL_OPERATOR_EMAIL;
+  else process.env.MAIL_OPERATOR_EMAIL = originalOperatorInbox;
   await closeApp();
 });
 

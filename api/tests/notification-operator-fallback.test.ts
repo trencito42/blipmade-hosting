@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 /**
  * The queue of the support, when nobody of the staff may read it.
@@ -11,26 +11,26 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * the recipient is.
  */
 
-vi.mock('../src/env.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/env.js')>();
-  return {
-    ...actual,
-    env: { ...actual.env, MAIL_OPERATOR_EMAIL: 'operator@blipmade.com', MAIL_SUPPORT_EMAIL: 'support@blipmade.com' },
-  };
-});
-
 import { prisma } from '../src/db.js';
 import { closeApp, getApp, registerAndLogin, resetDatabase } from './helpers.js';
 import { dispatchPendingEvents } from '../src/services/notification-dispatch.js';
 import type { FastifyInstance } from 'fastify';
 
 let app: FastifyInstance;
+const originalSupportInbox = process.env.MAIL_SUPPORT_EMAIL;
+const originalOperatorInbox = process.env.MAIL_OPERATOR_EMAIL;
 
 beforeAll(async () => {
+  process.env.MAIL_OPERATOR_EMAIL = 'operator@blipmade.com';
+  process.env.MAIL_SUPPORT_EMAIL = 'support@blipmade.com';
   app = await getApp();
 });
 
 afterAll(async () => {
+  if (originalSupportInbox === undefined) delete process.env.MAIL_SUPPORT_EMAIL;
+  else process.env.MAIL_SUPPORT_EMAIL = originalSupportInbox;
+  if (originalOperatorInbox === undefined) delete process.env.MAIL_OPERATOR_EMAIL;
+  else process.env.MAIL_OPERATOR_EMAIL = originalOperatorInbox;
   await closeApp();
 });
 

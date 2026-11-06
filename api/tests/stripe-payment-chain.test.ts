@@ -78,11 +78,12 @@ vi.mock('stripe', () => {
     refunds = { create: async (params: { payment_intent: string }) => ({ id: 're_test_chain', payment_intent: params.payment_intent }) };
     checkoutSessions = { list: async () => ({ data: [] }) };
   }
-  return { default: StripeMock };
+  return { default: StripeMock, Stripe: StripeMock };
 });
 
 const { prisma } = await import('../src/db.js');
 const { env } = await import('../src/env.js');
+const { setStripeClient } = await import('../src/services/stripe.js');
 const { buildApp } = await import('../src/app.js');
 const { resetDatabase } = await import('./setup.js');
 const { hashPassword } = await import('../src/lib/password.js');
@@ -110,6 +111,8 @@ environment.paymentsEnabled = true;
 // The checkout hands out a link to the site, so the origin of the site has
 // to be there even when the machine that runs the tests has none.
 environment.publicWebUrl = 'https://blipmade.com';
+const StripeStandin = (await import('stripe')).default;
+setStripeClient(new StripeStandin(environment.STRIPE_SECRET_KEY) as never);
 
 let app: Awaited<ReturnType<typeof buildApp>>;
 
@@ -119,6 +122,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  setStripeClient(null);
   await app.close();
 });
 

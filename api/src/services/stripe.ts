@@ -11,6 +11,11 @@ import type { Order, OrderItem, Subscription } from '@prisma/client';
 
 let client: Stripe | null = null;
 
+/** Tests install a stand-in so refund and subscription calls never leave the machine. */
+export function setStripeClient(next: Stripe | null): void {
+  client = next;
+}
+
 /**
  * The version of the Stripe API the platform speaks.
  *
@@ -1042,10 +1047,12 @@ export async function resumeSubscription(subscription: Subscription): Promise<Su
       await getClient().subscriptions.update(subscription.stripeSubscriptionId, {
         cancel_at_period_end: false,
       });
-    } catch {
-      // The provider ended the subscription already, so the mark of the
-      // cancellation cannot be taken back.
-      throw conflict('The subscription was already ended at the payment provider, so it cannot be resumed.');
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+      if (code === 'resource_missing') {
+        throw conflict('The subscription was already ended at the payment provider, so it cannot be resumed.');
+      }
+      throw error;
     }
   }
   return prisma.subscription.update({

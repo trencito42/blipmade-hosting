@@ -523,6 +523,20 @@ export const env = {
   set MAIL_SALES_ENABLED(value: boolean) {
     process.env.MAIL_SALES_ENABLED = value ? 'true' : 'false';
   },
+  get MAIL_SUPPORT_EMAIL(): string {
+    const live = process.env.MAIL_SUPPORT_EMAIL;
+    return live === undefined ? raw.MAIL_SUPPORT_EMAIL : live;
+  },
+  set MAIL_SUPPORT_EMAIL(value: string) {
+    process.env.MAIL_SUPPORT_EMAIL = value;
+  },
+  get MAIL_OPERATOR_EMAIL(): string {
+    const live = process.env.MAIL_OPERATOR_EMAIL;
+    return live === undefined ? raw.MAIL_OPERATOR_EMAIL : live;
+  },
+  set MAIL_OPERATOR_EMAIL(value: string) {
+    process.env.MAIL_OPERATOR_EMAIL = value;
+  },
   isProduction: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test',
   internalToken: raw.INTERNAL_API_TOKEN || raw.BLIPMADE_INTERNAL_API_TOKEN,

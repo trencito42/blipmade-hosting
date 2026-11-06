@@ -101,7 +101,7 @@ describe('Deploy Studio 3.0 API', () => {
     expect(slugs).toContain('vps-pro');
 
     const vpsOffering = offerings.find((o) => o.slug === 'vps-pro');
-    expect(vpsOffering?.category).toBe('vps');
+    expect(vpsOffering?.category).toBe('VPS');
   });
 
   it('performs cross-category search matching variants, presets, and keywords', async () => {
@@ -218,10 +218,14 @@ describe('Deploy Studio 3.0 API', () => {
     // POST /api/admin/catalog/studio/:slug/test-quote computes authoritative server-side quote
     const quoteRes = await reader.request('POST', `/api/admin/catalog/studio/${testProd.slug}/test-quote`, {
       period: 'MONTHLY',
+      ram: 1024,
+      cpu: 1,
+      disk: 5,
     });
     expect(quoteRes.status).toBe(200);
     const quote = (quoteRes.body as { testQuote: { total: number; currency: string } }).testQuote;
-    expect(quote.total).toBe(1200);
+    // GAMES fulfilment uses the resource card, not ProductPrice.baseAmount.
+    expect(quote.total).toBe(349);
     expect(quote.currency).toBe('USD');
   });
 });

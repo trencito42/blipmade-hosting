@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { prisma } from '../src/db.js';
 import { env } from '../src/env.js';
 import { hashPassword } from '../src/lib/password.js';
+import { setStripeClient } from '../src/services/stripe.js';
 import { closeApp, getApp, makeClient, resetDatabase, VALID_PASSWORD } from './helpers.js';
 import type { TestClient } from './helpers.js';
 
@@ -24,7 +25,7 @@ vi.mock('stripe', () => {
   class FakeStripe {
     refunds = { create: mocks.refundCreate };
   }
-  return { default: FakeStripe };
+  return { default: FakeStripe, Stripe: FakeStripe };
 });
 
 let app: FastifyInstance;
@@ -110,6 +111,7 @@ describe('the administrative refund', () => {
 
   afterAll(async () => {
     setStripeEnabled(ORIGINAL_STRIPE_ENABLED);
+    setStripeClient(null);
     await closeApp();
   });
 
@@ -117,10 +119,12 @@ describe('the administrative refund', () => {
     await resetDatabase();
     mocks.refundCreate.mockClear();
     setStripeEnabled(true);
+    setStripeClient({ refunds: { create: mocks.refundCreate } } as never);
   });
 
   afterEach(async () => {
     setStripeEnabled(ORIGINAL_STRIPE_ENABLED);
+    setStripeClient(null);
   });
 
   it('refuses to refund an order that is not paid', async () => {

@@ -90,6 +90,9 @@ export STRIPE_SECRET_KEY=""
 export STRIPE_WEBHOOK_SECRET=""
 export STRIPE_PUBLISHABLE_KEY=""
 export SMTP_URL=""
+# The suite overwrites env.paymentsEnabled per test. A live .env kill switch
+# would force every checkout test off.
+unset PAYMENTS_ENABLED
 # The mail of a fixture of a test is written to the file transport, and the
 # file transport writes into the directory of the mail of the platform. The
 # retention of that directory then removes the mail of the customers as if it

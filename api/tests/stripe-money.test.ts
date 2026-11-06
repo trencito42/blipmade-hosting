@@ -10,20 +10,20 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * refund of an order and the link of a checkout with the account of Stripe.
  */
 
-const calls = vi.hoisted(() => ({
-  refunds: [] as { params: Record<string, unknown>; options?: Record<string, unknown> }[],
-  refundStatus: 'succeeded' as 'succeeded' | 'pending' | 'failed',
-  prices: [] as Record<string, unknown>[],
-  pricesById: new Map<string, Record<string, unknown>>(),
-  subscriptionUpdates: [] as { id: string; params: Record<string, unknown> }[],
-  subscriptionCancels: [] as string[],
-  subscriptionsById: new Map<string, Record<string, unknown>>(),
-  unreachable: new Set<string>(),
-  checkouts: [] as Record<string, unknown>[],
-  portals: [] as Record<string, unknown>[],
-}));
+const { FakeStripe, calls } = vi.hoisted(() => {
+  const calls = {
+    refunds: [] as { params: Record<string, unknown>; options?: Record<string, unknown> }[],
+    refundStatus: 'succeeded' as 'succeeded' | 'pending' | 'failed',
+    prices: [] as Record<string, unknown>[],
+    pricesById: new Map<string, Record<string, unknown>>(),
+    subscriptionUpdates: [] as { id: string; params: Record<string, unknown> }[],
+    subscriptionCancels: [] as string[],
+    subscriptionsById: new Map<string, Record<string, unknown>>(),
+    unreachable: new Set<string>(),
+    checkouts: [] as Record<string, unknown>[],
+    portals: [] as Record<string, unknown>[],
+  };
 
-vi.mock('stripe', () => {
   class FakeStripe {
     constructor(
       public key: string,
@@ -85,8 +85,10 @@ vi.mock('stripe', () => {
     };
   }
 
-  return { default: FakeStripe };
+  return { FakeStripe, calls };
 });
+
+vi.mock('stripe', () => ({ default: FakeStripe, Stripe: FakeStripe }));
 
 const { prisma } = await import('../src/db.js');
 const { env } = await import('../src/env.js');
@@ -98,6 +100,7 @@ const {
   createBillingPortal,
   createCheckout,
   refundPayment,
+  setStripeClient,
   upsertInvoice,
   resumeSubscription,
   updateSubscriptionAmount,
@@ -119,6 +122,7 @@ environment.STRIPE_SECRET_KEY = 'sk_test_blipmade_placeholder';
 environment.stripeEnabled = true;
 environment.paymentsEnabled = true;
 environment.stripeTaxEnabled = false;
+setStripeClient(new FakeStripe(environment.STRIPE_SECRET_KEY) as never);
 
 beforeEach(async () => {
   await resetDatabase();
@@ -136,6 +140,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  setStripeClient(null);
   const { prisma: db } = await import('../src/db.js');
   await db.$disconnect();
 });
