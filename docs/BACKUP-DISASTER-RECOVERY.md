@@ -324,9 +324,10 @@ psql "$DATABASE_URL" -c 'SELECT id, name, status, "pterodactylServerId" FROM "In
 
 **The identity of `age` is the key of the backups.** The live decrypt file is
 on VM 103. The owner holds a Bitwarden item `age-blipmade-backups` in the
-Blipmade collection. That item is **not** proven until it decrypts a real
-Storage Box copy on a trusted computer. Do not copy or rotate the VM 103
-file. Do not edit the Bitwarden item.
+Blipmade collection. On 2026-11-06 that copy decrypted a real Storage Box
+object on the owner's Windows PC (`pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age`,
+`age -d` exit 0). Archive listing and isolated restore were not part of that
+check. Do not copy or rotate the VM 103 file. Do not edit the Bitwarden item.
 
 | What | Where |
 |---|---|
@@ -340,8 +341,10 @@ its content.
 
 **Checked 2026-11-06:** live private file on VM 103 (`0600`, 184 bytes).
 Hypervisor `/root/offsite-identity/` holds `recipient.txt` (public only).
-Owner reports Bitwarden `age-blipmade-backups`. Independent decrypt of a
-Storage Box object with that copy has **not** been run. Finding stays open.
+Owner 2026-11-06: Bitwarden `age-blipmade-backups` decrypted
+`pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age` on an independent Windows
+PC (exit 0). Contents were not listed. Isolated restore was not run. Full
+disaster recovery is not verified.
 
 ### Verify the Bitwarden copy (owner laptop only)
 
@@ -385,8 +388,9 @@ rm -f /tmp/pve-config.tar.gz
    `MISMATCH`, and `DECRYPT_OK` or `DECRYPT_FAIL`. Do not send the identity
    or the decrypted archive to anyone.
 
-Until both lines are `MATCH` and `DECRYPT_OK`, the identity is **not**
-independently recoverable.
+Until both lines are `MATCH` and `DECRYPT_OK`, a new copy is **not** proven.
+The 2026-11-06 owner run decrypted the PVE-config object (exit 0) and did
+not list the archive. Repeat this check after any identity change.
 
 ### Check that the copy is the right one
 
@@ -712,8 +716,9 @@ games-node-01                      hypervisor                          platform 
 * The private identity must live somewhere independent of this infrastructure: a password manager and
   an offline copy. **Without it no offsite copy can be decrypted.** It is never put on a game node or the Storage Box.
   Do not copy it to the hypervisor. `/root/offsite-identity/` on n7030e1 holds the **public recipient only**.
-  The live private file stays on VM 103. Bitwarden `age-blipmade-backups` is
-  untested until the owner laptop procedure in §3 reports MATCH and DECRYPT_OK.
+  The live private file stays on VM 103. Bitwarden `age-blipmade-backups`
+  decrypted the 2026-11-06 PVE-config object on an independent PC (exit 0).
+  That is not an archive listing and not a restore.
 * The ssh key to the Storage Box is on the node and on the hypervisor (`/etc/blipmade/storagebox_key`). A node that is
   compromised could delete its offsite copies: use a separate Storage Box sub-account per machine, and turn on the box's
   snapshots in the Hetzner console so a deletion can be undone.
@@ -780,6 +785,9 @@ on the box, Mailcow is not covered by INFRA.
 * Tested on 2026-11-01: a real customer archive (272 MB) was encrypted, uploaded, read back, decrypted and extracted
   (6141 files); a real database dump was restored into a scratch database with the same table count (12) and row count
   (149 in `wp_options`); those drills opened archives. After 2026-11-06 that evidence is decrypt/integrity, not restore-verified.
+* Owner 2026-11-06 (independent Windows PC, Bitwarden `age-blipmade-backups`): decrypted authentic
+  `pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age` (`age -d` exit 0). Archive listing not run.
+  Isolated restore not run. Full disaster recovery not verified.
 * See the report of the day for the virtual-server test. Anything not listed here has not been tested.
 
 ### 10.7 Confirmed limitations
