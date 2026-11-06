@@ -57,4 +57,21 @@ Date: 2026-11-06. Owner authorized production deploy and migrations.
 - **Commercial GO: no** — payments and mail sales remain off by policy.
 - **Full disaster recovery GO: no** — no INFRA copies, VM103 identity mismatch vs sealed archives, no isolated MariaDB/VM restore this pass. Host-loss still depends on Bitwarden identity + Sunday INFRA + Mailcow public DNS.
 
-Next agent: wait for CI #779; owner-only identity alignment on VM103; Sunday INFRA; Mailcow public A/proxy; GlitchTip token; staff password reset; BM-003 migrate when a v2 key is chosen safely.
+Mailcow public HTTPS from the internet (2026-11-06): `https://mail.blipmade.com/` serves the mailcow login. DNAT `193.34.214.20:443 → 10.77.0.14:443` works for external clients. Hypervisor and LAN curls to the public IP time out (hairpin). No DNS change.
+
+GitHub: 10 open issues (#18–#22, #24–#28). No `gh`/`GITHUB_TOKEN` on this host, so issues cannot be commented or closed from here. None of them is falsely complete.
+
+| Issue | Code vs production | Close? |
+|---|---|---|
+| #18 Smart Deploy | Import/Git exists; full ZIP detect+sandbox builder is not the spec. Issue forbids unapproved implementation. | No. Product/architecture. |
+| #19 game dashboards | Minecraft plugin/world/lag/crossplay exist. Advanced nav and non-MC adapters incomplete. | No. |
+| #20 catalog families | Families, search, readiness, draft presets exist. Curated published presets and Discord/CS2 templates are content/product. | No. |
+| #21 resize/proration | Code + Stripe test-mode evidence in comments. Finance/legal sign-off and VAT still open. | No. |
+| #22 repurpose/addons | Repurpose preview + profiles exist. One-click add-ons outside Minecraft not built. | No. |
+| #24 Smart Connect | Implemented, `GAME_CONNECT_ENABLED` unset in production. No live client join proof. | No. Flag is an owner decision. |
+| #25 CF SaaS | Blocked on Cloudflare plan/billing. | No. |
+| #26 registrar guides | Not started; mail DNS automation is a product choice. | No. |
+| #27 registrar marketplace | Explicitly wait for demand + vendor. | No. |
+| #28 CRM | Subsystems exist; unified CRM/campaigns not built. Marketing legal review needed. | No. |
+
+Next: owner identity alignment (decision 1); Sunday INFRA; GlitchTip token; staff password reset; BM-003 v2 key when chosen; GitHub token with `issues:write` if comments/closes should land on the issues themselves.

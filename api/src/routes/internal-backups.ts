@@ -90,7 +90,15 @@ export async function registerInternalBackupRoutes(app: FastifyInstance): Promis
   // The state of the destination, as the agent saw it: reachable or not, and how much room is left.
   app.post('/internal/backups/destination', async (request) => {
     requireAgent(request);
-    const body = z.object({ reachable: z.boolean(), totalBytes: z.number().int().min(0).optional(), usedBytes: z.number().int().min(0).optional(), fileCount: z.number().int().min(0).optional(), error: z.string().max(300).optional(), node: z.string().max(100).optional() }).parse(request.body ?? {});
+    const body = z.object({
+      reachable: z.boolean(),
+      totalBytes: z.number().int().min(0).optional(),
+      usedBytes: z.number().int().min(0).optional(),
+      fileCount: z.number().int().min(0).optional(),
+      identityMatchesRecipient: z.boolean().optional(),
+      error: z.string().max(300).optional(),
+      node: z.string().max(100).optional(),
+    }).parse(request.body ?? {});
     const value = { ...body, at: new Date().toISOString() };
     await prisma.setting.upsert({ where: { key: 'offsite.destination' }, create: { key: 'offsite.destination', value }, update: { value } });
     return { ok: true };

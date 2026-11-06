@@ -512,7 +512,7 @@ export function OpsChannelsList({ channels }: { channels: OpsChannel[] }) {
 function BackupHealth() {
   const state = useAsync<{
     offsite: string;
-    destination: { reachable: boolean; totalBytes: number | null; usedBytes: number | null; fileCount?: number | null; error: string | null; at: string | null; inventory?: string; encrypted?: boolean } | null;
+    destination: { reachable: boolean; totalBytes: number | null; usedBytes: number | null; fileCount?: number | null; error: string | null; at: string | null; inventory?: string; encrypted?: boolean; identityMatchesRecipient?: boolean | null } | null;
     coverage?: { id: string; name: string; host: string; method: string; frequency: string; lastLocalAt: string | null; lastOffsiteAt: string | null; lastVerifiedAt: string | null; lastDecryptAt?: string | null; lastRestoreAt: string | null; state: string; reason: string }[];
     kinds: { kind: string; pending: number; verified: number; failed: number; lastVerifiedAt: string | null; lastRestoreCheckAt: string | null }[];
     lastVerifiedAt: string | null;
@@ -554,6 +554,9 @@ function BackupHealth() {
               </p>
             )}
             {data.destination?.inventory && <p className="text-[12.5px] text-ink3">{data.destination.inventory}</p>}
+            {data.destination?.identityMatchesRecipient === false && (
+              <p className="text-[12.5px] text-ink">The drill host identity is not the encrypt recipient. Storage Box objects will not decrypt there. Use the Bitwarden copy on a trusted machine. Do not paste private keys here.</p>
+            )}
             <p className="text-[12.5px] text-ink3">
               Last remote copy verified: {data.lastVerifiedAt ? fmtDateTime(data.lastVerifiedAt) : 'none yet'}. Last decrypt:{' '}
               {data.lastDecryptAt ? fmtDateTime(data.lastDecryptAt) : 'none yet'}. Last isolated restore:{' '}

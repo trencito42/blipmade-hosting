@@ -442,6 +442,20 @@ async function checkOffsite(now: Date): Promise<OpsCheckResult> {
     });
   }
 
+  const destination = await prisma.setting.findUnique({ where: { key: 'offsite.destination' } });
+  const destValue = (destination?.value ?? null) as { identityMatchesRecipient?: boolean } | null;
+  if (destValue?.identityMatchesRecipient === false) {
+    findings.push({
+      fingerprint: 'offsite:identity-mismatch',
+      severity: 'critical',
+      title: 'Off-site identity does not match the encrypt recipient',
+      detail: 'A drill host reported an age identity that cannot open Storage Box objects. Decrypt verification cannot run there until the operator installs the matching identity. Private keys are never shown.',
+      type: 'ops.offsite_backup_missing',
+      subject: target,
+      payload: { target, reason: 'identity does not match encrypt recipient' },
+    });
+  }
+
   const missing = !receipt;
   return {
     id: 'offsite',

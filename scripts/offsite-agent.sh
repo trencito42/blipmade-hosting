@@ -337,12 +337,22 @@ t_count() {  # number of files under the base; listing only, never a download
 }
 
 mode_destination() {
-  local line total used files
+  local line total used files extra="" pub
+  extra=""
+  if [ -n "${OFFSITE_AGE_IDENTITY:-}" ] && [ -r "$OFFSITE_AGE_IDENTITY" ]; then
+    pub="$(age-keygen -y "$OFFSITE_AGE_IDENTITY" 2>/dev/null || true)"
+    if [ -n "$pub" ] && [ "$pub" = "$OFFSITE_AGE_RECIPIENT" ]; then
+      extra=',"identityMatchesRecipient":true'
+    else
+      extra=',"identityMatchesRecipient":false'
+      log "local identity does not match the encrypt recipient; drills on this host cannot decrypt Storage Box objects"
+    fi
+  fi
   if line="$(t_df 2>/dev/null)" && [ -n "$line" ]; then
     read -r total used <<<"$line"
     files="$(t_count 2>/dev/null | tr -dc '0-9' || true)"
     files="${files:-0}"
-    post destination "$(printf '{"reachable":true,"totalBytes":%s,"usedBytes":%s,"fileCount":%s,"node":"%s"}' "$total" "$used" "$files" "$NODE_NAME")"
+    post destination "$(printf '{"reachable":true,"totalBytes":%s,"usedBytes":%s,"fileCount":%s,"node":"%s"%s}' "$total" "$used" "$files" "$NODE_NAME" "$extra")"
     log "destination reachable: $used of $total bytes used, $files files"
   else
     post destination "{\"reachable\":false,\"error\":\"the destination could not be reached\",\"node\":\"$NODE_NAME\"}"

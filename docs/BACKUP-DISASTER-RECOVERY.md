@@ -339,11 +339,30 @@ The file holds a private key. **It is never written into a backup and it
 never travels with a copy.** This document names the path of the file, never
 its content.
 
-**Checked 2026-11-06:** live private file on VM 103 (`0600`, 184 bytes).
-Hypervisor `/root/offsite-identity/` holds `recipient.txt` (public only).
-Owner 2026-11-06: Bitwarden `age-blipmade-backups` decrypted
-`pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age` on an independent Windows
-PC (exit 0). Contents were not listed. Isolated restore was not run. Full
+**Checked 2026-11-06:** Storage Box objects are sealed to the public recipient
+in hypervisor `/etc/blipmade/offsite.env` (same string as
+`/root/offsite-identity/recipient.txt`). That recipient is the Bitwarden
+identity: the owner decrypted `pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age`
+with it (exit 0; listing and isolated restore were not run).
+
+The file `/home/debian/.blipmade-backup.age` on VM 103 is a **different**
+identity. `age-keygen -y` on that file does not equal `OFFSITE_AGE_RECIPIENT`.
+`age -d` of a PVE archive and of `s261_muratura` dumps on VM 103 fails with
+`no identity matched any of the recipients`. Do not copy, rotate, or paste
+either private key. Automated decrypt drills on VM 103 cannot succeed until
+the operator places the Bitwarden identity there, or until drills run on
+another host that already holds it.
+
+**Verifier recommendation:** keep Bitwarden as the independent recovery copy.
+Do not put the identity on the hypervisor (it is RAID 0). A dedicated
+offline/laptop verifier is safest. If the operator wants scheduled drills,
+replace the unused VM 103 file with the Bitwarden identity using an
+owner-only copy; keep Bitwarden as the second copy. Until then, destination
+probes report `identityMatchesRecipient=false` when
+`OFFSITE_AGE_IDENTITY` is set.
+
+**Checked 2026-11-06:** VM 103 file exists (`0600`, 184 bytes) but does not
+open Storage Box objects. Hypervisor holds public recipient only. Full
 disaster recovery is not verified.
 
 ### Verify the Bitwarden copy (owner laptop only)

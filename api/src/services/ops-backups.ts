@@ -49,6 +49,7 @@ export async function backupCoverage(now = new Date()): Promise<{
     fileCount: number | null;
     inventory: string;
     encrypted: boolean;
+    identityMatchesRecipient: boolean | null;
   };
   coverage: CoverageRow[];
   lastVerifiedAt: string | null;
@@ -83,6 +84,7 @@ export async function backupCoverage(now = new Date()): Promise<{
     error?: string;
     at?: string;
     fileCount?: number;
+    identityMatchesRecipient?: boolean;
   } | null;
   const views = copies.map(asCopy);
   const destState = destinationState(dest, now);
@@ -113,6 +115,7 @@ export async function backupCoverage(now = new Date()): Promise<{
       fileCount,
       inventory: inventoryNote(verified, fileCount),
       encrypted: true,
+      identityMatchesRecipient: typeof dest?.identityMatchesRecipient === 'boolean' ? dest.identityMatchesRecipient : null,
     },
     coverage,
     lastVerifiedAt: lastVerified ? new Date(lastVerified).toISOString() : null,

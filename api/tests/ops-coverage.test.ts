@@ -99,4 +99,9 @@ describe('destination evidence', () => {
     expect(inventoryNote(4, 0)).toMatch(/empty/);
     expect(inventoryNote(4, null)).toMatch(/not proof/);
   });
+
+  it('still treats the box as reachable when only the drill identity is wrong', () => {
+    const at = new Date('2026-11-06T07:00:00.000Z').toISOString();
+    expect(destinationState({ reachable: true, at }, NOW).state).toBe('reachable');
+  });
 });

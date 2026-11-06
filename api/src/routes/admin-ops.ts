@@ -255,6 +255,7 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
         at: coverage.destination.at,
         inventory: coverage.destination.inventory,
         encrypted: coverage.destination.encrypted,
+        identityMatchesRecipient: coverage.destination.identityMatchesRecipient,
       },
       coverage: coverage.coverage,
       lastDecryptAt: coverage.lastDecryptAt,
