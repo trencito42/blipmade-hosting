@@ -383,6 +383,9 @@ export default function DeployStudio({ initialSlug }: { initialSlug?: string } =
   };
 
   // Summary breakdown for the side card
+  const isVps = offering.kind === 'vps' || offering.slug === 'vps';
+  const isEmail = offering.kind === 'email' || offering.slug === 'email-hosting';
+
   const summaryDetails: { label: string; value: string }[] = [];
   if (softwareVersion) summaryDetails.push({ label: 'Software Version', value: softwareVersion });
   if (selectedPresetSlug) {
@@ -392,40 +395,40 @@ export default function DeployStudio({ initialSlug }: { initialSlug?: string } =
   if (selectedPlugins.length > 0) {
     summaryDetails.push({ label: 'Plugins', value: `${selectedPlugins.length} selected` });
   }
-  if (selectedOs) {
+  if (isVps && selectedOs) {
     summaryDetails.push({ label: 'Operating System', value: selectedOs });
   }
-  if (activeVariant && (activeVariant.fulfilment === 'VPS' || offering.kind === 'vps')) {
+  if (activeVariant && (activeVariant.fulfilment === 'VPS' || isVps)) {
     summaryDetails.push({
-      label: 'Compute Sizing',
+      label: 'Compute',
       value: `${activeVariant.minCpu} vCPU · ${memLabel(activeVariant.minRam)} · ${activeVariant.minDisk} GB`,
     });
-  } else if (activeVariant && activeVariant.fulfilment !== 'EMAIL' && offering.kind !== 'email') {
+  } else if (activeVariant && activeVariant.fulfilment !== 'EMAIL' && !isEmail) {
     summaryDetails.push({
-      label: 'Allocated Sizing',
+      label: 'Resources',
       value: `${cpu} vCPU · ${memLabel(ram)} · ${disk} GB`,
     });
   }
   if (domain) {
-    summaryDetails.push({ label: 'Domain / Hostname', value: domain });
+    summaryDetails.push({ label: isEmail ? 'Mail Domain' : 'Domain / Hostname', value: domain });
   }
   if (dedicatedIp) {
     summaryDetails.push({ label: 'Dedicated IP', value: 'Yes' });
   }
 
   const sidebarSummary = (
-    <div className="grid gap-3.5 text-[13px]">
-      <div className="border-b border-line/60 pb-3">
-        <span className="text-ink3">Service</span>
-        <p className="font-semibold text-ink">{offering.name}</p>
+    <div className="grid gap-3 text-[13px]">
+      <div className="border-b border-line/60 pb-2.5">
+        <span className="text-[11.5px] font-medium text-ink3">Service</span>
+        <p className="font-semibold text-ink text-[15px]">{offering.name}</p>
         <p className="text-[12px] text-ink2">{activeVariant?.label}</p>
       </div>
 
-      <dl className="grid gap-2 border-b border-line/60 pb-3">
+      <dl className="grid gap-2 border-b border-line/60 pb-2.5">
         {summaryDetails.map((detail, idx) => (
-          <div key={idx} className="flex justify-between">
-            <dt className="text-ink3">{detail.label}</dt>
-            <dd className="font-mono text-ink text-right">{detail.value}</dd>
+          <div key={idx} className="flex items-baseline justify-between gap-2.5 text-[12.5px]">
+            <dt className="shrink-0 text-ink3">{detail.label}</dt>
+            <dd className="font-mono text-ink text-right font-medium">{detail.value}</dd>
           </div>
         ))}
       </dl>

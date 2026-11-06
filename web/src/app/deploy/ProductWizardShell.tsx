@@ -99,11 +99,11 @@ export function ProductWizardShell({
           {step.description ? <p className="max-w-2xl text-[14px] leading-relaxed text-ink3">{step.description}</p> : null}
         </header>
       )}
-      <div className="grid gap-6 lg:grid-cols-[1fr_min(18rem,100%)] lg:items-start">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19.5rem] lg:items-start">
         <div className="min-w-0">{children}</div>
         {summary ? (
-          <aside className="rounded-[20px] bg-s1 p-4 lg:sticky lg:top-24">
-            <p className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink3">Summary</p>
+          <aside className="rounded-2xl border border-line/60 bg-bg/60 p-3.5 lg:sticky lg:top-24">
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-ink3">Summary</p>
             {summary}
           </aside>
         ) : null}

@@ -76,9 +76,9 @@ export function OrderReviewStep({
             <dd className="font-medium text-ink">{variantLabel}</dd>
           </div>
           {summaryDetails.map((detail, index) => (
-            <div key={index} className="flex justify-between border-b border-line/60 pb-2">
+            <div key={index} className="flex items-center justify-between gap-3 border-b border-line/60 pb-2">
               <dt className="text-ink3">{detail.label}</dt>
-              <dd className="font-mono text-ink text-right">{detail.value}</dd>
+              <dd className="font-mono text-ink text-right font-medium">{detail.value}</dd>
             </div>
           ))}
         </dl>
