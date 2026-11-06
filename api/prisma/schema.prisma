@@ -88,6 +88,15 @@ model User {
   customerFacts CustomerFact[]
   segmentsOwned CustomerSegment[] @relation("SegmentCreator")
   campaigns MarketingCampaign[] @relation("CampaignCreator")
+  campaignSends CampaignSend[]
+  crmTasksAssigned CrmTask[] @relation("CrmTaskAssignee")
+  crmTasksAbout CrmTask[] @relation("CrmTaskCustomer")
+  crmOpportunities CrmOpportunity[]
+  automationsOwned MarketingAutomation[] @relation("AutomationCreator")
+  templatesOwned MarketingTemplate[] @relation("TemplateCreator")
+  automationRuns AutomationRun[]
+  riskEvaluations RiskEvaluation[]
+  riskOverrides RiskOverride[]
   domainRegistrations DomainRegistration[]
   saasHostnames SaasCustomHostname[]
 
@@ -944,6 +953,17 @@ model Promotion {
   active         Boolean       @default(true)
   createdById    String?
   createdBy      User?         @relation("PromotionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  /// Optional CRM segment. Null means the code is not limited by facts.
+  segmentId      String?
+  segment        CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  firstPurchaseOnly Boolean    @default(false)
+  assignedUserId String?
+  privateCode    Boolean       @default(false)
+  stacking       Boolean       @default(false)
+  budgetCents    Int?
+  priority       Int           @default(0)
+  familySlug     String?
+  recurringPeriods Int?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -953,6 +973,7 @@ model Promotion {
   redemptions PromotionRedemption[]
 
   @@index([active])
+  @@index([segmentId])
 }
 
 /// A promotion that was actually used by a paid order.
@@ -2532,17 +2553,24 @@ model InstanceAddonJob {
 
 /// Typed fact about a customer. Source is billing, support, Discord or staff.
 model CustomerFact {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  key       String
-  value     String
-  source    String
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key             String
+  value           String
+  numericValue    Float?
+  occurredAt      DateTime?
+  source          String
+  version         Int       @default(1)
+  classification  String    @default("general")
+  provenance      String?
+  staleAt         DateTime?
+  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
 
   @@unique([userId, key])
   @@index([key, value])
+  @@index([key, numericValue])
 }
 
 /// Saved filter over typed facts. It does not copy customer rows.
@@ -2550,8 +2578,29 @@ model CustomerSegment {
   id        String   @id @default(cuid())
   name      String
   filter    Json
+  kind      String   @default("dynamic")
+  version   Int      @default(1)
+  history   Json?
+  memberIds String[] @default([])
   createdBy String
   creator   User     @relation("SegmentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  campaigns MarketingCampaign[]
+  promotions Promotion[]
+  automations MarketingAutomation[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Versioned marketing template. Variables are validated before a send is queued.
+model MarketingTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  channel   String   @default("email")
+  subject   String?
+  body      String
+  version   Int      @default(1)
+  createdBy String
+  creator   User     @relation("TemplateCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   campaigns MarketingCampaign[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2563,18 +2612,140 @@ model MarketingCampaign {
   name        String
   status      String   @default("draft")
   body        String
+  objective   String   @default("retain")
+  channel     String   @default("email")
   segmentId   String?
   segment     CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  templateId  String?
+  template    MarketingTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  promotionId String?
+  eligibility Json?
+  scheduledAt DateTime?
+  pausedAt    DateTime?
+  budgetCents Int?
+  frequencyHours Int?
+  version     Int      @default(1)
   createdBy   String
   creator     User     @relation("CampaignCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   approvedAt  DateTime?
   approvedBy  String?
   deliveredAt DateTime?
   suppressed  Boolean  @default(false)
+  sends       CampaignSend[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([status, createdAt])
+}
+
+/// One planned or attempted campaign recipient. Consent is stored at queue time and re-checked before send.
+model CampaignSend {
+  id           String   @id @default(cuid())
+  campaignId   String
+  campaign     MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       String   @default("planned")
+  consent      Boolean
+  skipReason   String?
+  createdAt    DateTime @default(now())
+
+  @@unique([campaignId, userId])
+  @@index([campaignId, status])
+}
+
+model CrmTask {
+  id          String    @id @default(cuid())
+  userId      String
+  customer    User      @relation("CrmTaskCustomer", fields: [userId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?     @relation("CrmTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  title       String
+  status      String    @default("open")
+  dueAt       DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([assigneeId, status])
+}
+
+model CrmOpportunity {
+  id        String   @id @default(cuid())
+  userId    String
+  customer  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  family    String?
+  status    String   @default("open")
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model MarketingAutomation {
+  id         String   @id @default(cuid())
+  name       String
+  status     String   @default("draft")
+  trigger    String
+  graph      Json
+  segmentId  String?
+  segment    CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  paused     Boolean  @default(false)
+  createdBy  String
+  creator    User     @relation("AutomationCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  runs       AutomationRun[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([trigger, status])
+}
+
+model AutomationRun {
+  id            String    @id @default(cuid())
+  automationId  String
+  automation    MarketingAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId       String
+  nodeId        String    @default("start")
+  status        String    @default("running")
+  waitUntil     DateTime?
+  lastError     String?
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([automationId, userId, eventId])
+  @@index([status, waitUntil])
+}
+
+model RiskEvaluation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int
+  level     String
+  signals   Json
+  shadow    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([level, createdAt])
+}
+
+model RiskOverride {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signalId  String
+  decision  String
+  note      String
+  staffId   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 /// Cloudflare for SaaS custom hostname. Live API calls need CF_SAAS_ENABLED and an entitlement.

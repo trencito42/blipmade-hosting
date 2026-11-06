@@ -1045,28 +1045,61 @@ function PanelAccessPanel({ customerId, mayWrite }: { customerId: string; mayWri
 }
 
 function CustomerGrowth({ customerId }: { customerId: string }) {
-  const state = useAsync<{ facts: { key: string; value: string; source: string }[]; tags: string[]; marketing: { marketing: boolean; marketingOptInAt: string | null } | null }>(
+  const state = useAsync<{
+    facts: { key: string; value: string; source: string }[];
+    tags: string[];
+    marketing: { marketing: boolean; marketingOptInAt: string | null } | null;
+    discord: { discordUserId: string }[];
+    oauth: { provider: string }[];
+    tasks: { id: string; title: string; status: string }[];
+    opportunities: { id: string; title: string; reason: string }[];
+    timeline: { at: string; kind: string; label: string }[];
+    lifetimeRevenueCents: number;
+  }>(
     (signal) => get(`/admin/customers/${encodeURIComponent(customerId)}/crm`, undefined, signal),
     [customerId],
   );
   return (
-    <Panel title="Customer 360 facts" description="Billing, consent, Discord and support. Campaigns stay on the CRM desk and never send without consent.">
-      {state.loading && !state.data ? <LoadingBlock rows={2} label="Loading facts" />
-        : state.error ? <ErrorState title="Facts could not be loaded" message={state.error.message} onRetry={state.reload} />
-        : (
-          <dl className="grid gap-2 sm:grid-cols-2">
-            {(state.data?.facts ?? []).map((fact) => (
-              <div key={`${fact.source}:${fact.key}`} className="rounded-2xl bg-s2 px-4 py-3">
-                <dt className="text-[12.5px] text-ink3">{fact.key} · {fact.source}</dt>
-                <dd className="text-[14px] text-ink">{fact.value}</dd>
-              </div>
-            ))}
-            <div className="rounded-2xl bg-s2 px-4 py-3">
-              <dt className="text-[12.5px] text-ink3">marketing</dt>
-              <dd className="text-[14px] text-ink">{state.data?.marketing?.marketing ? 'opt-in' : 'suppressed or unset'}</dd>
-            </div>
-          </dl>
-        )}
-    </Panel>
+    <div className="grid gap-4">
+      <Panel title="Customer 360" description="Facts from billing, consent, Discord and support. Campaigns never send without this customer's marketing preference.">
+        {state.loading && !state.data ? <LoadingBlock rows={2} label="Loading facts" />
+          : state.error ? <ErrorState title="Facts could not be loaded" message={state.error.message} onRetry={state.reload} />
+          : (
+            <>
+              <p className="mb-3 text-[14px] text-ink2">Lifetime succeeded payments: <Money amount={state.data?.lifetimeRevenueCents ?? 0} /></p>
+              <dl className="grid gap-2 sm:grid-cols-2">
+                {(state.data?.facts ?? []).map((fact) => (
+                  <div key={`${fact.source}:${fact.key}`} className="rounded-2xl bg-s2 px-4 py-3">
+                    <dt className="text-[12.5px] text-ink3">{fact.key} · {fact.source}</dt>
+                    <dd className="text-[14px] text-ink">{fact.value}</dd>
+                  </div>
+                ))}
+                <div className="rounded-2xl bg-s2 px-4 py-3">
+                  <dt className="text-[12.5px] text-ink3">marketing</dt>
+                  <dd className="text-[14px] text-ink">{state.data?.marketing?.marketing ? 'opt-in' : 'suppressed or unset'}</dd>
+                </div>
+                <div className="rounded-2xl bg-s2 px-4 py-3">
+                  <dt className="text-[12.5px] text-ink3">Discord / OAuth</dt>
+                  <dd className="text-[14px] text-ink">{state.data?.discord?.length ? 'Discord linked' : 'Discord not linked'} · {state.data?.oauth?.length ? state.data.oauth.map((row) => row.provider).join(', ') : 'no OAuth'}</dd>
+                </div>
+              </dl>
+            </>
+          )}
+      </Panel>
+      <Panel title="Timeline" description="Orders, tickets, payments and staff notes from this account.">
+        <ul className="grid gap-1 text-[13.5px] text-ink2">
+          {(state.data?.timeline ?? []).map((row, index) => (
+            <li key={`${row.kind}:${row.at}:${index}`}>{fmtDate(row.at)} · {row.label}</li>
+          ))}
+          {(state.data?.timeline ?? []).length === 0 && !state.loading && <li>No timeline events yet.</li>}
+        </ul>
+      </Panel>
+      <Panel title="Tasks and opportunities">
+        <ul className="grid gap-1 text-[13.5px] text-ink2">
+          {(state.data?.tasks ?? []).map((task) => <li key={task.id}>Task · {task.title} · {task.status}</li>)}
+          {(state.data?.opportunities ?? []).map((row) => <li key={row.id}>Opportunity · {row.title} · {row.reason}</li>)}
+        </ul>
+      </Panel>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 # Backlog checkpoint
 
-resume_sha: work/disable-checkout (P0 addon fail-closed + mail DNS provider path)
-production_before: 9d9678db08d6240203f4227dee0f3554ae24210b
+resume_sha: work/disable-checkout CRM growth platform (after ae3f0a3)
+production_before: ae3f0a3cf5fedf111850ac84047ae01fd941e8ef
 flags:
   PAYMENTS_ENABLED: false
   MAIL_SALES_ENABLED: false
@@ -11,26 +11,25 @@ flags:
   MAIL_DNS_WRITES: false
   MARKETING_DELIVERY_ENABLED: false
 
-p0_addon:
-  persist job before backup
-  idempotency replay succeeded, retry failed, lock pending/running
-  wait for backup completion; fail on timeout/fail/missing
-  Paper/Folia only for Bukkit; Forge refused
-  live MINECRAFT_VERSION/MC_VERSION required
-  listFiles confirm before manifest
-  delete errors not swallowed
+crm_issue_28:
+  facts: namespaced registry, derive from billing/tickets/discord/oauth/consent
+  segments: nested AND/OR, compileSegmentWhere (no take 200)
+  campaigns: studio + queue with per-recipient consent, Discord DMs refused
+  automations: persistent graph, wait, branch, dedupe, delivery off
+  promotions: segment/first-purchase/private gates in resolvePromotion
+  risk: evaluation history + overrides, shadow, no auto-reject
+  analytics: real aggregates only
+  ui: /admin/crm tabs + customer Growth 360
+  campaignMayDeliver: never hardcoded marketingConsent true on approve
 
-p0_mail_dns:
-  MAIL_DNS_WRITES false → preview_only applied false
-  no zone → provider_unavailable applied false
-  applyMailDns never HTTP applied
-  Cloudflare publish + re-read when writes on
-
-ci_787: web admin-nav count 33 vs 35 (CRM + domains commerce). Local API 221 passed, 1896 tests. Nav test now 35.
+missing_for_github_close:
+  E2E browser journeys against a staff session
+  live Stripe tax/credit posting (PAYMENTS_ENABLED false)
+  live marketing send
+  GitHub issue write
 
 external:
   SMART_DEPLOY_SANDBOX
   CF SaaS entitlement
   GAME_CONNECT client
   registrar live
-  GitHub issue close (write permission)

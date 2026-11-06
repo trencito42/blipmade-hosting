@@ -23,6 +23,8 @@ import { assertValidMailDomain } from './mail.js';
 import { checkCustomerVariables, parseCustomerVariableSpecs, sealVariables } from './instance-credentials.js';
 import { checkoutSpecs } from './install-variables.js';
 import { hasFreeEntitlement } from './promotion-policy.js';
+import { promotionCrmGate } from './crm.js';
+import { customerInSegment } from './crm-facts.js';
 import type { BillingPeriod, Prisma, Product, ProductFulfilment, ProductOption, ProductPrice } from '@prisma/client';
 
 export interface ResourceConfig {
@@ -761,6 +763,20 @@ export async function resolvePromotion(
       return { code: promotion.code, valid: false, reason: 'This code has already been used on your account.', discount: 0 };
     }
   }
+  const paidOrders = userId ? await prisma.order.count({ where: { userId, status: { in: ['PAID', 'FULFILLED'] } } }) : 0;
+  const inSegment = promotion.segmentId && userId ? await customerInSegment(userId, promotion.segmentId) : !promotion.segmentId;
+  const crm = promotionCrmGate({
+    firstPurchaseOnly: promotion.firstPurchaseOnly,
+    paidOrders,
+    privateCode: promotion.privateCode,
+    assignedUserId: promotion.assignedUserId,
+    userId: userId ?? null,
+    familySlug: promotion.familySlug,
+    orderFamily: null,
+    inSegment,
+    hasSegment: Boolean(promotion.segmentId),
+  });
+  if (!crm.ok) return { code: promotion.code, valid: false, reason: crm.reason, discount: 0 };
   return { code: promotion.code, valid: true, discount: 0 };
 }
 

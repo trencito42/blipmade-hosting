@@ -16,7 +16,6 @@ import {
   verifiedGameVersion,
   waitForBackupCompletion,
 } from '../services/addon-lifecycle.js';
-import { campaignMayDeliver, campaignTransition, matchesSegment, spendBand, type SegmentFilter } from '../services/crm.js';
 import { fixtureProvider, domainCommerceEnabled } from '../services/domain-commerce.js';
 import { nextRegistrationState, quoteToRegistration, sellingAllowed, type RegistrationEvent, type RegistrationState } from '../services/domain-lifecycle.js';
 import { cloudflareSaasEnabled, memorySaasAdapter, saasPlan, saasTransition } from '../services/cloudflare-saas.js';
@@ -375,111 +374,6 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     if (!next) throw badRequest(`A registration in ${row.state} cannot ${event}.`);
     const updated = await prisma.domainRegistration.update({ where: { id }, data: { state: next } });
     return { order: updated };
-  });
-
-  app.get('/admin/crm/segments', { preHandler: requirePermission('customers.read') }, async () => {
-    const segments = await prisma.customerSegment.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
-    return { segments, delivery: process.env.MARKETING_DELIVERY_ENABLED === 'true' };
-  });
-
-  app.post('/admin/crm/segments', { preHandler: requirePermission('customers.write') }, async (request: FastifyRequest) => {
-    const staff = await requireAuth(request);
-    const body = z.object({ name: z.string().trim().min(2).max(80), filter: z.record(z.string(), z.unknown()) }).parse(request.body ?? {});
-    const segment = await prisma.customerSegment.create({ data: { name: body.name, filter: body.filter as object, createdBy: staff.id } });
-    return { segment };
-  });
-
-  app.post('/admin/crm/segments/:id/preview', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const segment = await prisma.customerSegment.findUnique({ where: { id } });
-    if (!segment) throw notFound('Segment not found.');
-    const filter = segment.filter as SegmentFilter;
-    const users = await prisma.user.findMany({
-      where: { role: 'CUSTOMER' },
-      take: 200,
-      select: { id: true, email: true, tags: true, notificationPreference: { select: { marketing: true } }, customerFacts: true, payments: { select: { amount: true, status: true } } },
-    });
-    const matches = users.filter((user) => {
-      const facts = Object.fromEntries(user.customerFacts.map((fact) => [fact.key, fact.value]));
-      const spent = user.payments.filter((payment) => payment.status === 'SUCCEEDED').reduce((sum, payment) => sum + payment.amount, 0);
-      facts.spend_band = spendBand(spent);
-      return matchesSegment({ facts, tags: user.tags, marketing: user.notificationPreference?.marketing ?? false }, filter);
-    });
-    return { count: matches.length, sample: matches.slice(0, 20).map((user) => ({ id: user.id, email: user.email })) };
-  });
-
-  app.get('/admin/crm/campaigns', { preHandler: requirePermission('promotions.read') }, async () => {
-    const campaigns = await prisma.marketingCampaign.findMany({ orderBy: { createdAt: 'desc' }, take: 100, include: { segment: { select: { id: true, name: true } } } });
-    return { campaigns, delivery: process.env.MARKETING_DELIVERY_ENABLED === 'true' };
-  });
-
-  app.post('/admin/crm/campaigns', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
-    const staff = await requireAuth(request);
-    const body = z.object({ name: z.string().trim().min(2).max(80), body: z.string().trim().min(2).max(5000), segmentId: z.string().nullable().optional() }).parse(request.body ?? {});
-    const campaign = await prisma.marketingCampaign.create({ data: { name: body.name, body: body.body, segmentId: body.segmentId ?? null, createdBy: staff.id } });
-    await audit({ actorId: staff.id, actorEmail: staff.email, action: 'crm.campaign.created', targetType: 'marketing_campaign', targetId: campaign.id });
-    return { campaign };
-  });
-
-  app.post('/admin/crm/campaigns/:id/:event', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
-    const staff = await requireAuth(request);
-    const { id, event } = z.object({ id: z.string(), event: z.enum(['submit', 'approve', 'reject', 'suppress']) }).parse(request.params);
-    const campaign = await prisma.marketingCampaign.findUnique({ where: { id } });
-    if (!campaign) throw notFound('Campaign not found.');
-    const next = campaignTransition(campaign.status, event);
-    if ('error' in next) throw badRequest(next.error);
-    const updated = await prisma.marketingCampaign.update({
-      where: { id },
-      data: {
-        status: next.status,
-        suppressed: next.status === 'suppressed',
-        approvedAt: event === 'approve' ? new Date() : campaign.approvedAt,
-        approvedBy: event === 'approve' ? staff.id : campaign.approvedBy,
-      },
-    });
-    await audit({ actorId: staff.id, actorEmail: staff.email, action: `crm.campaign.${event}`, targetType: 'marketing_campaign', targetId: id });
-    return { campaign: updated, gate: campaignMayDeliver({ status: updated.status, suppressed: updated.suppressed, marketingConsent: true }) };
-  });
-
-  app.get('/admin/customers/:id/crm', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true, email: true, tags: true, createdAt: true,
-        notificationPreference: { select: { marketing: true, marketingOptInAt: true } },
-        customerFacts: true,
-        discordCommunityLinks: { select: { discordUserId: true } },
-        tickets: { where: { status: { not: 'CLOSED' } }, select: { id: true }, take: 5 },
-        payments: { select: { amount: true, status: true } },
-      },
-    });
-    if (!user) throw notFound('Customer not found.');
-    const spent = user.payments.filter((payment) => payment.status === 'SUCCEEDED').reduce((sum, payment) => sum + payment.amount, 0);
-    return {
-      facts: [
-        ...user.customerFacts,
-        { key: 'spend_band', value: spendBand(spent), source: 'billing' },
-        { key: 'marketing', value: user.notificationPreference?.marketing ? 'opt_in' : 'opt_out', source: 'consent' },
-        { key: 'support_open', value: user.tickets.length ? 'yes' : 'no', source: 'tickets' },
-        { key: 'discord', value: user.discordCommunityLinks.length ? 'linked' : 'none', source: 'discord' },
-      ],
-      tags: user.tags,
-      marketing: user.notificationPreference,
-    };
-  });
-
-  app.put('/admin/customers/:id/facts/:key', { preHandler: requirePermission('customers.write') }, async (request: FastifyRequest) => {
-    const staff = await requireAuth(request);
-    const { id, key } = z.object({ id: z.string(), key: z.string().min(2).max(40) }).parse(request.params);
-    const { value } = z.object({ value: z.string().min(1).max(80) }).parse(request.body ?? {});
-    const fact = await prisma.customerFact.upsert({
-      where: { userId_key: { userId: id, key } },
-      create: { userId: id, key, value, source: 'staff' },
-      update: { value, source: 'staff' },
-    });
-    await audit({ actorId: staff.id, actorEmail: staff.email, action: 'crm.fact.upsert', targetType: 'user', targetId: id, meta: { key } });
-    return { fact };
   });
 
   app.get('/admin/domains/saas', { preHandler: requirePermission('settings.read') }, async () => {
