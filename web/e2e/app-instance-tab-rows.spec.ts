@@ -52,20 +52,23 @@ test('the backups fit at 390px', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
 
-test('the instance sections: the everyday ones first, the others under More, and a deep link opens its section', async ({ page }) => {
+test('the instance sections: the everyday ones first, the others in a categorized Advanced directory, and a deep link opens its section', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await stub(page);
   await page.goto('/app/instances/i1/backups');
   const main = page.getByRole('group', { name: 'Instance sections' }).or(page.locator('[aria-label="Instance sections"]'));
   await expect(main.getByRole('tab', { name: 'Backups' }).or(main.getByRole('button', { name: 'Backups' })).first()).toBeVisible();
-  await expect(page.locator('[aria-label="More instance sections"]')).toHaveCount(0);
+  await expect(page.locator('[aria-label="Advanced instance sections"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Advanced', exact: true }).click();
-  const more = page.locator('[aria-label="More instance sections"]');
+  const more = page.locator('[aria-label="Advanced instance sections"]');
   await expect(more).toBeVisible();
-  for (const name of ['Network', 'Startup', 'Schedules', 'Activity']) await expect(more.getByText(name, { exact: true })).toBeVisible();
-  // A section of the second row keeps that row open.
+  await expect(more.getByText('Server setup', { exact: true })).toBeVisible();
+  await expect(more.getByText('Operations', { exact: true })).toBeVisible();
+  for (const name of ['Network', 'Startup', 'Schedules', 'Activity']) await expect(more.getByRole('link', { name, exact: true })).toBeVisible();
+  // An advanced deep link keeps the directory open and marks its current page.
   await page.goto('/app/instances/i1/network');
-  await expect(page.locator('[aria-label="More instance sections"]')).toBeVisible();
+  await expect(page.locator('[aria-label="Advanced instance sections"]')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Network', exact: true })).toHaveAttribute('aria-current', 'page');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
 

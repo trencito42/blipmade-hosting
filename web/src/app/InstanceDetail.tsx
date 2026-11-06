@@ -136,6 +136,14 @@ const PRIMARY_TABS: Tab[] = ['overview', 'console', 'files', 'databases', 'backu
 const MINECRAFT_SLUGS = ['minecraft-paper', 'minecraft-folia', 'minecraft-forge'];
 const GAME_SLUGS = ['minecraft-bedrock', 'rust', 'fivem', 'counter-strike-1-6', 'counter-strike-2', 'valheim', 'factorio'];
 
+const ADVANCED_GROUPS: { label: string; tabs: Tab[] }[] = [
+  { label: 'Files & data', tabs: ['files', 'databases', 'git'] },
+  { label: 'Server setup', tabs: ['network', 'startup', 'schedules'] },
+  { label: 'Operations', tabs: ['backups', 'activity', 'uptime'] },
+  { label: 'Service', tabs: ['resources', 'domains', 'access', 'settings'] },
+  { label: 'Game tools', tabs: ['minecraft', 'game', 'addons'] },
+];
+
 function primaryTabsFor(slug: string | undefined): Tab[] {
   if (slug && MINECRAFT_SLUGS.includes(slug)) return ['overview', 'console', 'minecraft', 'addons', 'backups', 'settings'];
   if (slug && GAME_SLUGS.includes(slug)) return ['overview', 'console', 'game', 'addons', 'backups', 'settings'];
@@ -610,6 +618,8 @@ export default function InstanceDetail() {
   const canStop = live.power === 'running' || live.power === 'starting' || (live.power === 'unknown' && (status === 'online' || status === 'degraded'));
   const canRestart = canStart || canStop || isStopping;
   const canKill = isStopping || live.power === 'running' || live.power === 'starting' || status === 'online' || status === 'degraded';
+  const primaryTabs = primaryTabsFor(instance.product.slug);
+  const advancedOpen = showMore || !primaryTabs.includes(tab);
 
   return (
     <div className="grid gap-4">
@@ -684,19 +694,39 @@ export default function InstanceDetail() {
       ) : (
       <>
       <div ref={tabsRef} className="grid scroll-mt-28 gap-2">
-        {/* The everyday sections are always in view; the others are one tap away. */}
+        {/* The everyday sections stay in view; technical workspaces live in a directory. */}
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <Segmented options={visibleTabs.filter((entry) => primaryTabsFor(instance.product.slug).includes(entry.value))} value={tab} onChange={setTab} ariaLabel="Instance sections" />
+            <Segmented options={visibleTabs.filter((entry) => primaryTabs.includes(entry.value))} value={tab} onChange={setTab} ariaLabel="Instance sections" />
           </div>
-          {visibleTabs.some((entry) => !primaryTabsFor(instance.product.slug).includes(entry.value)) && (
-            <SoftButton onClick={() => setShowMore((open) => !open)} aria-expanded={showMore || !primaryTabsFor(instance.product.slug).includes(tab)} className="shrink-0">
-              {showMore || !primaryTabsFor(instance.product.slug).includes(tab) ? 'Less' : 'Advanced'}
+          {visibleTabs.some((entry) => !primaryTabs.includes(entry.value)) && (
+            <SoftButton onClick={() => { if (!primaryTabs.includes(tab)) setTab('overview'); else setShowMore((open) => !open); }} aria-expanded={advancedOpen} className="shrink-0">
+              {advancedOpen ? 'Close' : 'Advanced'}
             </SoftButton>
           )}
         </div>
-        {(showMore || !primaryTabsFor(instance.product.slug).includes(tab)) && (
-          <Segmented options={visibleTabs.filter((entry) => !primaryTabsFor(instance.product.slug).includes(entry.value))} value={tab} onChange={setTab} ariaLabel="More instance sections" />
+        {advancedOpen && (
+          <nav aria-label="Advanced instance sections" className="grid gap-3 rounded-2xl border border-line bg-card p-3 sm:grid-cols-2 lg:grid-cols-3">
+            {ADVANCED_GROUPS.map((group) => {
+              const entries = visibleTabs.filter((entry) => group.tabs.includes(entry.value) && !primaryTabs.includes(entry.value));
+              if (entries.length === 0) return null;
+              return (
+                <div key={group.label} className="grid content-start gap-1">
+                  <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ink3">{group.label}</p>
+                  {entries.map((entry) => (
+                    <Link
+                      key={entry.value}
+                      to={`/app/instances/${instance.id}/${entry.value}`}
+                      aria-current={tab === entry.value ? 'page' : undefined}
+                      className={`rounded-xl px-2.5 py-2 text-[13.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${tab === entry.value ? 'bg-acc/12 text-acc' : 'text-ink2 hover:bg-s2 hover:text-ink'}`}
+                    >
+                      {entry.label}
+                    </Link>
+                  ))}
+                </div>
+              );
+            })}
+          </nav>
         )}
       </div>
 
