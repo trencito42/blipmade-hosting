@@ -1,7 +1,7 @@
 # Backlog checkpoint
 
-resume_sha: work/disable-checkout CRM engine unify + firstPaid + referral 400 + campaign worker
-production_before: 7db4de34b (catalog rollback Admin). Next: hide Game tab for unsupported products.
+resume_sha: b3e493f8a80c5ee73864406e27f51271a0b7c228
+production_sha: b3e493f8a80c5ee73864406e27f51271a0b7c228
 flags:
   PAYMENTS_ENABLED: false
   MAIL_SALES_ENABLED: false
@@ -27,17 +27,28 @@ crm_issue_28:
   discord: planCommunityAnnouncement memory/off; delivered always false
   tests: crm.test + crm-ops + Playwright stub desk (announce)
 
+shipped_this_slice:
+  247f4170 CRM engine unify, firstPaid, referral 400, campaign worker, Discord memory adapter
+  7db4de34 Admin preset rollback UI + catalog-structure test
+  b3e493f8 hide Game tab unless product has GAME_WORKSPACES
+
 missing_for_github_close:
-  live staff Playwright against production session (needs E2E_STAFF_*)
+  live staff Playwright (needs E2E_STAFF_* on isolated bench)
   live Stripe tax/credit posting (PAYMENTS_ENABLED false)
   live marketing send (MARKETING_DELIVERY_ENABLED false)
   Discord production post (forbidden)
-  GitHub issue write
+  GitHub issue comments (no gh on this host)
+
+issues:
+  28 not closed (live send / Stripe / staff E2E still owner)
+  20 not closed (0 orderable SKUs; rollback Admin now exists; commercial publish still gated)
+  19 Game tab hidden for unsupported slugs; Minecraft Java stays on Minecraft tab
+  22 18 21 24 25 26 27 remain flags-off with isolated adapters; no live entitlements
 
 next_executable:
-  catalog preset rollback Admin button + structure test, then remaining #19/#22/#18/#21/#24/#25/#26/#27 under flags-off
+  authenticated Playwright bench if E2E_STAFF_* exists; else vendor-sandbox work only when credentials exist
 
-ci: GitHub Actions not listed from this host (no gh). Confirm on github.com after push.
+ci: GitHub Actions not listed from this host (no gh)
 
 external:
   SMART_DEPLOY_SANDBOX
