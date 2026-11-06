@@ -99,7 +99,14 @@ export async function registerInternalBackupRoutes(app: FastifyInstance): Promis
       error: z.string().max(300).optional(),
       node: z.string().max(100).optional(),
     }).parse(request.body ?? {});
-    const value = { ...body, at: new Date().toISOString() };
+    const previous = await prisma.setting.findUnique({ where: { key: 'offsite.destination' } });
+    const previousValue = (previous?.value ?? null) as { identityMatchesRecipient?: boolean } | null;
+    const value = {
+      ...body,
+      at: new Date().toISOString(),
+      identityMatchesRecipient:
+        body.identityMatchesRecipient ?? previousValue?.identityMatchesRecipient ?? null,
+    };
     await prisma.setting.upsert({ where: { key: 'offsite.destination' }, create: { key: 'offsite.destination', value }, update: { value } });
     return { ok: true };
   });

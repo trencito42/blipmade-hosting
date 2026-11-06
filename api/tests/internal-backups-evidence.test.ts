@@ -95,4 +95,30 @@ describe('offsite evidence is not a restore', () => {
     expect(row.restoreVerifiedAt?.toISOString()).toBe('2026-11-01T00:00:00.000Z');
     expect(row.isolatedRestore).toBe(false);
   });
+
+  it('keeps a drill-host identity mismatch when a later destination probe omits it', async () => {
+    const first = await agent(app, 'POST', '/api/internal/backups/destination', {
+      reachable: true,
+      totalBytes: 1000,
+      usedBytes: 10,
+      fileCount: 1,
+      node: 'vm103',
+      identityMatchesRecipient: false,
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await agent(app, 'POST', '/api/internal/backups/destination', {
+      reachable: true,
+      totalBytes: 1000,
+      usedBytes: 20,
+      fileCount: 2,
+      node: 'hypervisor',
+    });
+    expect(second.statusCode).toBe(200);
+
+    const stored = await prisma.setting.findUniqueOrThrow({ where: { key: 'offsite.destination' } });
+    const value = stored.value as { identityMatchesRecipient?: boolean | null; usedBytes?: number };
+    expect(value.identityMatchesRecipient).toBe(false);
+    expect(value.usedBytes).toBe(20);
+  });
 });
