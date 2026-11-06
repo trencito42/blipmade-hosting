@@ -14,7 +14,7 @@
 | Restore drill receipt | `restore-drill.json` **2026-11-02** | Stale |
 | VPS weekly vzdump off-site | `blipmade-offsite-vps.timer`; journal 2026-11-02 14:53Z VM **1002** OK; `verified` ~459985802 B `.vma.zst.age`; `done/vm-1001` and `vm-1002` | Decrypt+qmrestore UNVERIFIED |
 | Game node | daily customer/database off-site timers ran 2026-11-06 | Contents UNVERIFIED |
-| Hypervisor `local` dump dir | 0 files (stage then delete) | n/a |
+| PVE qemu configs | `pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age` 3413 B, verified upload 07:24Z | Hash verify yes; decrypt drill no |
 | PBS | client 4.2.8; **no datastore** | unused |
 | Mailcow | helper `backup_and_restore.sh`; **no** `blipmade-offsite-*` unit (BM-021) | missing |
 | VM100–105 qcow2 | live only on RAID 0 `local` | missing |
@@ -26,7 +26,7 @@ Two Samsung MZ7L3960 960 GB, `md1` RAID 0, ext4 `/`. All qcow2 on `pvesm local`.
 
 ## Reconstructability
 
-- VM configs: `/etc/pve/qemu-server/*.conf` on this host only unless copied in the platform archive (platform archive is VM103 files, not PVE configs). **PVE configs UNVERIFIED off-host.**
+- VM configs: encrypted on Storage Box since 2026-11-06 (`mode_pve`, daily). Decrypt still needs the off-host age identity.
 - Panel DB: on VM100 MariaDB; not in VM103 nightly unless separately dumped. UNVERIFIED.
 - Wings `/var/lib/pterodactyl`: game-node daily job claimed; not listed remotely this pass.
 - Mail: no Blipmade off-site unit.

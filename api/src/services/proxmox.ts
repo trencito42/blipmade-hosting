@@ -150,6 +150,18 @@ export async function vmStatus(vmid: number): Promise<{ status: string; uptime: 
   return request('GET', `/nodes/${node()}/qemu/${vmid}/status/current`);
 }
 
+/** Free RAM and disk on the hypervisor, for the VPS capacity gate. */
+export async function nodeResources(): Promise<{ freeMemoryMb: number; freeDiskGb: number }> {
+  const status = await request<{
+    memory?: { free?: number };
+    rootfs?: { avail?: number };
+  }>('GET', `/nodes/${node()}/status`);
+  return {
+    freeMemoryMb: Math.max(0, Math.floor((status.memory?.free ?? 0) / 1024 / 1024)),
+    freeDiskGb: Math.max(0, Math.floor((status.rootfs?.avail ?? 0) / 1024 / 1024 / 1024)),
+  };
+}
+
 export interface VmMetrics {
   status: string;
   uptime: number;

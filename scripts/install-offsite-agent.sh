@@ -44,6 +44,8 @@ elif [ "$role" = platform ]; then
   unit retention retention '*-*-* 06:40:00'
 elif [ "$role" = hypervisor ]; then
   unit vps vps 'Sun *-*-* 02:00:00'
+  unit infra infra 'Sun *-*-* 03:30:00'
+  unit pve pve '*-*-* 01:40:00'
   unit retention retention '*-*-* 06:30:00'
 fi
 unit destination destination '*-*-* *:05:00'    # hourly: the reachability and the room left, for the admin page

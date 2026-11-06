@@ -6,6 +6,7 @@ const facts = (over: Partial<GateFacts> = {}): GateFacts => ({
   eggs: { known: true, ids: new Set([5]), names: new Set(['paper']) },
   nodes: [{ freeMemoryMb: 8192, freeDiskMb: 100_000 }],
   proxmoxConfigured: true,
+  vpsCapacity: { freeMemoryMb: 65_536, freeDiskGb: 800, usedSlots: 2, maxSlots: 150 },
   ...over,
 });
 const product = {
@@ -42,6 +43,11 @@ describe('readiness gate', () => {
   it('needs no egg or node for a VPS', () => {
     const vps = { ...product, fulfilment: 'VPS' as const, eggId: null };
     expect(evaluateGate(vps, monthly, 500, facts({ nodes: null, eggs: { known: false, ids: new Set(), names: new Set() } })).ready).toBe(true);
-    expect(failed(evaluateGate(vps, monthly, 500, facts({ proxmoxConfigured: false })))).toEqual(['providerReady']);
+    expect(failed(evaluateGate(vps, monthly, 500, facts({ proxmoxConfigured: false, vpsCapacity: null })))).toEqual(['providerReady', 'capacityReady']);
+  });
+  it('refuses a VPS when the hypervisor is full', () => {
+    const vps = { ...product, fulfilment: 'VPS' as const, eggId: null, defaultRam: 4096, defaultDisk: 20 };
+    expect(failed(evaluateGate(vps, monthly, 500, facts({ vpsCapacity: { freeMemoryMb: 512, freeDiskGb: 800, usedSlots: 2, maxSlots: 150 } })))).toEqual(['capacityReady']);
+    expect(failed(evaluateGate(vps, monthly, 500, facts({ vpsCapacity: { freeMemoryMb: 65_536, freeDiskGb: 800, usedSlots: 150, maxSlots: 150 } })))).toEqual(['capacityReady']);
   });
 });

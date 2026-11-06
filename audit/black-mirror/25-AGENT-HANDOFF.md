@@ -44,7 +44,7 @@ Do not renumber BM-IDs. Do not treat guest 401 as a bug. Do not claim `/var/lib/
 
 ## Next
 
-Publish Phase 1 code, then owner says `deploy`. Then Phase 2 DR inventory (no RAID rebuild). Do not cancel the 9 subscriptions without the owner.
+Owner says `deploy` for catalog pause + VPS `onboot` in provisioner + VPS capacity gate. Infra vzdump of 100/102–105 runs Sunday 03:30. Do not cancel owner test subscriptions. Phase 4 encryption/tax still open.
 
 ## Do not
 

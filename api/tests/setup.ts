@@ -36,4 +36,5 @@ setGateFactsSource(async () => ({
   eggs: { known: false, ids: new Set(), names: new Set() },
   nodes: [{ freeMemoryMb: 1_000_000, freeDiskMb: 100_000_000 }],
   proxmoxConfigured: true,
+  vpsCapacity: { freeMemoryMb: 1_000_000, freeDiskGb: 1_000, usedSlots: 0, maxSlots: 150 },
 }));

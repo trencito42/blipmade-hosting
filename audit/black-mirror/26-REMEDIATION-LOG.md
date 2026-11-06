@@ -28,10 +28,28 @@ Start: 2026-11-06. Production was `8b07cd2d`. Audit IDs unchanged.
 | Open sessions expired this pass | 1 (`cs_live_…`, 596 EUR cents) |
 | Open remaining | 0 |
 
-**Not done:** cancel/pause the 9 active Stripe subscriptions. That would stop existing customers. Owner decision.
+**Owner 2026-11-06:** both paid charges and all 9 active subscriptions are **the operator’s own development tests**. There are no paying customers. Do not treat them as unidentified customer billing. Do not cancel them in this work; the owner handles them separately.
+
+**Not done:** cancel/pause those 9 test subscriptions (owner will).
 
 **Code (not in production until deploy):** `catalogSalesContext()` marks paid SKUs not orderable when checkout is off; `/apps` copy when count is 0; `scripts/disable-live-checkout.sh`. Tests: `api/tests/availability-sales.test.ts`.
 
 **Acceptance:** new Checkout 503 VERIFIED. UI honesty for remaining SKUs BLOCKED on deploy.
 
 **Rollback:** restore `.env` from the backup file, set both flags true, recreate api+worker. Do not do that.
+
+## Phase 2 / 3 — 2026-11-06T07:24Z
+
+Reuse Storage Box + `blipmade-offsite-agent`. No RAID change. No PBS.
+
+| Item | Result |
+|---|---|
+| PVE configs off-site | `pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age` **3413 B verified** (hash after read-back). Daily timer. |
+| Infra vzdump 100/102–105 | Weekly timer enabled. Not run this pass (large). VM101 excluded (file-level jobs exist). |
+| Restore drill | Still needs age identity off-host. |
+| onboot 100/1001/1002 | `onboot: 1` |
+| vmbr2 TAP isolated | sysfs `isolated=1` on tap1001i0 and tap1002i0 |
+| MariaDB VM101 | `127.0.0.1:3306` only |
+| VM103 disk | 85% → **71%** after `docker builder prune --filter until=72h`; timer installed |
+| Checkout | still `PAYMENTS_ENABLED=false` |
+| Stripe test subs | left in place per owner |

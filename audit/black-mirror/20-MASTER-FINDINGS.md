@@ -33,8 +33,8 @@ IDs are stable. Update in place; do not renumber. Last pass 2026-11-06T06:32Z. B
 **Evidence status:** VERIFIED  
 **Affected systems:** Billing, checkout, subscriptions  
 **Files and lines:** `api/src/env.ts` (`paymentsEnabled`); `api/src/services/stripe.ts` `createCheckout` (throws only when payments off)  
-**Infrastructure evidence:** 2026-11-06T06:03Z VM103 `.env` `PAYMENTS_ENABLED=true`; public health `stripe:"live"`. **2026-11-06T07:11Z containment:** `.env` `PAYMENTS_ENABLED=false`, api/worker recreated; in-process `env.paymentsEnabled===false`; `createCheckout` 503 `payments_unavailable`. Stripe live: **2 paid charges** (299+399 cents, 2026-10-30), **9 active subscriptions still renewing**, 1 open Checkout expired.  
-**Description:** Live Checkout was on. Money already moved (two paid charges). Flag now off for **new** sessions. Existing Stripe subscriptions are unchanged.  
+**Infrastructure evidence:** 2026-11-06T06:03Z VM103 `.env` `PAYMENTS_ENABLED=true`; public health `stripe:"live"`. **2026-11-06T07:11Z containment:** `.env` `PAYMENTS_ENABLED=false`, api/worker recreated; in-process `env.paymentsEnabled===false`; `createCheckout` 503 `payments_unavailable`. Stripe live: 2 paid charges (299+399 cents, 2026-10-30) and 9 active subscriptions — **owner-confirmed development tests, not paying customers**. 1 open Checkout expired.  
+**Description:** Live Checkout was on. New sessions are off. Remaining Stripe objects are the operator’s test subscriptions; they still renew until the owner cancels them. They are not unidentified customer accounts.  
 **Impact:** Real charges for unproven catalogue/provisioning. Failed provision after payment is a refund/ops incident.  
 **Reproduction:** `curl -sS https://blipmade.com/api/health` (no secrets). Do not complete a live Checkout.  
 **Root cause:** Flag turned on in production `.env`.  

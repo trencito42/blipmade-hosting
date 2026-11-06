@@ -8,7 +8,7 @@
 # accepted on the command line. The age IDENTITY (the private key) is never on the machines that make backups: only
 # the public recipient is.
 #
-# Modes:  customers | databases | vps | platform | retention | destination | drill <remote path> <identity file>
+# Modes:  customers | databases | vps | infra | pve | platform | retention | destination | drill <remote path> <identity file>
 set -euo pipefail
 umask 077
 
@@ -31,6 +31,10 @@ ENV_FILE="${OFFSITE_ENV_FILE:-/etc/blipmade/offsite.env}"
 : "${DB_MIN_INTERVAL_HOURS:=20}"
 : "${VPS_MIN_INTERVAL_HOURS:=160}"       # about weekly: vzdump makes full copies, so it is not run more often
 : "${VPS_POOL:=vps}"
+# Infra VMs on this hypervisor, not the 900G game node (file-level jobs cover Wings data).
+: "${INFRA_VMIDS:=100 102 103 104 105}"
+: "${INFRA_MIN_INTERVAL_HOURS:=160}"
+: "${RETENTION_PVE_KEEP:=14}"
 : "${STAGING_DIR:=$STATE_DIR/staging}"
 : "${MARIADB_DEFAULTS_FILE:=/etc/blipmade/backup-mariadb.cnf}"
 
@@ -201,6 +205,43 @@ mode_vps() {
   done
 }
 
+# -------------------------------------------------------------- infra VMs
+# Same vzdump path as VPS, different remote prefix. Skips the game node unless listed.
+mode_infra() {
+  need vzdump
+  local vmid last now stamp file name; now="$(date +%s)"
+  local vms="${INFRA_ONLY:-$INFRA_VMIDS}"
+  for vmid in $vms; do
+    last="$(cat "$STATE_DIR/done/infra-$vmid" 2>/dev/null || echo 0)"
+    [ $((now - last)) -gt $((INFRA_MIN_INTERVAL_HOURS * 3600)) ] || continue
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    if ! vzdump "$vmid" --mode snapshot --compress zstd --dumpdir "$STAGING_DIR" --quiet 1 >"$STATE_DIR/vzdump-infra-$vmid.log" 2>&1; then
+      report INFRA "infra/$NODE_NAME/vm$vmid/failed-$stamp" "vm$vmid" FAILED 0 "" "" "vzdump failed: $(tail -n 1 "$STATE_DIR/vzdump-infra-$vmid.log")"; continue
+    fi
+    file="$(ls -1t "$STAGING_DIR"/vzdump-qemu-"$vmid"-*.vma.zst 2>/dev/null | sed -n 1p || true)"
+    [ -n "$file" ] || { report INFRA "infra/$NODE_NAME/vm$vmid/failed-$stamp" "vm$vmid" FAILED 0 "" "" "vzdump produced no file"; continue; }
+    name="$(basename "$file").age"
+    if upload_verified INFRA "vm$vmid" "$file" "infra/$NODE_NAME/vm$vmid" "$name" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; then printf '%s' "$now" > "$STATE_DIR/done/infra-$vmid"; fi
+    find "${STAGING_DIR:?}" -maxdepth 1 -name "vzdump-qemu-$vmid-*" -type f -delete
+  done
+}
+
+# ----------------------------------------------------------- Proxmox configs
+# Tiny: VM definitions so a lost host can still be reconstructed. Not the VM disks.
+mode_pve() {
+  need tar
+  local stamp tmp name now last; now="$(date +%s)"
+  last="$(cat "$STATE_DIR/done/pve-config" 2>/dev/null || echo 0)"
+  [ $((now - last)) -gt 72000 ] || { log "pve config was copied recently"; return 0; }
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  tmp="$STAGING_DIR/pve-config-$stamp.tar.gz"
+  tar -C /etc/pve -h -czf "$tmp" nodes/n7030e1/qemu-server storage.cfg
+  tar -tzf "$tmp" >/dev/null || { report PVE "pve/$NODE_NAME/failed-$stamp" "pve-config" FAILED 0 "" "" "the archive is not readable"; rm -f -- "${tmp:?}"; return 1; }
+  name="$(basename "$tmp").age"
+  if upload_verified PVE "pve-config" "$tmp" "pve/$NODE_NAME" "$name" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; then printf '%s' "$now" > "$STATE_DIR/done/pve-config"; fi
+  rm -f -- "${tmp:?}"
+}
+
 # ------------------------------------------------------------------ the platform
 # The newest archive of scripts/backup.sh (database dump and configuration without secrets) goes to the box as well.
 # The copy that backup-offsite.sh makes goes to another VM of the same machine, so it does not survive the loss of
@@ -267,6 +308,24 @@ mode_retention() {
       t_rm "vps/$NODE_NAME/$vm/$f" && log "removed old VM copy $f"
     done < <(t_ls "vps/$NODE_NAME/$vm" | sort -r)
   done < <(t_ls "vps/$NODE_NAME")
+  keep="$(protected_list INFRA)" || die "could not read the protected list"
+  while read -r vm; do
+    [ -n "$vm" ] || continue; n=0
+    while read -r f; do
+      [ -n "$f" ] || continue
+      n=$((n + 1)); [ "$n" -le "$RETENTION_VPS_KEEP" ] && continue
+      grep -qx "infra/$NODE_NAME/$vm/$f" <<<"$keep" && continue
+      t_rm "infra/$NODE_NAME/$vm/$f" && log "removed old infra copy $f"
+    done < <(t_ls "infra/$NODE_NAME/$vm" | sort -r)
+  done < <(t_ls "infra/$NODE_NAME")
+  keep="$(protected_list PVE)" || die "could not read the protected list"
+  n=0
+  while read -r f; do
+    [ -n "$f" ] || continue
+    n=$((n + 1)); [ "$n" -le "${RETENTION_PVE_KEEP:-14}" ] && continue
+    grep -qx "pve/$NODE_NAME/$f" <<<"$keep" && continue
+    t_rm "pve/$NODE_NAME/$f" && log "removed old pve copy $f"
+  done < <(t_ls "pve/$NODE_NAME" | sort -r)
 }
 
 # ----------------------------------------------------------------- destination
@@ -296,7 +355,8 @@ mode_drill() {
     databases/*) gzip -t "$out" || die "the decrypted dump is not a valid archive"
       head_text="$(head -c 4096 < <(zcat "$out" 2>/dev/null) || true)"
       grep -q 'MariaDB dump\|MySQL dump' <<<"$head_text" || die "the decrypted dump is not a database dump" ;;
-    vps/*) zstd -t "$out" >/dev/null 2>&1 || die "the decrypted VM copy is not a valid archive" ;;
+    vps/*|infra/*) zstd -t "$out" >/dev/null 2>&1 || die "the decrypted VM copy is not a valid archive" ;;
+    pve/*|platform/*) tar -tzf "$out" >/dev/null || die "the decrypted archive is not readable" ;;
   esac
   rm -f -- "${tmp:?}" "${out:?}"
   post restore-verified "$(printf '{"remotePath":"%s","note":"opened by drill on %s"}' "$rel" "$(hostname -s)")"
@@ -307,9 +367,11 @@ case "${1:-}" in
   customers) mode_customers ;;
   databases) mode_databases ;;
   vps) mode_vps ;;
+  infra) mode_infra ;;
+  pve) mode_pve ;;
   platform) mode_platform ;;
   retention) mode_retention ;;
   destination) mode_destination ;;
   drill) shift; mode_drill "${1:?remote path}" "${2:?identity file}" ;;
-  *) echo "usage: $0 customers|databases|vps|platform|retention|destination|drill <remote path> <identity>" >&2; exit 2 ;;
+  *) echo "usage: $0 customers|databases|vps|infra|pve|platform|retention|destination|drill <remote path> <identity>" >&2; exit 2 ;;
 esac

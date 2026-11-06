@@ -293,6 +293,7 @@ export async function provisionVps(serviceId: string): Promise<void> {
     await pve.configureVm(vmid, {
       cores: service.cpu,
       memory: service.ram,
+      onboot: 1,
       ipconfig0: `ip=${privateIp}/24,gw=${env.VPS_GATEWAY}`,
       nameserver: '1.1.1.1',
       ciuser: 'debian',

@@ -13,11 +13,11 @@ Owner-only for flags, Stripe, DNS, eggs, prune, `onboot`. Fixing agents: app cod
 
 ### Week 1 — P0/P1 ops (owner + infra)
 
-5. `qm set 100 --onboot 1`; `qm set 1001 --onboot 1`; `qm set 1002 --onboot 1` (BM-008, BM-009).  
-6. Code: `configureVm` add `onboot: 1` (`api/src/services/vps.ts`).  
-7. Disk: owner-approved `docker builder prune` on VM103 (BM-005). Alert at 70%.  
-8. Live egg 16: set `done` to a real Python marker; commit git `nodejs.json`/`python.json` to match live 15/83/84 (BM-004). Reinstall one bot on disposable server.  
-9. Bind VM101 MariaDB to 127.0.0.1 or firewall 3306 (BM-010). Retest eggs.
+5. **DONE:** `qm set 100/1001/1002 --onboot 1`.  
+6. **DONE in git:** `configureVm` sets `onboot: 1` (needs deploy).  
+7. **DONE:** Docker prune timer on VM103; disk 85% → 71%. Cache still ~27 GB under 72h.  
+8. **DONE in git:** `nodejs.json` / `python.json` `done` markers. Live egg 16 on the panel still needs a panel write.  
+9. **DONE:** VM101 MariaDB `bind-address=127.0.0.1`. Listens on loopback only.
 
 ### Week 2 — crypto and tax
 

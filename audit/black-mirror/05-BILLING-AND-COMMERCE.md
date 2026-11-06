@@ -8,7 +8,7 @@ Live money **configured**. No Checkout session created this audit. No Stripe Das
 |---|---|---|
 | Live Stripe mode | Public health `stripe:"live"`; `PAYMENTS_ENABLED=true`; `STRIPE_SECRET_KEY` SET | VERIFIED config |
 | Checkout would hit live API | `createCheckout` (`stripe.ts` 241–313) throws only when `paymentsEnabled` false; else `checkout.sessions.create` | VERIFIED code |
-| A charge already happened | No Dashboard, no `Payment` row dump | UNVERIFIED |
+| A charge already happened | Stripe list 2026-11-06: 2 paid live charges | VERIFIED amounts; **owner: own test payments, not customers** |
 | Test gateway | `stripeTestGateway()` not the production path when live keys + flag on | VERIFIED code |
 
 `env.paymentsEnabled` = `PAYMENTS_ENABLED && STRIPE_SECRET_KEY.startsWith('sk_')` (`env.ts` ~562).
