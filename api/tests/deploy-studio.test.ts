@@ -192,8 +192,13 @@ describe('Deploy Studio 3.0 API', () => {
     // GET /api/admin/catalog/studio
     const listRes = await reader.request('GET', '/api/admin/catalog/studio');
     expect(listRes.status).toBe(200);
-    const offerings = (listRes.body as { offerings: Array<{ slug: string; readiness: { isReady: boolean } }> }).offerings;
-    expect(offerings.some((o) => o.slug === 'test-studio-sku')).toBe(true);
+    const offerings = (listRes.body as {
+      offerings: Array<{ slug: string; readiness: { isReady: boolean; blockers: string[] } }>;
+    }).offerings;
+    const studioSku = offerings.find((o) => o.slug === 'test-studio-sku');
+    expect(studioSku).toBeTruthy();
+    expect(typeof studioSku!.readiness.isReady).toBe('boolean');
+    expect(Array.isArray(studioSku!.readiness.blockers)).toBe(true);
 
     // PUT /api/admin/catalog/studio/:slug/wizard by reader fails (403)
     const readPutRes = await reader.request('PUT', `/api/admin/catalog/studio/${testProd.slug}/wizard`, {

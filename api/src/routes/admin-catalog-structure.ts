@@ -488,10 +488,18 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
           }),
         );
         const allReady = variantReadiness.some((vr) => vr.ready);
+        const blockers = variantReadiness.flatMap((vr) => (vr.ready ? [] : vr.blockers));
         return {
           ...offering,
+          activeVariantCount: variantReadiness.filter((vr) => vr.ready).length,
+          totalVariantCount: offering.variants.length,
+          presetCount: offering.presets.length,
+          addonCount: offering.addons.length,
+          wizardSteps: (offering.wizardConfig?.steps ?? []).map((step) => step.id),
           readiness: {
-            ready: allReady,
+            isReady: allReady,
+            blockers,
+            warnings: [] as string[],
             variants: variantReadiness,
           },
         };

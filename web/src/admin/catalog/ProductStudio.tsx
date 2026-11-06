@@ -175,8 +175,8 @@ function OfferingListView({ onSelect, mayWrite }: { onSelect: (slug: string) => 
   const filtered = useMemo(() => {
     return offerings.filter((o) => {
       if (category !== 'all' && o.category !== category) return false;
-      if (readinessFilter === 'ready' && !o.readiness.isReady) return false;
-      if (readinessFilter === 'blocked' && o.readiness.isReady) return false;
+      if (readinessFilter === 'ready' && !o.readiness?.isReady) return false;
+      if (readinessFilter === 'blocked' && o.readiness?.isReady) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         const matchesName = o.name.toLowerCase().includes(q);
@@ -189,9 +189,9 @@ function OfferingListView({ onSelect, mayWrite }: { onSelect: (slug: string) => 
   }, [offerings, category, readinessFilter, search]);
 
   const totalOfferings = offerings.length;
-  const readyOfferings = offerings.filter((o) => o.readiness.isReady).length;
+  const readyOfferings = offerings.filter((o) => o.readiness?.isReady).length;
   const blockedOfferings = totalOfferings - readyOfferings;
-  const totalVariants = offerings.reduce((acc, o) => acc + o.activeVariantCount, 0);
+  const totalVariants = offerings.reduce((acc, o) => acc + (o.activeVariantCount ?? 0), 0);
 
   const columns: TableColumn<OfferingStudioSummary>[] = [
     {
@@ -220,7 +220,7 @@ function OfferingListView({ onSelect, mayWrite }: { onSelect: (slug: string) => 
       header: 'Variants & Presets',
       render: (o) => (
         <span className="text-[13px] text-ink2">
-          {o.activeVariantCount} active ({o.totalVariantCount} total) · {o.presetCount} presets
+          {o.activeVariantCount ?? 0} active ({o.totalVariantCount ?? 0} total) · {o.presetCount ?? 0} presets
         </span>
       ),
     },
@@ -228,14 +228,15 @@ function OfferingListView({ onSelect, mayWrite }: { onSelect: (slug: string) => 
       key: 'readiness',
       header: 'Readiness Gate',
       render: (o) => {
-        if (o.readiness.isReady) {
+        const blockers = o.readiness?.blockers ?? [];
+        if (o.readiness?.isReady) {
           return <StatusPill status="active" label="Ready to Deploy" />;
         }
         return (
           <div className="flex flex-col gap-0.5">
-            <StatusPill status="failed" label={`${o.readiness.blockers.length} Blocker(s)`} />
-            <span className="truncate max-w-[200px] text-[11px] text-bad" title={o.readiness.blockers.join(', ')}>
-              {o.readiness.blockers[0]}
+            <StatusPill status="failed" label={`${blockers.length} Blocker(s)`} />
+            <span className="truncate max-w-[200px] text-[11px] text-bad" title={blockers.join(', ')}>
+              {blockers[0]}
             </span>
           </div>
         );
@@ -368,7 +369,7 @@ function OfferingListView({ onSelect, mayWrite }: { onSelect: (slug: string) => 
                     >
                       {o.name}
                     </button>
-                    {o.readiness.isReady ? (
+                    {o.readiness?.isReady ? (
                       <StatusPill status="active" label="Ready" />
                     ) : (
                       <StatusPill status="failed" label="Blocked" />
@@ -530,7 +531,7 @@ function WizardSchemaEditor({
   mayWrite: boolean;
   onSaved: () => void;
 }) {
-  const [steps, setSteps] = useState<WizardStepConfig[]>(() => offering.wizardConfig.steps ?? []);
+  const [steps, setSteps] = useState<WizardStepConfig[]>(() => offering.wizardConfig?.steps ?? []);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const saveAction = useAction(async () => {

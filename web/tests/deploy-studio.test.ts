@@ -74,6 +74,7 @@ test('Deploy Studio 3.0: Product Studio Admin interface is registered and provid
   ]);
 
   // Product Studio components
+  assert.ok(productStudio.includes('o.readiness?.blockers'));
   assert.ok(productStudio.includes('WizardSchemaEditor'));
   assert.ok(productStudio.includes('TestQuoteSandbox'));
   assert.ok(productStudio.includes('VariantsReadinessView'));
