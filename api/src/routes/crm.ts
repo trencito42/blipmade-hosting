@@ -234,7 +234,12 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     if (body.testEmails?.length) where = { AND: [where, { email: { in: body.testEmails } }] };
     const users = await prisma.user.findMany({
       where,
-      select: { id: true, email: true, notificationPreference: { select: { marketing: true } } },
+      select: {
+        id: true,
+        email: true,
+        notificationPreference: { select: { marketing: true } },
+        tickets: { where: { status: { not: 'CLOSED' } }, select: { id: true }, take: 1 },
+      },
       take: 200,
       orderBy: { id: 'asc' },
       ...(cursor.cursor ? { skip: 1, cursor: { id: cursor.cursor } } : {}),
@@ -250,6 +255,7 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
         marketingConsent: consent,
         pausedAt: campaign.pausedAt,
         scheduledAt: campaign.scheduledAt,
+        openTicket: user.tickets.length > 0,
       });
       let status = 'skipped';
       let skipReason = gate.reason;
@@ -469,13 +475,45 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     return { opportunities };
   });
 
+  app.post('/admin/crm/opportunities', { preHandler: requirePermission('customers.write') }, async (request: FastifyRequest) => {
+    const body = z.object({
+      userId: z.string(),
+      title: z.string().trim().min(2).max(160),
+      reason: z.string().trim().min(2).max(300),
+      family: z.string().trim().max(40).nullable().optional(),
+    }).parse(request.body ?? {});
+    const opportunity = await prisma.crmOpportunity.create({
+      data: { userId: body.userId, title: body.title, reason: body.reason, family: body.family ?? null },
+    });
+    return { opportunity };
+  });
+
+  app.get('/admin/crm/referrals', { preHandler: requirePermission('promotions.read') }, async () => {
+    const rows = await prisma.referralAttribution.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+    return { referrals: rows };
+  });
+
+  app.post('/admin/crm/community-announce', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
+    const staff = await requireAuth(request);
+    const body = z.object({ body: z.string().trim().min(2).max(1800) }).parse(request.body ?? {});
+    await audit({ actorId: staff.id, actorEmail: staff.email, action: 'crm.community.announce.planned', targetType: 'discord', targetId: staff.id, meta: { chars: body.body.length } });
+    return {
+      delivered: false,
+      planned: true,
+      delivery: marketingDeliveryEnabled(),
+      note: marketingDeliveryEnabled() ? 'Live Discord send is still refused until community announcement delivery is separately authorized.' : 'Announcement recorded. Discord was not called.',
+    };
+  });
+
   app.get('/admin/crm/analytics', { preHandler: requirePermission('promotions.read') }, async (request: FastifyRequest) => {
     const query = z.object({ from: z.string().datetime().optional(), to: z.string().datetime().optional() }).parse(request.query ?? {});
     const from = query.from ? new Date(query.from) : new Date(Date.now() - 30 * 86_400_000);
     const to = query.to ? new Date(query.to) : new Date();
     const range = { gte: from, lte: to };
-    const [registered, paid, collected, refunds, tax, churned, redemptions, sends, optIn, optOut, subs] = await Promise.all([
+    const [registered, verified, firstPaid, paid, collected, refunds, tax, churned, redemptions, sends, optIn, optOut, subs] = await Promise.all([
       prisma.user.count({ where: { role: 'CUSTOMER', createdAt: range } }),
+      prisma.user.count({ where: { role: 'CUSTOMER', emailVerifiedAt: range } }),
+      prisma.order.findMany({ where: { status: { in: ['PAID', 'FULFILLED'] }, paidAt: range }, distinct: ['userId'], select: { userId: true } }),
       prisma.order.count({ where: { status: { in: ['PAID', 'FULFILLED'] }, paidAt: range } }),
       prisma.payment.aggregate({ where: { status: 'SUCCEEDED', createdAt: range }, _sum: { amount: true } }),
       prisma.payment.aggregate({ where: { status: 'REFUNDED', createdAt: range }, _sum: { amount: true } }),
@@ -495,7 +533,17 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     }, 0);
     return {
       from, to, snapshotAt: new Date(),
-      period: { acquisition: registered, paidOrders: paid, collectedCents: collected._sum.amount ?? 0, refundedCents: refunds._sum.amount ?? 0, taxCents: tax._sum.tax ?? 0, churnedSubscriptions: churned, promotionRedemptions: redemptions },
+      period: {
+        acquisition: registered,
+        verified,
+        firstPaid: firstPaid.length,
+        paidOrders: paid,
+        collectedCents: collected._sum.amount ?? 0,
+        refundedCents: refunds._sum.amount ?? 0,
+        taxCents: tax._sum.tax ?? 0,
+        churnedSubscriptions: churned,
+        promotionRedemptions: redemptions,
+      },
       snapshot: { mrrCents, marketingOptIn: optIn, marketingOptOut: optOut, campaignSends: sends },
       invented: false,
     };

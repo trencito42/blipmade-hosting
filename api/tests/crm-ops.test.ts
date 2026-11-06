@@ -200,6 +200,7 @@ describe('CRM operations', () => {
     expect(analytics.body.period.refundedCents).toBe(200);
     expect(analytics.body.period.taxCents).toBe(50);
     expect(analytics.body.snapshot.mrrCents).toBe(1200);
+    expect(analytics.body.period.verified).toBeGreaterThanOrEqual(1);
 
     await prisma.promotion.create({
       data: { code: 'FAMONLY', type: 'PERCENT', value: 10, familySlug: 'minecraft', active: true },
@@ -208,5 +209,32 @@ describe('CRM operations', () => {
     expect(missing.valid).toBe(false);
     const unknown = await resolvePromotion('FAMONLY', customer.id, { productSlugs: ['no-such-product'] });
     expect(unknown.valid).toBe(false);
+  });
+
+  it('attributes a paid referral and reverses it on refund of that order', async () => {
+    const { ensureReferralCode, claimReferral, qualifyReferral, reverseReferralOnOrder } = await import('../src/services/crm-referral.js');
+    const referrer = await prisma.user.create({
+      data: { email: 'referrer@blipmade.test', passwordHash, firstName: 'Ref', lastName: 'Errer', emailVerifiedAt: new Date() },
+    });
+    const referred = await prisma.user.create({
+      data: { email: 'referred@blipmade.test', passwordHash, firstName: 'Ref', lastName: 'Erred', emailVerifiedAt: new Date() },
+    });
+    const code = await ensureReferralCode(referrer.id);
+    expect((await claimReferral(referrer.id, code)).ok).toBe(false);
+    expect((await claimReferral(referred.id, code)).ok).toBe(true);
+    await prisma.order.create({
+      data: {
+        userId: referred.id,
+        number: 'ORD-CRM-REF',
+        status: 'PAID',
+        total: 1000,
+        paidAt: new Date(),
+      },
+    });
+    const order = await prisma.order.findFirst({ where: { number: 'ORD-CRM-REF' } });
+    await qualifyReferral(referred.id, order!.id);
+    expect((await prisma.referralAttribution.findUnique({ where: { referredId: referred.id } }))?.status).toBe('qualified');
+    await reverseReferralOnOrder(order!.id);
+    expect((await prisma.referralAttribution.findUnique({ where: { referredId: referred.id } }))?.status).toBe('reversed');
   });
 });

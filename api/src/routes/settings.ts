@@ -579,6 +579,16 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
   });
 
   /** What the customer wants to hear about. */
+  app.post('/settings/referral-code', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { ensureReferralCode } = await import('../services/crm-referral.js');
+    const code = await ensureReferralCode(user.id);
+    return { code };
+  });
+
   app.get('/settings/notifications', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const preferences = await prisma.notificationPreference.findUnique({ where: { userId: user.id } });

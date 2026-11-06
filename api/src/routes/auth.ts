@@ -25,6 +25,7 @@ import { emailIdentity, isDisposableEmail } from '../lib/email-identity.js';
 import { acceptStaffInvitation } from '../services/staff-lifecycle.js';
 import { verifyTurnstile } from '../services/promotion-policy.js';
 import { dispatchCrmEvent } from '../services/crm-dispatch.js';
+import { claimReferral } from '../services/crm-referral.js';
 
 /** The token of the human check in a request body, if any. */
 function turnstileTokenOf(body: unknown): string | undefined {
@@ -74,6 +75,7 @@ const registerSchema = z.object({
   password: z.string(),
   firstName: nameSchema,
   lastName: nameSchema,
+  referralCode: z.string().trim().min(4).max(16).optional(),
 });
 
 const loginSchema = z.object({
@@ -349,7 +351,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       await notifyAccountRegistered({ userId: user.id, name: fullName(user) });
       const mail = await sendVerificationEmail(user.id, user.email, fullName(user));
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.register', targetType: 'user', targetId: user.id, ip: request.ip });
-      void dispatchCrmEvent({ trigger: 'registration', userId: user.id, eventId: `registration:${user.id}` }).catch(() => undefined);
+      if (body.referralCode) {
+        await claimReferral(user.id, body.referralCode);
+      }
+      await dispatchCrmEvent({ trigger: 'registration', userId: user.id, eventId: `registration:${user.id}` }).catch(() => undefined);
 
       return reply.code(201).send({
         user: publicUser(user),
@@ -458,7 +463,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       await tx.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } });
     });
     await audit({ actorId: record.userId, action: 'auth.email_verified', targetType: 'user', targetId: record.userId, ip: request.ip });
-    void dispatchCrmEvent({ trigger: 'email_verified', userId: record.userId, eventId: `email_verified:${record.id}` }).catch(() => undefined);
+    await dispatchCrmEvent({ trigger: 'email_verified', userId: record.userId, eventId: `email_verified:${record.id}` }).catch(() => undefined);
     const verified = await prisma.user.findUnique({
       where: { id: record.userId },
       select: { firstName: true, lastName: true },

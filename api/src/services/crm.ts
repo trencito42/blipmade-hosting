@@ -364,6 +364,7 @@ export function campaignMayDeliver(input: {
   pausedAt?: Date | null;
   scheduledAt?: Date | null;
   now?: Date;
+  openTicket?: boolean;
 }): CampaignGate {
   const now = input.now ?? new Date();
   if (input.suppressed || input.status === 'suppressed' || input.status === 'cancelled') {
@@ -377,6 +378,9 @@ export function campaignMayDeliver(input: {
   }
   if (input.scheduledAt && input.scheduledAt > now) {
     return { ok: false, reason: 'This campaign is scheduled for later.', deliver: false };
+  }
+  if (input.openTicket) {
+    return { ok: false, reason: 'This customer has an open support ticket.', deliver: false };
   }
   if (!input.marketingConsent) {
     return { ok: false, reason: 'This customer has not consented to marketing.', deliver: false };

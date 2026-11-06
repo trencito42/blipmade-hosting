@@ -125,7 +125,7 @@ echo "==> Generating the Prisma client"
 npx prisma generate
 
 echo "==> Running the test suite against blipmade_test"
-npx vitest run "$@"
+npx vitest run --maxWorkers=1 --no-file-parallelism "$@"
 
 # The rules of the routing of the session live in the web application and are
 # checked with the test runner of Node, without a browser and without a

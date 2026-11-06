@@ -57,6 +57,8 @@ model User {
   notes          CustomerNote[]
   /// Labels the staff put on the account (vip, watch, reseller).
   tags           String[]       @default([])
+  /// Public referral code. Null until the customer asks for one.
+  referralCode   String?        @unique
   staff          StaffMember?
   mailDomains    MailDomain[]
   mailServices   MailService[]
@@ -97,6 +99,8 @@ model User {
   automationRuns AutomationRun[]
   riskEvaluations RiskEvaluation[]
   riskOverrides RiskOverride[]
+  referralsMade ReferralAttribution[] @relation("Referrer")
+  referralReceived ReferralAttribution? @relation("Referred")
   domainRegistrations DomainRegistration[]
   saasHostnames SaasCustomHostname[]
 
@@ -2720,6 +2724,22 @@ model AutomationRun {
 
   @@unique([automationId, userId, eventId])
   @@index([status, waitUntil])
+}
+
+model ReferralAttribution {
+  id         String   @id @default(cuid())
+  referrerId String
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Restrict)
+  referredId String   @unique
+  referred   User     @relation("Referred", fields: [referredId], references: [id], onDelete: Cascade)
+  code       String
+  status     String   @default("pending")
+  orderId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([referrerId, status])
+  @@index([orderId])
 }
 
 model RiskEvaluation {

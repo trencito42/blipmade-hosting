@@ -86,6 +86,12 @@ describe('crm segments and campaigns', () => {
     expect(gate.deliver).toBe(false);
   });
 
+  it('skips a customer with an open ticket', () => {
+    const gate = campaignMayDeliver({ status: 'approved', suppressed: false, marketingConsent: true, openTicket: true });
+    expect(gate.ok).toBe(false);
+    expect(gate.reason).toMatch(/open support ticket/);
+  });
+
   it('never treats hardcoded consent as a send', () => {
     const approved = campaignMayDeliver({ status: 'approved', suppressed: false, marketingConsent: true });
     expect(approved.deliver).toBe(false);
@@ -130,7 +136,7 @@ describe('crm automation', () => {
     if ('error' in graph) throw new Error(graph.error);
     const first = stepAutomation({
       graph,
-      state: { nodeId: 'msg', status: 'running', waitUntil: null, attempts: 0, lastError: null },
+      state: { nodeId: 'msg', status: 'running', waitUntil: null, attempts: 0, lastError: null, applied: [], steps: 0 },
       ctx,
       consent: true,
     });
@@ -158,7 +164,7 @@ describe('crm automation', () => {
     const now = new Date('2026-01-01T00:00:00Z');
     const waiting = stepAutomation({
       graph,
-      state: { nodeId: 'w', status: 'running', waitUntil: null, attempts: 0, lastError: null },
+      state: { nodeId: 'w', status: 'running', waitUntil: null, attempts: 0, lastError: null, applied: [], steps: 0 },
       ctx,
       consent: true,
       now,
@@ -210,7 +216,7 @@ describe('crm automation', () => {
     if ('error' in graph) throw new Error(graph.error);
     const result = stepAutomation({
       graph,
-      state: { nodeId: 'if', status: 'running', waitUntil: null, attempts: 0, lastError: null },
+      state: { nodeId: 'if', status: 'running', waitUntil: null, attempts: 0, lastError: null, applied: [], steps: 0 },
       ctx,
       consent: true,
     });

@@ -9,6 +9,7 @@ import { nextInvoiceNumber } from './order-numbers.js';
 import { notifySubscriptionActivated } from './notifications.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
 import { dispatchCrmEvent } from './crm-dispatch.js';
+import { reverseReferralOnOrder } from './crm-referral.js';
 
 let client: Stripe | null = null;
 
@@ -626,7 +627,7 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
       targetId: order.id,
       meta: { total: order.total, subscriptions: subscriptions.length },
     });
-    void dispatchCrmEvent({ trigger: 'first_purchase', userId: order.userId, eventId: `order:${order.id}` }).catch(() => undefined);
+    await dispatchCrmEvent({ trigger: 'first_purchase', userId: order.userId, eventId: `order:${order.id}` }).catch(() => undefined);
     // The customer paid, so the platform owes an invoice. It is written here,
     // with the sum that was really collected, so the sum that was quoted is
     // the sum that is invoiced. The invoice of the payment provider, when
@@ -931,7 +932,10 @@ export async function refundPayment(params: {
     where: { orderId: params.orderId, status: 'REFUNDED' },
     select: { id: true },
   });
-  if (alreadyRefunded) return true;
+  if (alreadyRefunded) {
+    await reverseReferralOnOrder(params.orderId);
+    return true;
+  }
 
   try {
     const refund = await getClient().refunds.create(
@@ -961,6 +965,7 @@ export async function refundPayment(params: {
     if (marked.count === 0) {
       await prisma.payment.updateMany({ where: { orderId: params.orderId }, data: { status: 'REFUNDED' } });
     }
+    await reverseReferralOnOrder(params.orderId);
     return true;
   } catch {
     return false;

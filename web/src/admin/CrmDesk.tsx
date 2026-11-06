@@ -299,12 +299,26 @@ function TemplatesPane({ mayWrite }: { mayWrite: boolean }) {
 
 function TasksPane({ mayWrite }: { mayWrite: boolean }) {
   const state = useAsync<{ tasks: Task[] }>((signal) => get('/admin/crm/tasks', undefined, signal), []);
+  const [userId, setUserId] = useState('');
+  const [title, setTitle] = useState('');
+  const create = useAction(async () => {
+    await post('/admin/crm/tasks', { userId: userId.trim(), title: title.trim() });
+    setTitle('');
+    state.reload();
+  });
   const complete = useAction(async (id: string) => {
     await post(`/admin/crm/tasks/${encodeURIComponent(id)}/complete`, {});
     state.reload();
   });
   return (
     <Panel title="Follow-up tasks" description="Staff work, not customer-visible.">
+      {mayWrite && (
+        <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <TextInput label="Customer id" value={userId} onChange={(event) => setUserId(event.target.value)} />
+          <TextInput label="Title" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <PrimaryButton type="button" disabled={!userId.trim() || title.trim().length < 2 || create.pending} onClick={() => void create.run()}>Create task</PrimaryButton>
+        </div>
+      )}
       <ul className="grid gap-2">
         {(state.data?.tasks ?? []).map((task) => (
           <li key={task.id} className="flex justify-between gap-2 rounded-2xl bg-s2 px-3 py-2 text-[14px] text-ink">
@@ -319,9 +333,28 @@ function TasksPane({ mayWrite }: { mayWrite: boolean }) {
 }
 
 function OpportunitiesPane() {
+  const session = useAdminSession();
+  const mayWrite = can(session.staff, 'customers.write');
   const state = useAsync<{ opportunities: Opportunity[] }>((signal) => get('/admin/crm/opportunities', undefined, signal), []);
+  const [userId, setUserId] = useState('');
+  const [title, setTitle] = useState('');
+  const [reason, setReason] = useState('');
+  const create = useAction(async () => {
+    await post('/admin/crm/opportunities', { userId: userId.trim(), title: title.trim(), reason: reason.trim() });
+    setTitle('');
+    setReason('');
+    state.reload();
+  });
   return (
     <Panel title="Opportunities" description="Suggested from paid services and lifecycle. Not invented revenue.">
+      {mayWrite && (
+        <div className="mb-3 grid gap-2">
+          <TextInput label="Customer id" value={userId} onChange={(event) => setUserId(event.target.value)} />
+          <TextInput label="Title" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <TextInput label="Reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+          <PrimaryButton type="button" disabled={!userId.trim() || title.trim().length < 2 || reason.trim().length < 2 || create.pending} onClick={() => void create.run()}>Create opportunity</PrimaryButton>
+        </div>
+      )}
       <ul className="grid gap-2">
         {(state.data?.opportunities ?? []).map((row) => (
           <li key={row.id} className="rounded-2xl bg-s2 px-3 py-2 text-[14px] text-ink">{row.title} · {row.reason}</li>
@@ -335,7 +368,7 @@ function OpportunitiesPane() {
 function AnalyticsPane() {
   const state = useAsync<{
     snapshotAt: string;
-    period: { acquisition: number; paidOrders: number; collectedCents: number; refundedCents: number; taxCents: number; churnedSubscriptions: number; promotionRedemptions: number };
+    period: { acquisition: number; verified: number; firstPaid: number; paidOrders: number; collectedCents: number; refundedCents: number; taxCents: number; churnedSubscriptions: number; promotionRedemptions: number };
     snapshot: { mrrCents: number; marketingOptIn: number; marketingOptOut: number };
   }>((signal) => get('/admin/crm/analytics', undefined, signal), []);
   if (state.loading && !state.data) return <LoadingBlock rows={3} label="Loading analytics" />;
@@ -347,6 +380,8 @@ function AnalyticsPane() {
       <dl className="grid gap-2 sm:grid-cols-3">
         {([
           ['New customers (period)', data.period.acquisition],
+          ['Verified (period)', data.period.verified],
+          ['Paid customers (period)', data.period.firstPaid],
           ['Paid orders (period)', data.period.paidOrders],
           ['Collected cents (period)', data.period.collectedCents],
           ['Refunded cents (period)', data.period.refundedCents],

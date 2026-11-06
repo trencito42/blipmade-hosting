@@ -1,5 +1,6 @@
 import { prisma } from '../src/db.js';
 import { assertDisposableDatabase } from '../src/lib/test-target.js';
+import { setGateFactsSource } from '../src/services/readiness-gate.js';
 
 /**
  * Safety net. The suite truncates every table, so it must never be pointed at
@@ -23,14 +24,18 @@ export async function resetDatabase(): Promise<void> {
     .filter((name) => /^[A-Za-z0-9_]+$/.test(name))
     .map((name) => `"${name}"`);
   if (!names.length) return;
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} CASCADE;`);
+  await prisma.$executeRaw`SELECT pg_advisory_lock(8723341)`;
+  try {
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} CASCADE`);
+  } finally {
+    await prisma.$executeRaw`SELECT pg_advisory_unlock(8723341)`;
+  }
 }
 
 /**
  * The suite has no panel, so the readiness gate reads facts that say the
  * panel answers and has room. The gate itself is tested with its own facts.
  */
-import { setGateFactsSource } from '../src/services/readiness-gate.js';
 setGateFactsSource(async () => ({
   panelConfigured: true,
   eggs: { known: false, ids: new Set(), names: new Set() },

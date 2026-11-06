@@ -24,6 +24,7 @@ export default defineConfig({
     // file.
     pool: 'forks',
     fileParallelism: false,
+    maxWorkers: 1,
     // Stripe's ESM export is not replaced by vi.mock unless the package is inlined.
     server: {
       deps: {

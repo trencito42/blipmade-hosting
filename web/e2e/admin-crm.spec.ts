@@ -19,7 +19,7 @@ test.describe('admin CRM desk', () => {
       if (path === '/admin/crm/analytics') {
         return {
           snapshotAt: '2026-11-06T00:00:00.000Z',
-          period: { acquisition: 12, paidOrders: 3, collectedCents: 1400, refundedCents: 200, taxCents: 50, churnedSubscriptions: 0, promotionRedemptions: 0 },
+          period: { acquisition: 12, verified: 10, firstPaid: 3, paidOrders: 3, collectedCents: 1400, refundedCents: 200, taxCents: 50, churnedSubscriptions: 0, promotionRedemptions: 0 },
           snapshot: { mrrCents: 600, marketingOptIn: 40, marketingOptOut: 40 },
         };
       }

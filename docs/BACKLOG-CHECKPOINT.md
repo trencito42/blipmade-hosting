@@ -1,7 +1,7 @@
 # Backlog checkpoint
 
-resume_sha: work/disable-checkout CRM fail-closed compiler, graph, family, risk RBAC
-production_before: 428eacb5e6f8773c6907b77bca80f0f867847723
+resume_sha: work/disable-checkout CRM isolation, crash-safe runs, referrals
+production_before: d741fdc0a578598623ea6e0bcb578dd5e049cce1
 flags:
   PAYMENTS_ENABLED: false
   MAIL_SALES_ENABLED: false
