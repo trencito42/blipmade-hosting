@@ -10,6 +10,7 @@ import { companyDetails, taxOf } from '../services/billing.js';
 import { parseCustomerVariableSpecs } from '../services/instance-credentials.js';
 import { checkoutSpecs } from '../services/install-variables.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { catalogSalesContext } from '../services/sales-flags.js';
 import { evaluateGate, gateFacts, withGate } from '../services/readiness-gate.js';
 import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
@@ -108,7 +109,7 @@ async function serializeProduct(product: {
       visible: product.visible,
       fulfilment: product.fulfilment as never,
     },
-    { emailSalesEnabled: env.MAIL_SALES_ENABLED },
+    catalogSalesContext(),
   );
   // The price book: what the minimum configuration costs (the starting price
   // of the catalog) and what the recommended one costs. Both are calculated

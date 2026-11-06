@@ -12,6 +12,7 @@ import { publicOfferings, getOfferingBySlug, type OfferingWizardConfig } from '.
 import { buildQuote } from '../services/pricing.js';
 import { evaluateGate, gateFacts } from '../services/readiness-gate.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { catalogSalesContext } from '../services/sales-flags.js';
 
 const slug = z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and dashes.');
 const label = z.string().trim().min(2).max(120);
@@ -473,7 +474,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
               include: { prices: { where: { active: true } } },
             });
             if (!product) return { slug: v.slug, ready: false, blockers: ['Product missing'], checks: [] };
-            const availability = deploymentAvailability(product);
+            const availability = deploymentAvailability(product, catalogSalesContext());
             const gate = evaluateGate(product as never, product.prices, v.price?.amount ?? null, facts, availability);
             return {
               slug: v.slug,
@@ -517,7 +518,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
           include: { prices: { where: { active: true } } },
         });
         if (!prod) return { slug: v.slug, ready: false, blockers: ['Product missing'], checks: [] };
-        const availability = deploymentAvailability(prod);
+        const availability = deploymentAvailability(prod, catalogSalesContext());
         const gate = evaluateGate(prod as never, prod.prices, v.price?.amount ?? null, facts, availability);
         return { slug: v.slug, ready: gate.ready, checks: gate.checks, blockers: gate.blockers };
       }),
@@ -660,7 +661,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
         include: { prices: { where: { active: true } } },
       });
       if (!prod) continue;
-      const availability = deploymentAvailability(prod);
+      const availability = deploymentAvailability(prod, catalogSalesContext());
       const gate = evaluateGate(prod as never, prod.prices, v.price?.amount ?? null, facts, availability);
       if (gate.ready) {
         orderableCount += 1;

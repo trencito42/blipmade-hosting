@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { deploymentAvailability } from './availability.js';
+import { catalogSalesContext } from './sales-flags.js';
 import { buildQuote, priceBook, priceRowFor, resourceRates } from './pricing.js';
 
 export interface OfferingVariant {
@@ -294,7 +295,7 @@ export async function publicOfferings(): Promise<CatalogOffering[]> {
     const variants: OfferingVariant[] = activeVariants.map((v) => {
       handledProductSlugs.add(v.product.slug);
       const prod = v.product;
-      const availability = deploymentAvailability(prod, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
+      const availability = deploymentAvailability(prod, catalogSalesContext());
       const price = priceRowFor(prod.prices);
       const yearlyPriceRow = prod.prices.find((p) => p.period === 'YEARLY') ?? null;
       const book = price ? priceBook(prod, price, rates) : null;
@@ -419,7 +420,7 @@ export async function publicOfferings(): Promise<CatalogOffering[]> {
   for (const prod of products) {
     if (handledProductSlugs.has(prod.slug)) continue;
 
-    const availability = deploymentAvailability(prod, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
+    const availability = deploymentAvailability(prod, catalogSalesContext());
     const price = priceRowFor(prod.prices);
     const yearlyPriceRow = prod.prices.find((p) => p.period === 'YEARLY') ?? null;
     const book = price ? priceBook(prod, price, rates) : null;

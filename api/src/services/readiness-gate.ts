@@ -2,6 +2,7 @@ import type { Product, ProductPrice } from '@prisma/client';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { deploymentAvailability, type DeploymentAvailability } from './availability.js';
+import { catalogSalesContext } from './sales-flags.js';
 import * as ptero from './pterodactyl/application.js';
 
 /**
@@ -108,7 +109,7 @@ export function evaluateGate(
   prices: Pick<ProductPrice, 'period' | 'active'>[],
   quote: number | null,
   facts: GateFacts,
-  availability: DeploymentAvailability = deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }),
+  availability: DeploymentAvailability = deploymentAvailability(product, catalogSalesContext()),
 ): ReadinessGate {
   const checks: GateCheck[] = [];
   const add = (id: GateCheckId, ok: boolean, message: string) => checks.push({ id, ok, message });

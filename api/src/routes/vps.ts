@@ -5,6 +5,7 @@ import { env } from '../env.js';
 import { requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { catalogSalesContext } from '../services/sales-flags.js';
 import { diagnoseVps, vpsActivity, vpsGraphs, changeVpsSshKey, ejectVpsIso, mountVpsIso, removeVpsSnapshot, restoreVpsSnapshot, takeVpsSnapshot, vpsIsos, vpsSnapshots, dedicatedAddresses, freeDedicatedAddress, ownedVps, reinstallVps, renameVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
 import { availableImages } from '../lib/vps-images.js';
@@ -29,7 +30,7 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
     const dedicatedFree = dedicatedAddresses().length > 0 && (await freeDedicatedAddress()) !== null;
     return {
       plans: products
-        .filter((product) => deploymentAvailability(product).orderable)
+        .filter((product) => deploymentAvailability(product, catalogSalesContext()).orderable)
         .map((product) => {
           const dedicated = dedicatedOption;
           const monthly = product.prices.find((price) => price.period === 'MONTHLY') ?? null;

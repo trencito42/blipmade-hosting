@@ -9,6 +9,7 @@ import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requirePermission, requireStaff } from '../plugins/auth.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { deploymentAvailability, type DeploymentAvailability } from '../services/availability.js';
+import { catalogSalesContext } from '../services/sales-flags.js';
 import {
   cancelMailService,
   effectivePlanLimits,
@@ -416,7 +417,7 @@ function planView(product: PlanWithPrices, counts: { services: number; customers
         visible: product.visible,
         fulfilment: product.fulfilment,
       },
-      { emailSalesEnabled: env.MAIL_SALES_ENABLED },
+      catalogSalesContext(),
     ),
   };
 }

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { deploymentAvailability } from './availability.js';
+import { catalogSalesContext } from './sales-flags.js';
 import { env } from '../env.js';
 
 const slug = z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/);
@@ -106,7 +107,7 @@ function presentFamily(family: {
   const variants = family.variants
     .filter((variant) => variant.product.visible)
     .map((variant) => {
-      const availability = deploymentAvailability(variant.product, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
+      const availability = deploymentAvailability(variant.product, catalogSalesContext());
       return {
         slug: variant.slug,
         label: variant.label,

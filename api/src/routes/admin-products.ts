@@ -8,6 +8,7 @@ import { AppError, badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requirePermission, requireStaff } from '../plugins/auth.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { catalogSalesContext } from '../services/sales-flags.js';
 import { productGate } from '../services/readiness-gate.js';
 import { lifecycleOf, planProductChange, productPatchSchema, readinessOf, usageOf, type ProductPatch } from '../services/product-editor.js';
 
@@ -57,7 +58,7 @@ export async function registerAdminProductRoutes(app: FastifyInstance): Promise<
     const product = await load(id);
     const [usage, readiness] = await Promise.all([usageOf(id), readinessOf(product)]);
     return {
-      product: { ...product, lifecycle: lifecycleOf(product), availability: deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }) },
+      product: { ...product, lifecycle: lifecycleOf(product), availability: deploymentAvailability(product, catalogSalesContext()) },
       usage,
       readiness,
       note: 'Changes reach new orders. Services that exist keep the size and the settings they were built with.',
@@ -133,7 +134,7 @@ export async function registerAdminProductRoutes(app: FastifyInstance): Promise<
   app.get('/admin/products/:id/preview', { preHandler: requirePermission('products.read') }, async (request: FastifyRequest) => {
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const product = await load(id);
-    const availability = deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
+    const availability = deploymentAvailability(product, catalogSalesContext());
     const fields = Object.entries((product.customerVariables ?? {}) as Record<string, { label?: string; required?: boolean; type?: string; description?: string }>).map(([name, field]) => ({ name, label: field.label ?? name, required: field.required === true, type: field.type ?? 'text', description: field.description ?? null }));
     return {
       preview: {

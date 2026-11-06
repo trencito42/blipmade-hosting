@@ -81,6 +81,14 @@ export interface AvailabilityContext {
    * says.
    */
   emailSalesEnabled?: boolean;
+  /**
+   * Whether a customer can start a paid checkout.
+   *
+   * Omit it to leave paid products as they are (tests of the egg and the
+   * row). Pass false when live payments are off, so the catalog does not
+   * say a product can be bought.
+   */
+  paymentsAvailable?: boolean;
 }
 
 /**
@@ -132,6 +140,11 @@ export function deploymentAvailability(
     }
   } else if (!installable) {
     blockers.push('Its image is not installed on the panel yet.');
+  }
+
+  // A product that would otherwise be sold is not sold while checkout is off.
+  if (context.paymentsAvailable === false && blockers.length === 0) {
+    blockers.push('Checkout is paused. Payments are not available at the moment.');
   }
 
   let state: AvailabilityState;

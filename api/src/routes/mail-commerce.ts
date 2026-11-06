@@ -8,6 +8,7 @@ import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { deploymentAvailability, type DeploymentAvailability } from '../services/availability.js';
+import { catalogSalesContext } from '../services/sales-flags.js';
 import * as mailCommerce from '../services/mail-commerce.js';
 import * as mail from '../services/mail.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
@@ -129,7 +130,7 @@ function planView(
       visible: product.visible,
       fulfilment: product.fulfilment as never,
     },
-    { emailSalesEnabled: env.MAIL_SALES_ENABLED },
+    catalogSalesContext(),
   );
   return {
     id: product.id,

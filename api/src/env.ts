@@ -557,9 +557,18 @@ export const env = {
   publicWebUrl: raw.PUBLIC_WEB_URL.replace(/\/+$/, ''),
   /**
    * True when a checkout can actually be started: payments are turned on and
-   * a Stripe key is configured.
+   * a Stripe key is configured. Read from the process so a restart that
+   * injects PAYMENTS_ENABLED=false is what the API uses, not a stale parse.
    */
-  paymentsEnabled: raw.PAYMENTS_ENABLED && raw.STRIPE_SECRET_KEY.startsWith('sk_'),
+  get paymentsEnabled(): boolean {
+    const live = process.env.PAYMENTS_ENABLED;
+    const flag = live === undefined ? raw.PAYMENTS_ENABLED : live.trim().toLowerCase() === 'true' || live.trim() === '1';
+    const key = process.env.STRIPE_SECRET_KEY ?? raw.STRIPE_SECRET_KEY;
+    return flag && key.startsWith('sk_');
+  },
+  set paymentsEnabled(value: boolean) {
+    process.env.PAYMENTS_ENABLED = value ? 'true' : 'false';
+  },
   mailEnabled: Boolean(raw.SMTP_URL),
   gameConnectEnabled: raw.GAME_CONNECT_ENABLED,
   cloudflareDnsEnabled: Boolean(raw.CLOUDFLARE_API_TOKEN && raw.CLOUDFLARE_ZONE_ID && raw.CLOUDFLARE_ZONE_NAME),

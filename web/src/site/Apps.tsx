@@ -139,7 +139,9 @@ export function Apps() {
           <h1 id="apps-h" className="max-w-[14em] text-[clamp(40px,6vw,76px)] leading-[0.96] font-semibold tracking-[-0.05em]">Games, databases and tools, on one price card.</h1>
           <p className="max-w-[38em] text-[18px] text-ink-2">
             Everything starts as a container with the resources you choose, and everything is priced with the same card of rates.{' '}
-            Pick one of the <strong className="font-semibold text-ink">{available}</strong> things you can deploy right now and have it running in minutes.
+            {available === 0
+              ? 'Checkout is paused, so nothing can be ordered right now. You can still browse what the platform will sell.'
+              : <>Pick one of the <strong className="font-semibold text-ink">{available}</strong> things you can deploy right now and have it running in minutes.</>}
           </p>
         </Wrap>
       </section>

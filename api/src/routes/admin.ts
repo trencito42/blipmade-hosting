@@ -28,6 +28,7 @@ import {
 } from '../services/panel/credentials.js';
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { catalogSalesContext } from '../services/sales-flags.js';
 import { evaluateGate, gateFacts, withGate } from '../services/readiness-gate.js';
 import {
   countEffectiveRedemptions,
@@ -798,7 +799,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         dockerImage: product.dockerImage,
         // What the catalog and the ordering will answer for this product.
         availability: withGate(
-          deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }),
+          deploymentAvailability(product, catalogSalesContext()),
           evaluateGate(
             product,
             product.prices,

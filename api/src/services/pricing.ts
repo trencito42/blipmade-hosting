@@ -17,6 +17,7 @@ import {
   type ResourceRates,
 } from '../lib/resource-pricing.js';
 import { deploymentAvailability, unavailableMessage } from './availability.js';
+import { catalogSalesContext } from './sales-flags.js';
 import { productGate } from './readiness-gate.js';
 import { assertValidMailDomain } from './mail.js';
 import { checkCustomerVariables, parseCustomerVariableSpecs, sealVariables } from './instance-credentials.js';
@@ -576,7 +577,7 @@ export async function priceItems(
     // mail needs no panel, but it needs the sale of the mail to be open.
     // A closed product is refused even when it has no price. An open product
     // with no price is missing, which is not the same refusal.
-    const availability = deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
+    const availability = deploymentAvailability(product, catalogSalesContext());
     if (!availability.orderable) throw badRequest(unavailableMessage(product, availability));
     const activePrices = await prisma.productPrice.count({ where: { productId: product.id, active: true } });
     if (activePrices === 0) throw notFound('This product has no active price.');
