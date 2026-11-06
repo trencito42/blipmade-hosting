@@ -30,7 +30,7 @@ import { customerBalance, findPaymentIntentForSubscription, giveBalanceCredit, r
 import { backupCoverage, backupHistory } from '../services/ops-backups.js';
 import { glitchtipStatus } from '../services/glitchtip.js';
 import { initErrorReporting, reportError } from '../lib/sentry.js';
-import { env } from '../env.js';
+import { env, paymentsAreEnabled } from '../env.js';
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
 import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
 import { assertValidWording } from './admin-email.js';
@@ -287,8 +287,8 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
       failures: failures.map((failure) => ({ id: failure.id, instanceId: failure.instanceId, instance: failure.instance.name, message: failure.message, at: failure.createdAt })),
       payments: {
         mode: env.stripeMode,
-        paymentsEnabled: env.paymentsEnabled,
-        checkoutAvailable: env.paymentsEnabled && env.stripeEnabled,
+        paymentsEnabled: paymentsAreEnabled(),
+        checkoutAvailable: paymentsAreEnabled() && env.stripeEnabled,
       },
     };
   });

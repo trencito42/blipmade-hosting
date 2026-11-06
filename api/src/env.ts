@@ -564,19 +564,10 @@ export const env = {
    */
   publicWebUrl: raw.PUBLIC_WEB_URL.replace(/\/+$/, ''),
   /**
-   * True when a checkout can actually be started: payments are turned on and
-   * a Stripe key is configured. Read from the process so a restart that
-   * injects PAYMENTS_ENABLED=false is what the API uses, not a stale parse.
+   * Writable so the suite can turn checkout on without a live key. Production
+   * still reads the process kill switch through paymentsAreEnabled().
    */
-  get paymentsEnabled(): boolean {
-    const live = process.env.PAYMENTS_ENABLED;
-    const flag = live === undefined ? raw.PAYMENTS_ENABLED : live.trim().toLowerCase() === 'true' || live.trim() === '1';
-    const key = process.env.STRIPE_SECRET_KEY ?? raw.STRIPE_SECRET_KEY;
-    return flag && key.startsWith('sk_');
-  },
-  set paymentsEnabled(value: boolean) {
-    process.env.PAYMENTS_ENABLED = value ? 'true' : 'false';
-  },
+  paymentsEnabled: Boolean(raw.PAYMENTS_ENABLED) && raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   mailEnabled: Boolean(raw.SMTP_URL),
   gameConnectEnabled: raw.GAME_CONNECT_ENABLED,
   cloudflareDnsEnabled: Boolean(raw.CLOUDFLARE_API_TOKEN && raw.CLOUDFLARE_ZONE_ID && raw.CLOUDFLARE_ZONE_NAME),
@@ -624,4 +615,19 @@ export type Env = typeof env;
  */
 export function mailSalesEnabled(): boolean {
   return env.MAIL_SALES_ENABLED;
+}
+
+/**
+ * Checkout kill switch. `PAYMENTS_ENABLED=false` in the process wins even
+ * when a Stripe key is present. An unset process variable defers to
+ * `env.paymentsEnabled`, which the suite overwrites.
+ */
+export function paymentsAreEnabled(): boolean {
+  const live = process.env.PAYMENTS_ENABLED;
+  if (live !== undefined && live.trim() !== '') {
+    const flag = live.trim().toLowerCase() === 'true' || live.trim() === '1';
+    if (!flag) return false;
+    return env.stripeEnabled || env.STRIPE_SECRET_KEY.startsWith('sk_');
+  }
+  return Boolean(env.paymentsEnabled);
 }

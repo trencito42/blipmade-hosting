@@ -40,6 +40,32 @@ done
 docker compose -p blipmade $F up -d --no-deps worker
 
 echo "--- smoke"
-for p in /api/health / /apps /docs /app /fontawesome/css/pro.min.css; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}\n" "https://blipmade.com$p"; done
+SMOKE_FAIL=0
+for p in /api/health / /apps /docs /app /fontawesome/css/pro.min.css; do
+  code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "https://blipmade.com$p" || echo 000)
+  echo "$p $code"
+  [ "$code" = "200" ] || SMOKE_FAIL=1
+done
+# Checkout must stay closed: a 200 catalog that still sells paid SKUs is a failed release.
+catalog=$(curl -sS --max-time 20 "https://blipmade.com/api/catalog/products" || true)
+python3 -c "
+import json,sys
+raw=sys.stdin.read()
+try:
+    data=json.loads(raw)
+except Exception:
+    print('catalog: not JSON'); sys.exit(1)
+products=data.get('products') or []
+orderable=[p.get('slug') for p in products if (p.get('availability') or {}).get('orderable')]
+print('catalog products', len(products), 'orderable', len(orderable))
+if orderable:
+    print('SMOKE: checkout still selling:', ', '.join(orderable[:12]))
+    sys.exit(1)
+" <<<"$catalog" || SMOKE_FAIL=1
+if [ "$SMOKE_FAIL" != "0" ]; then
+  echo "SMOKE FAILED after $SHA. Containers are up. Go back with the tags below."
+  echo "To go back: for s in api web worker; do docker tag blipmade-\$s:before-$SHA blipmade-\$s:latest; done; docker compose -p blipmade $F up -d --no-deps api web worker"
+  exit 1
+fi
 echo "Deployed $SHA."
 echo "To go back: for s in api web worker; do docker tag blipmade-\$s:before-$SHA blipmade-\$s:latest; done; docker compose -p blipmade $F up -d --no-deps api web worker"

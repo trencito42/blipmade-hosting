@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { env } from '../env.js';
+import { env, paymentsAreEnabled } from '../env.js';
 import { prisma } from '../db.js';
 import { AppError, badRequest, conflict, unavailable } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
@@ -98,7 +98,7 @@ export interface PaymentState {
  * payment can be taken.
  */
 export function paymentState(): PaymentState {
-  if (env.paymentsEnabled) {
+  if (paymentsAreEnabled()) {
     return { enabled: true, simulated: false, reason: null };
   }
   if (stripeTestGateway()) {
@@ -238,7 +238,7 @@ export async function createCheckout(
     return { url, sessionId, reason: null };
   }
 
-  if (!env.paymentsEnabled) {
+  if (!paymentsAreEnabled()) {
     // Payments are off: no session is created and no link is handed out.
     throw paymentsUnavailable();
   }
@@ -323,7 +323,7 @@ export async function createSponsoredSubscriptionCheckout(
   order: Order & { items: OrderItem[]; promotionId: string | null },
   customerEmail: string,
 ): Promise<CheckoutResult> {
-  if (!env.paymentsEnabled) throw paymentsUnavailable();
+  if (!paymentsAreEnabled()) throw paymentsUnavailable();
   if (!order.promotionId || order.total !== 0) {
     throw badRequest('This checkout is only available for a fully sponsored promotion order.');
   }
@@ -1094,7 +1094,7 @@ export async function removeStripeSubscriptionItem(subscription: {
 
 /** Opens the Stripe customer portal so a customer can manage payment methods. */
 export async function createBillingPortal(userId: string): Promise<{ url: string | null; reason: string | null }> {
-  if (!env.paymentsEnabled) {
+  if (!paymentsAreEnabled()) {
     // Payments are off: no session is created and no link is handed out.
     throw paymentsUnavailable();
   }

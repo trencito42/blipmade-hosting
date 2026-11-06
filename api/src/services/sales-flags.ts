@@ -1,4 +1,4 @@
-import { env } from '../env.js';
+import { env, paymentsAreEnabled } from '../env.js';
 import { stripeTestGateway } from './stripe.js';
 import type { AvailabilityContext } from './availability.js';
 
@@ -11,6 +11,6 @@ import type { AvailabilityContext } from './availability.js';
 export function catalogSalesContext(): AvailabilityContext {
   return {
     emailSalesEnabled: env.MAIL_SALES_ENABLED,
-    paymentsAvailable: env.paymentsEnabled || stripeTestGateway(),
+    paymentsAvailable: paymentsAreEnabled() || stripeTestGateway(),
   };
 }

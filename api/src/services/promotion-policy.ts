@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { env } from '../env.js';
+import { env, paymentsAreEnabled } from '../env.js';
 import { audit } from '../lib/audit.js';
 import { badRequest } from '../lib/errors.js';
 import { assessCustomer, type Risk } from './risk.js';
@@ -71,7 +71,7 @@ export async function decideSponsoredOrder(user: { id: string; email: string }, 
   const decision: SponsoredDecision = {
     decision: level === 'high' && !cleared ? 'review' : 'approve',
     risk,
-    cardCheck: (level === 'medium' || (level === 'high' && cleared)) && env.paymentsEnabled,
+    cardCheck: (level === 'medium' || (level === 'high' && cleared)) && paymentsAreEnabled(),
   };
   await audit({
     actorId: user.id,

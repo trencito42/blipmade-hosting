@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { BillingPeriod, Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
-import { env } from '../env.js';
+import { env, paymentsAreEnabled } from '../env.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { breakdownOfResources, buildQuote, priceBook, resourceRates } from '../services/pricing.js';
@@ -590,7 +590,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       const company = await companyDetails();
       // With real payments the card is charged the sum of the order: the flat rate of the settings is not collected, so it
       // is not promised either. VAT is shown only when the platform really adds it and says how much.
-      const flatRateCollected = !env.paymentsEnabled;
+      const flatRateCollected = !paymentsAreEnabled();
       const applies = company.taxApplies && flatRateCollected;
       const tax = applies && company.taxRate !== null ? taxOf(quote.total, company.taxRate) : 0;
       return {
