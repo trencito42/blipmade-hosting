@@ -88,19 +88,24 @@ export async function registerInstanceExtraRoutes(app: FastifyInstance): Promise
 
   app.get('/instances/:id/addons', async (request: FastifyRequest) => {
     const { instance } = await owned(request);
-    const variant = await prisma.catalogVariant.findUnique({
-      where: { productId: instance.productId },
-      include: {
-        family: {
+    const row = await prisma.instance.findUnique({ where: { id: instance.id }, select: { productId: true } });
+    const variant = row
+      ? await prisma.catalogVariant.findUnique({
+          where: { productId: row.productId },
           include: {
-            addons: { where: { active: true }, include: { compatibilities: { select: { variantId: true } } } },
+            family: {
+              include: {
+                addons: { where: { active: true }, include: { compatibilities: { select: { variantId: true } } } },
+              },
+            },
           },
-        },
-      },
-    });
-    const addons = (variant?.family.addons ?? []).filter(
-      (addon) => addon.compatibilities.length === 0 || addon.compatibilities.some((row) => row.variantId === variant.id),
-    );
+        })
+      : null;
+    const addons = variant
+      ? variant.family.addons.filter(
+          (addon) => addon.compatibilities.length === 0 || addon.compatibilities.some((row) => row.variantId === variant.id),
+        )
+      : [];
     return {
       addons: addons.map((addon) => ({
         slug: addon.slug,
