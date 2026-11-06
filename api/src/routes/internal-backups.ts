@@ -57,13 +57,33 @@ export async function registerInternalBackupRoutes(app: FastifyInstance): Promis
     return { id: row.id };
   });
 
-  // A copy was decrypted and opened by a drill: only then is it known to be restorable.
-  app.post('/internal/backups/restore-verified', async (request) => {
+  // Decrypt + archive listing/gzip/zstd. Not a restore. The drill posts here.
+  app.post('/internal/backups/decrypt-verified', async (request) => {
     requireAgent(request);
     const body = z.object({ remotePath, note: z.string().max(200).optional() }).parse(request.body ?? {});
-    const done = await prisma.offsiteBackup.updateMany({ where: { remotePath: body.remotePath, state: 'OFFSITE_VERIFIED' }, data: { restoreVerifiedAt: new Date() } });
+    const done = await prisma.offsiteBackup.updateMany({
+      where: { remotePath: body.remotePath, state: 'OFFSITE_VERIFIED' },
+      data: { decryptVerifiedAt: new Date() },
+    });
     if (done.count === 0) throw badRequest('That copy is not a verified one.');
-    await audit({ action: 'backup.restore_verified', targetType: 'offsite_backup', targetId: body.remotePath, meta: { note: body.note ?? null } });
+    await audit({ action: 'backup.decrypt_verified', targetType: 'offsite_backup', targetId: body.remotePath, meta: { note: body.note ?? null } });
+    return { ok: true };
+  });
+
+  // Isolated restore only. Decrypt drills must not call this. isolatedRestore: true is required so an old agent cannot mark a listing as a restore.
+  app.post('/internal/backups/restore-verified', async (request) => {
+    requireAgent(request);
+    const body = z.object({
+      remotePath,
+      note: z.string().max(200).optional(),
+      isolatedRestore: z.literal(true),
+    }).parse(request.body ?? {});
+    const done = await prisma.offsiteBackup.updateMany({
+      where: { remotePath: body.remotePath, state: 'OFFSITE_VERIFIED' },
+      data: { restoreVerifiedAt: new Date() },
+    });
+    if (done.count === 0) throw badRequest('That copy is not a verified one.');
+    await audit({ action: 'backup.restore_verified', targetType: 'offsite_backup', targetId: body.remotePath, meta: { note: body.note ?? null, isolatedRestore: true } });
     return { ok: true };
   });
 

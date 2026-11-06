@@ -19,6 +19,7 @@ function asCopy(row: {
   takenAt: Date | null;
   uploadedAt: Date | null;
   verifiedAt: Date | null;
+  decryptVerifiedAt: Date | null;
   restoreVerifiedAt: Date | null;
   sizeBytes: bigint;
   error: string | null;
@@ -31,6 +32,7 @@ function asCopy(row: {
     takenAt: row.takenAt,
     uploadedAt: row.uploadedAt,
     verifiedAt: row.verifiedAt,
+    decryptVerifiedAt: row.decryptVerifiedAt,
     restoreVerifiedAt: row.restoreVerifiedAt,
     sizeBytes: row.sizeBytes,
     error: row.error,
@@ -48,6 +50,7 @@ export async function backupCoverage(now = new Date()): Promise<{
   };
   coverage: CoverageRow[];
   lastVerifiedAt: string | null;
+  lastDecryptAt: string | null;
   lastRestoreAt: string | null;
 }> {
   const [destinationRow, copies, instanceCount, vpsCount] = await Promise.all([
@@ -60,6 +63,7 @@ export async function backupCoverage(now = new Date()): Promise<{
         takenAt: true,
         uploadedAt: true,
         verifiedAt: true,
+        decryptVerifiedAt: true,
         restoreVerifiedAt: true,
         sizeBytes: true,
         error: true,
@@ -92,6 +96,9 @@ export async function backupCoverage(now = new Date()): Promise<{
   const lastVerified = views
     .map((c) => c.verifiedAt?.getTime() ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
+  const lastDecrypt = views
+    .map((c) => c.decryptVerifiedAt?.getTime() ?? 0)
+    .reduce((a, b) => Math.max(a, b), 0);
   const lastRestore = views
     .map((c) => c.restoreVerifiedAt?.getTime() ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
@@ -106,6 +113,7 @@ export async function backupCoverage(now = new Date()): Promise<{
     },
     coverage,
     lastVerifiedAt: lastVerified ? new Date(lastVerified).toISOString() : null,
+    lastDecryptAt: lastDecrypt ? new Date(lastDecrypt).toISOString() : null,
     lastRestoreAt: lastRestore ? new Date(lastRestore).toISOString() : null,
   };
 }
@@ -146,6 +154,7 @@ export async function backupHistory(query: { kind?: string; state?: string; q?: 
       takenAt: true,
       uploadedAt: true,
       verifiedAt: true,
+      decryptVerifiedAt: true,
       restoreVerifiedAt: true,
       updatedAt: true,
     },
@@ -162,10 +171,12 @@ export async function backupHistory(query: { kind?: string; state?: string; q?: 
       encrypted: true,
       transfer: row.state,
       integrity: row.state === 'OFFSITE_VERIFIED',
+      decryptVerified: Boolean(row.decryptVerifiedAt),
       restoreVerified: Boolean(row.restoreVerifiedAt),
       takenAt: row.takenAt,
       uploadedAt: row.uploadedAt,
       verifiedAt: row.verifiedAt,
+      decryptVerifiedAt: row.decryptVerifiedAt,
       restoreVerifiedAt: row.restoreVerifiedAt,
       error: row.error,
       updatedAt: row.updatedAt,

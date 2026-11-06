@@ -3,8 +3,8 @@
  *
  * A row in OffsiteBackup is a local record of what an agent measured. It is
  * not proof the file is still on the Storage Box. Destination inventory is a
- * separate probe. A verified copy is not a restore. A copy from last month
- * is not today's backup.
+ * separate probe. A verified copy is not a restore. Decrypting an archive is
+ * not a restore. A copy from last month is not today's backup.
  */
 
 export type OffsiteKindName = 'CUSTOMER' | 'DATABASE' | 'VPS' | 'PLATFORM' | 'INFRA' | 'PVE';
@@ -19,6 +19,7 @@ export type CoverageState =
   | 'stale'
   | 'uploaded'
   | 'remote_verified'
+  | 'decrypt_verified'
   | 'restore_verified'
   | 'restore_untested'
   | 'not_protected';
@@ -30,6 +31,7 @@ export interface OffsiteCopyView {
   takenAt: Date | null;
   uploadedAt: Date | null;
   verifiedAt: Date | null;
+  decryptVerifiedAt: Date | null;
   restoreVerifiedAt: Date | null;
   sizeBytes: bigint | number;
   error: string | null;
@@ -60,12 +62,13 @@ export interface CoverageRow {
   lastLocalAt: string | null;
   lastOffsiteAt: string | null;
   lastVerifiedAt: string | null;
+  lastDecryptAt: string | null;
   lastRestoreAt: string | null;
   sizeBytes: number | null;
   state: CoverageState;
   reason: string;
   source: 'offsite_backup' | 'none';
-  verification: 'none' | 'upload_reported' | 'remote_readback' | 'restore_drill';
+  verification: 'none' | 'upload_reported' | 'remote_readback' | 'decrypt_opened' | 'restore_tested';
 }
 
 export const DESTINATION_STALE_HOURS = 3;
@@ -213,6 +216,7 @@ export function coverageFor(policy: WorkloadPolicy, copies: OffsiteCopyView[], n
   const failed = latest(matched.filter((c) => c.state === 'FAILED'), (c) => c.uploadedAt ?? c.takenAt);
   const pending = latest(matched.filter((c) => c.state === 'OFFSITE_PENDING'), (c) => c.uploadedAt ?? c.takenAt);
   const verified = latest(matched.filter((c) => c.state === 'OFFSITE_VERIFIED'), (c) => c.verifiedAt ?? c.uploadedAt ?? c.takenAt);
+  const decrypted = latest(matched.filter((c) => c.decryptVerifiedAt), (c) => c.decryptVerifiedAt);
   const restored = latest(matched.filter((c) => c.restoreVerifiedAt), (c) => c.restoreVerifiedAt);
   const any = verified ?? pending ?? failed;
   const lastLocal = latest(matched, (c) => c.takenAt);
@@ -231,6 +235,7 @@ export function coverageFor(policy: WorkloadPolicy, copies: OffsiteCopyView[], n
     lastLocalAt: iso(lastLocal?.takenAt ?? null),
     lastOffsiteAt: iso(lastOffsite?.uploadedAt ?? null),
     lastVerifiedAt: iso(lastVerified?.verifiedAt ?? null),
+    lastDecryptAt: iso(decrypted?.decryptVerifiedAt ?? null),
     lastRestoreAt: iso(restored?.restoreVerifiedAt ?? null),
     sizeBytes: Number.isFinite(size) ? size : null,
     source: matched.length ? ('offsite_backup' as const) : ('none' as const),
@@ -291,11 +296,20 @@ export function coverageFor(policy: WorkloadPolicy, copies: OffsiteCopyView[], n
     };
   }
 
+  if (!restored && decrypted) {
+    return {
+      ...base,
+      state: 'decrypt_verified',
+      reason: 'Remote copy verified. Decryption and archive integrity passed. That is not a restore of this workload.',
+      verification: 'decrypt_opened',
+    };
+  }
+
   if (!restored) {
     return {
       ...base,
       state: 'restore_untested',
-      reason: 'Backup verified, restore untested. A read-back is not a restore of this workload.',
+      reason: 'Remote copy verified. Decrypt, isolated restore, and operational recovery have not been proven. A read-back is not a restore.',
       verification: 'remote_readback',
     };
   }
@@ -305,16 +319,16 @@ export function coverageFor(policy: WorkloadPolicy, copies: OffsiteCopyView[], n
     return {
       ...base,
       state: 'degraded',
-      reason: `Remote copy is fresh. Last restore drill is ${Math.round(restoreAge ?? 0)} hours old.`,
-      verification: 'restore_drill',
+      reason: `Remote copy is fresh. Last isolated restore is ${Math.round(restoreAge ?? 0)} hours old. Operational recovery of live service was not recorded.`,
+      verification: 'restore_tested',
     };
   }
 
   return {
     ...base,
     state: 'restore_verified',
-    reason: 'Remote copy verified and a restore drill opened it.',
-    verification: 'restore_drill',
+    reason: 'An isolated restore of this workload was recorded. Operational recovery of live service is a separate operator check.',
+    verification: 'restore_tested',
   };
 }
 

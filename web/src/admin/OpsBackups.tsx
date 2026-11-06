@@ -17,17 +17,20 @@ interface BackupRow {
   encrypted: boolean;
   transfer: string;
   integrity: boolean;
+  decryptVerified: boolean;
   restoreVerified: boolean;
   takenAt: string | null;
   uploadedAt: string | null;
   verifiedAt: string | null;
+  decryptVerifiedAt: string | null;
   restoreVerifiedAt: string | null;
   error: string | null;
   updatedAt: string;
 }
 
 function transferTone(row: BackupRow): { status: string; label: string } {
-  if (row.restoreVerified) return { status: 'active', label: 'Restore verified' };
+  if (row.restoreVerified) return { status: 'active', label: 'Isolated restore tested' };
+  if (row.decryptVerified) return { status: 'verified', label: 'Decrypted, restore untested' };
   if (row.integrity) return { status: 'verified', label: 'Remote copy verified' };
   if (row.transfer === 'OFFSITE_PENDING') return { status: 'pending', label: 'Uploaded' };
   if (row.transfer === 'FAILED') return { status: 'failed', label: 'Failed' };
@@ -50,7 +53,7 @@ export default function OpsBackups() {
       <OpsNav />
       <Panel
         title="Backup history"
-        description="Each row is an agent receipt. A verified row is a remote read-back. A restore column is a drill that opened the archive. Paths are relative; credentials never appear here."
+        description="Each row is an agent receipt. Verified is remote read-back. Decrypted is age plus archive test. Isolated restore is a scratch restore of that workload. Credentials never appear here."
       >
         <div className="mb-3 grid gap-2 sm:grid-cols-3">
           <input className={denseInput} placeholder="Search source, node, or error" value={q} onChange={(event) => setQ(event.target.value)} />

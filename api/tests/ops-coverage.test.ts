@@ -22,6 +22,7 @@ function copy(overrides: Partial<OffsiteCopyView>): OffsiteCopyView {
     takenAt: NOW,
     uploadedAt: NOW,
     verifiedAt: NOW,
+    decryptVerifiedAt: null,
     restoreVerifiedAt: null,
     sizeBytes: 10,
     error: null,
@@ -45,7 +46,15 @@ describe('backup coverage', () => {
   it('does not treat a verified copy as a restore', () => {
     const row = coverageFor(policy, [copy({ restoreVerifiedAt: null })], NOW);
     expect(row.state).toBe('restore_untested');
-    expect(row.reason).toMatch(/restore untested/i);
+    expect(row.verification).toBe('remote_readback');
+    expect(row.reason).toMatch(/not a restore/i);
+  });
+
+  it('does not treat decrypt plus archive test as a restore', () => {
+    const row = coverageFor(policy, [copy({ decryptVerifiedAt: NOW, restoreVerifiedAt: null })], NOW);
+    expect(row.state).toBe('decrypt_verified');
+    expect(row.verification).toBe('decrypt_opened');
+    expect(row.reason).toMatch(/not a restore/i);
   });
 
   it('marks last month as stale even when verified', () => {
@@ -54,9 +63,11 @@ describe('backup coverage', () => {
     expect(row.state).toBe('stale');
   });
 
-  it('records restore separately from verification', () => {
-    const row = coverageFor(policy, [copy({ restoreVerifiedAt: NOW })], NOW);
+  it('records isolated restore separately from decrypt', () => {
+    const row = coverageFor(policy, [copy({ decryptVerifiedAt: NOW, restoreVerifiedAt: NOW })], NOW);
     expect(row.state).toBe('restore_verified');
+    expect(row.verification).toBe('restore_tested');
+    expect(row.reason).toMatch(/operational recovery/i);
   });
 
   it('does not call vacant absence healthy', () => {

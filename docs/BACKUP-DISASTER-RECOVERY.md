@@ -322,8 +322,11 @@ psql "$DATABASE_URL" -c 'SELECT id, name, status, "pterodactylServerId" FROM "In
 
 ## 3. "Where do I get the `age` identity?"
 
-**The identity of `age` is the key of the backups. It exists only on VM 103
-and nowhere else.**
+**The identity of `age` is the key of the backups.** The live decrypt file is
+on VM 103. The owner holds a Bitwarden item `age-blipmade-backups` in the
+Blipmade collection. That item is **not** proven until it decrypts a real
+Storage Box copy on a trusted computer. Do not copy or rotate the VM 103
+file. Do not edit the Bitwarden item.
 
 | What | Where |
 |---|---|
@@ -335,24 +338,55 @@ The file holds a private key. **It is never written into a backup and it
 never travels with a copy.** This document names the path of the file, never
 its content.
 
-### Take a copy of it now, before anything happens
+**Checked 2026-11-06:** live private file on VM 103 (`0600`, 184 bytes).
+Hypervisor `/root/offsite-identity/` holds `recipient.txt` (public only).
+Owner reports Bitwarden `age-blipmade-backups`. Independent decrypt of a
+Storage Box object with that copy has **not** been run. Finding stays open.
+
+### Verify the Bitwarden copy (owner laptop only)
+
+Run this on your trusted computer. Do not run it on VM 103, the hypervisor,
+or any AI/remote runner. Do not paste the private line into a terminal
+history you will share, into chat, or into git. Do not change the Bitwarden
+item. Do not upload the identity back to production.
+
+1. Install `age` from https://github.com/FiloSottile/age/releases.
+2. Open Bitwarden → Blipmade → `age-blipmade-backups`. Leave it unchanged.
+3. Write the identity to a mode-600 file on a tmpfs or encrypted disk, for
+   example `$HOME/.cache/blipmade-age-check/identity` (create the directory
+   mode 700). The file must contain the private identity line. Close the
+   Bitwarden window.
+4. Public match, no private output:
 
 ```bash
-# on VM 103, onto an encrypted medium that is not the host and not the
-# off-site target
-sudo install -m 600 -o debian -g debian \
-  /home/debian/.blipmade-backup.age \
-  /mnt/secure-media/blipmade-backup.age
+IDENT="$HOME/.cache/blipmade-age-check/identity"
+# You type the public recipient from production OFFSITE_AGE_RECIPIENT
+# (SSH to VM 103 and grep it yourself). It is not a secret.
+RECIPIENT='age1...'   # public only
 
-# the copy is only useful when it can be read back
-ls -l /mnt/secure-media/blipmade-backup.age       # -rw------- 1 debian debian
+derived="$(age-keygen -y "$IDENT")"
+if [ "$derived" = "$RECIPIENT" ]; then echo MATCH; else echo MISMATCH; fi
+unset derived
 ```
 
-The safe place has to be somewhere that is **not** the host and **not** the
-off-site target: the off-site target is a backup target, not a place for the
-key of the backups. A password manager with an attachment, an encrypted
-removable medium, or a second machine that is not part of the platform will
-do.
+5. Download one small authentic copy from Hetzner Storage Box onto the same
+   laptop (ssh port 23, your Storage Box key). Use the Proxmox config object,
+   about 3 KB:
+
+   `blipmade/pve/n7030e1/pve-config-20261106T072429Z.tar.gz.age`
+
+```bash
+age -d -i "$IDENT" -o /tmp/pve-config.tar.gz pve-config-20261106T072429Z.tar.gz.age
+if tar -tzf /tmp/pve-config.tar.gz >/dev/null; then echo DECRYPT_OK; else echo DECRYPT_FAIL; fi
+rm -f /tmp/pve-config.tar.gz
+```
+
+6. Delete the identity tempfile (`rm -f "$IDENT"`). Report only `MATCH` or
+   `MISMATCH`, and `DECRYPT_OK` or `DECRYPT_FAIL`. Do not send the identity
+   or the decrypted archive to anyone.
+
+Until both lines are `MATCH` and `DECRYPT_OK`, the identity is **not**
+independently recoverable.
 
 ### Check that the copy is the right one
 
@@ -372,8 +406,12 @@ was encrypted for another key and cannot be read with this identity.
 
 ### Put it back on a new host
 
+Export from Bitwarden `age-blipmade-backups` onto the new host. Do not copy
+the live VM 103 file unless Bitwarden is unavailable and the owner authorizes
+that one-time copy.
+
 ```bash
-install -m 600 /mnt/secure-media/blipmade-backup.age /home/debian/.blipmade-backup.age
+install -m 600 /path/from-bitwarden-export.age /home/debian/.blipmade-backup.age
 chown debian:debian /home/debian/.blipmade-backup.age
 ```
 
@@ -584,7 +622,7 @@ Run it:
 | `PTERODACTYL_APP_KEY`, `PTERODACTYL_CLIENT_KEY`, `PTERODACTYL_URL`, `PANEL_KEYMINT_URL`, `PANEL_KEYMINT_SECRET` | the secret store of the operator, and the panel on VM 100 | the worker cannot provision the servers and the customer tools cannot use the panel |
 | `SMTP_URL` | the secret store of the operator, and the mail host | the mail of the platform is written to `BACKUP_DIR/mail` instead of being sent |
 | `CADDY_ADMIN_URL`, `CADDY_ADMIN_TOKEN`, `DOMAIN_BASE`, `DOMAIN_TARGET` | the secret store of the operator, and the edge on VM 102 | the customer domains are not routed and are not added to the edge |
-| `ADMIN_ENROLLMENT_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | the secret store of the operator | the first administrator cannot be enrolled |
+| `ADMIN_ENROLLMENT_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | the secret store of the operator | bootstrap enrollment only. `ADMIN_PASSWORD` in `.env` is the seed, not proof of the current hash |
 | `BLIPMADE_INTERNAL_API_TOKEN` | the secret store of the operator | the internal calls between the API and the worker are refused |
 | `PUBLIC_WEB_URL`, `APP_ORIGIN`, `APP_PUBLIC_URL` | the public address of the platform | the links of the mail and of the checkout point at the wrong address |
 | `PAYMENTS_ENABLED`, `NODE_ENV`, `TRUSTED_PROXIES`, `BACKUP_DIR`, `ATTACHMENT_DIR` | the configuration of the new host | the platform runs with the wrong behaviour. `PAYMENTS_ENABLED=false` answers that the payments are not available instead of taking money |
@@ -595,6 +633,30 @@ Run it:
 The values themselves are **never in a backup**. The environment file of the
 platform is recreated by the operator from the secret store, and the copy of
 the repository on the new host is not a substitute for it.
+
+### Staff account recovery (authorized, no guessing)
+
+There are live ADMIN and STAFF users. `POST /api/auth/enroll-admin` works
+only while the database has **no** administrator, so it cannot recreate
+access now.
+
+Do not try passwords from `.env`. That value is the bootstrap seed. It can
+be stale. Repeated failures rate-limit login.
+
+Authorized recovery, in order:
+
+1. Owner uses **Forgot password** at the public login for a known staff
+   email (`POST /api/auth/forgot-password`). SMTP must work. The response
+   never says whether the account exists.
+2. Owner opens the reset mail and sets a new password
+   (`POST /api/auth/reset-password`).
+3. If mail cannot be delivered, an operator with database access sends a
+   reset from the app or hashes a new password through the platform's
+   password helper. Do not brute-force. Do not paste credentials into
+   tickets or git.
+
+Authenticated Admin click-through waits on a working session after that
+reset.
 
 ---
 
@@ -634,19 +696,24 @@ games-node-01                      hypervisor                          platform 
   `/usr/local/sbin/blipmade-offsite-agent` with systemd timers: customers 04:30, databases 05:10, retention 06:00 (node),
   VPS Sundays 02:00 and retention 06:30 (hypervisor), destination health hourly. Configuration is in
   `/etc/blipmade/offsite.env` (root, mode 600); nothing secret is in the repository.
-* **States** (the admin page tells them apart): `LOCAL_ONLY` (made, not yet sent), `OFFSITE_PENDING` (uploading),
+* **States** (the admin page tells them apart): `OFFSITE_PENDING` (uploading),
   `OFFSITE_VERIFIED` (read back from the box and the hash matched), `FAILED` (with the reason). An uploaded file is not
-  "verified" until it was read back. A copy is only known to be *restorable* once a drill opened it:
-  `restoreVerifiedAt` is set by `offsite-agent.sh drill`.
+  "verified" until it was read back. `decryptVerifiedAt` is set by `offsite-agent.sh drill` after decrypt plus
+  archive listing/gzip/zstd. That is not a restore. `restoreVerifiedAt` is set only by
+  `POST /internal/backups/restore-verified` with `isolatedRestore: true` after a scratch restore of that
+  workload (Postgres dump into a disposable database, VM copy onto isolated storage, Mailcow in an isolated
+  environment). Operational recovery of live service is a separate operator check and is not stored as
+  restore-verified.
 
 ### 10.2 Encryption and the key
 
 * Every copy is encrypted with age (X25519 + ChaCha20-Poly1305) **before it leaves the machine**. The machines that make
   backups hold only the public recipient (`OFFSITE_AGE_RECIPIENT`).
-* The private identity (`age-identity.txt`) must live somewhere independent of this infrastructure: a password manager and
-  an offline copy. **Without it no offsite copy can be decrypted.** It is never put on a node, a VM, or the Storage Box.
-  A copy of the identity was left on the hypervisor at `/root/offsite-identity/` only to run drills; once you hold your own
-  copies, delete it from there.
+* The private identity must live somewhere independent of this infrastructure: a password manager and
+  an offline copy. **Without it no offsite copy can be decrypted.** It is never put on a game node or the Storage Box.
+  Do not copy it to the hypervisor. `/root/offsite-identity/` on n7030e1 holds the **public recipient only**.
+  The live private file stays on VM 103. Bitwarden `age-blipmade-backups` is
+  untested until the owner laptop procedure in §3 reports MATCH and DECRYPT_OK.
 * The ssh key to the Storage Box is on the node and on the hypervisor (`/etc/blipmade/storagebox_key`). A node that is
   compromised could delete its offsite copies: use a separate Storage Box sub-account per machine, and turn on the box's
   snapshots in the Hetzner console so a deletion can be undone.
@@ -686,11 +753,33 @@ All of them start with the identity file and the key to the box.
 5. **Complete node loss:** rebuild the node (Wings), re-import the servers from the panel, restore each server's archive
    (step 2) and each database dump (step 3). Servers that were created after the last backup, and everything since, are lost.
 
+### 10.5.1 Isolated restore tests (prepared, not run)
+
+Do not run these on production disks or production VM IDs without a written
+go-ahead. Names ending `_test` or `_drill` only.
+
+**PostgreSQL (platform dump):** on an isolated machine with `age` and the
+Bitwarden identity, fetch the newest
+`blipmade/platform/blipmade-platform/blipmade-scheduled-*.tar.gz.age`. Decrypt,
+extract `database.dump`, `createdb blipmade_isolated_drill`, restore, compare
+schema/table counts to a **read-only** live query, then `dropdb`. Only then
+may `restore-verified` be posted with `isolatedRestore: true`.
+
+**Proxmox VM:** decrypt a vzdump `.vma.zst.age` to isolated storage. Restore
+to an unused VMID (`qmrestore ... --unique 1`). Remove NICs before start.
+Check filesystem or guest agent. Destroy the test VM. Never restore onto
+100–105 or 1001–1002.
+
+**Mailcow / panel / Wings:** Mailcow is VM104, panel VM100, Wings on the game
+node (file-level customer+DB jobs). Full isolated Mailcow restore needs the
+first INFRA vzdump (timer Sunday 2026-11-08 03:30). Until that object exists
+on the box, Mailcow is not covered by INFRA.
+
 ### 10.6 What was tested
 
 * Tested on 2026-11-01: a real customer archive (272 MB) was encrypted, uploaded, read back, decrypted and extracted
   (6141 files); a real database dump was restored into a scratch database with the same table count (12) and row count
-  (149 in `wp_options`); the encrypted copies were opened by drills which marked them restore-verified.
+  (149 in `wp_options`); those drills opened archives. After 2026-11-06 that evidence is decrypt/integrity, not restore-verified.
 * See the report of the day for the virtual-server test. Anything not listed here has not been tested.
 
 ### 10.7 Confirmed limitations

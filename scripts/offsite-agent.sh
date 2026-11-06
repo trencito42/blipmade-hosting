@@ -9,6 +9,7 @@
 # the public recipient is.
 #
 # Modes:  customers | databases | vps | infra | pve | platform | retention | destination | drill <remote path> <identity file>
+# drill decrypts and tests the archive. It never reports a restore.
 set -euo pipefail
 umask 077
 
@@ -350,10 +351,12 @@ mode_destination() {
 }
 
 # ----------------------------------------------------------------------- drill
-# Run where the age IDENTITY is (never on a node): fetches one copy, decrypts it, opens it, and only then tells the
-# platform it is restorable. drill <remote rel path under base> <identity file>
+# Fetch, decrypt, test the archive. Report decrypt-verified. Never restore-verified.
+# Isolated restore is a separate operator procedure. drill <remote rel path under base> <identity file>
 mode_drill() {
-  local rel="$1" ident="$2" tmp out head_text
+  local rel="$1" ident="$2" tmp="" out="" head_text
+  cleanup_drill() { rm -f -- ${tmp:+"$tmp"} ${out:+"$out"}; }
+  trap cleanup_drill EXIT
   [ -r "$ident" ] || die "identity file not readable"
   tmp="$(mktemp -p "$STAGING_DIR")"; out="$(mktemp -p "$STAGING_DIR")"
   t_fetch "$rel" "$tmp" || die "could not fetch $rel"
@@ -365,10 +368,12 @@ mode_drill() {
       grep -q 'MariaDB dump\|MySQL dump' <<<"$head_text" || die "the decrypted dump is not a database dump" ;;
     vps/*|infra/*) zstd -t "$out" >/dev/null 2>&1 || die "the decrypted VM copy is not a valid archive" ;;
     pve/*|platform/*) tar -tzf "$out" >/dev/null || die "the decrypted archive is not readable" ;;
+    *) die "unknown archive kind for $rel" ;;
   esac
   rm -f -- "${tmp:?}" "${out:?}"
-  post restore-verified "$(printf '{"remotePath":"%s","note":"opened by drill on %s"}' "$rel" "$(hostname -s)")"
-  log "drill passed: $rel decrypts and opens"
+  tmp=""; out=""
+  post decrypt-verified "$(printf '{"remotePath":"%s","note":"decrypt and archive test on %s; not a restore"}' "$rel" "$(hostname -s)")"
+  log "drill passed: $rel decrypts and the archive tests; this is not a restore"
 }
 
 case "${1:-}" in

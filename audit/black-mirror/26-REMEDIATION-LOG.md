@@ -2,6 +2,20 @@
 
 Start: 2026-11-06. Production was `8b07cd2d`. Audit IDs unchanged.
 
+## Recovery assurance P0/P1 (2026-11-06)
+
+**P0 age identity.** Live private file on VM 103 (`/home/debian/.blipmade-backup.age`, 184 B, `0600`). Public half matches `OFFSITE_AGE_RECIPIENT` (match only). Hypervisor has public `recipient.txt` only. Owner reports Bitwarden item `age-blipmade-backups` (Blipmade collection). That item was **not** used to decrypt a Storage Box object this pass. Do not copy, rotate, or export the VM 103 file. Do not edit Bitwarden. Owner laptop procedure: `docs/BACKUP-DISASTER-RECOVERY.md` §3. Finding stays open until owner reports `MATCH` and `DECRYPT_OK`.
+
+**P1 evidence.** `offsite-agent.sh drill` posts `decrypt-verified` (decrypt + archive test) with EXIT cleanup. `restore-verified` requires `isolatedRestore: true`. An old drill body without that field is rejected and does not clear existing `restoreVerifiedAt`. Coverage: remote read-back, `decrypt_verified`, isolated restore. Admin labels match. Migration `20261106140000_offsite_decrypt_verified` is additive (`decryptVerifiedAt` nullable). Not deployed.
+
+**Not restore-verified:** no isolated Postgres/VM/Mailcow restore this pass. Isolated procedures written in DR §10.5.1.
+
+**INFRA timer:** `blipmade-offsite-infra.timer` `OnCalendar=Sun *-*-* 03:30:00` RandomizedDelaySec=300. Next: Sun 2026-11-08 03:31:43 UTC. Default VMIDs 100 102 103 104 105. VM101 excluded. `infra/` still empty. VPS timer Sun 02:00. PVE timer Sat 01:43.
+
+**Staff login.** `.env` `ADMIN_PASSWORD` is bootstrap, not current. Recovery is forgot-password for a known staff email, then reset mail. Do not brute-force.
+
+Payments and mail sales remain **false**.
+
 ## BM-002 / BM-015 / BM-018 — commercial containment (2026-11-06T07:11Z)
 
 **Action (owner-authorized Phase 1):** `scripts/disable-live-checkout.sh` on VM103.
@@ -103,7 +117,7 @@ Owner token setup (least privilege for Admin list): sign in at `https://errors.b
 | `databases/…/s261_muratura` | 6 files, 942 875 B; newest 2026-11-06 |
 | Box used | 1 897 005 056 / 1 099 511 627 776 bytes (~0.17%) |
 
-Encryption: `age` recipient `age10qn5sgtz…`. Identity file exists on **vm103 only** (184 B, 0600). Not on the hypervisor. Drill: `blipmade-offsite-agent drill platform/blipmade-platform/blipmade-scheduled-20261106T022044Z.tar.gz.age <identity>` on an isolated host that **already** has the identity. Do not copy the identity onto more production machines. Drill posts `restore-verified` — do not run until authorized. Full VM restore not done.
+Encryption: `age` recipient is the public half of the VM 103 identity (prefix not restated here). Identity file exists on **vm103 only** (184 B, 0600). Hypervisor has public recipient only. After deploy, drill posts `decrypt-verified`, not restore-verified. Isolated restore not done.
 
 Unprotected vs INFRA vzdump: Mailcow (VM104), panel (VM100), observability (VM105), proxy (VM102), platform disk (VM103) wait on first infra job. Wings/game files have customer+DB copies. VM101 excluded from INFRA by design.
 

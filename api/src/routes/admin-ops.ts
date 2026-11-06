@@ -242,8 +242,7 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
       backupCoverage(),
     ]);
     const covered = new Set(linked.map((row) => row.instanceId));
-    // The states are told apart on purpose: a file that was uploaded is not a copy that was read back, and a copy
-    // that was read back is not one that was restored.
+    // Uploaded is not read-back. Read-back is not decrypt. Decrypt is not an isolated restore. Isolated restore is not live recovery.
     const byState = (kind: string, state: string) => counts.find((row) => row.kind === kind && row.state === state)?._count._all ?? 0;
     return {
       offsite: coverage.destination.state,
@@ -258,6 +257,7 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
         encrypted: coverage.destination.encrypted,
       },
       coverage: coverage.coverage,
+      lastDecryptAt: coverage.lastDecryptAt,
       lastRestoreAt: coverage.lastRestoreAt,
       kinds: ['CUSTOMER', 'DATABASE', 'VPS', 'PLATFORM', 'INFRA', 'PVE'].map((kind) => ({
         kind,

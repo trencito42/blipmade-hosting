@@ -175,8 +175,10 @@ export function OpsNav() {
 }
 
 function coverageTone(state: string): { status: string; label: string } {
-  if (state === 'restore_verified' || state === 'healthy') return { status: 'active', label: 'Restore verified' };
-  if (state === 'restore_untested' || state === 'remote_verified') return { status: 'verified', label: 'Backup verified, restore untested' };
+  if (state === 'restore_verified') return { status: 'active', label: 'Isolated restore tested' };
+  if (state === 'healthy') return { status: 'active', label: 'Healthy' };
+  if (state === 'decrypt_verified') return { status: 'verified', label: 'Decrypted, restore untested' };
+  if (state === 'restore_untested' || state === 'remote_verified') return { status: 'verified', label: 'Remote copy verified' };
   if (state === 'uploaded') return { status: 'pending', label: 'Backup uploaded' };
   if (state === 'stale') return { status: 'degraded', label: 'Stale evidence' };
   if (state === 'degraded') return { status: 'degraded', label: 'Degraded' };
@@ -511,9 +513,10 @@ function BackupHealth() {
   const state = useAsync<{
     offsite: string;
     destination: { reachable: boolean; totalBytes: number | null; usedBytes: number | null; fileCount?: number | null; error: string | null; at: string | null; inventory?: string; encrypted?: boolean } | null;
-    coverage?: { id: string; name: string; host: string; method: string; frequency: string; lastLocalAt: string | null; lastOffsiteAt: string | null; lastVerifiedAt: string | null; lastRestoreAt: string | null; state: string; reason: string }[];
+    coverage?: { id: string; name: string; host: string; method: string; frequency: string; lastLocalAt: string | null; lastOffsiteAt: string | null; lastVerifiedAt: string | null; lastDecryptAt?: string | null; lastRestoreAt: string | null; state: string; reason: string }[];
     kinds: { kind: string; pending: number; verified: number; failed: number; lastVerifiedAt: string | null; lastRestoreCheckAt: string | null }[];
     lastVerifiedAt: string | null;
+    lastDecryptAt?: string | null;
     lastRestoreAt?: string | null;
     gaps: { id: string; name: string }[];
     vpsGaps?: { id: string; name: string; vmid: number; lastCopyAt: string | null }[];
@@ -530,7 +533,7 @@ function BackupHealth() {
   return (
     <Panel
       title="Offsite backups"
-      description="Encrypted copies on the Storage Box. A copy counts as verified only after it was read back from the box; it counts as restorable only after a drill opened it."
+      description="Encrypted copies on the Storage Box. Remote copy verified means read-back matched. Decrypted means age opened the archive. Isolated restore tested means a scratch restore of that workload. None of those is live operational recovery."
     >
       {state.loading && !data ? (
         <LoadingBlock rows={1} label="Loading the backup health" />
@@ -552,7 +555,8 @@ function BackupHealth() {
             )}
             {data.destination?.inventory && <p className="text-[12.5px] text-ink3">{data.destination.inventory}</p>}
             <p className="text-[12.5px] text-ink3">
-              Last verified copy: {data.lastVerifiedAt ? fmtDateTime(data.lastVerifiedAt) : 'none yet'}. Last restore drill:{' '}
+              Last remote copy verified: {data.lastVerifiedAt ? fmtDateTime(data.lastVerifiedAt) : 'none yet'}. Last decrypt:{' '}
+              {data.lastDecryptAt ? fmtDateTime(data.lastDecryptAt) : 'none yet'}. Last isolated restore:{' '}
               {data.lastRestoreAt ? fmtDateTime(data.lastRestoreAt) : 'none yet'}. Encryption: age (keys never shown here).
             </p>
             {data.payments && (
@@ -577,7 +581,8 @@ function BackupHealth() {
                 { key: 'freq', header: 'Frequency', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.frequency}</span> },
                 { key: 'offsite', header: 'Last off-site', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastOffsiteAt ? fmtDateTime(row.lastOffsiteAt) : DASH}</span> },
                 { key: 'verified', header: 'Verified', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastVerifiedAt ? fmtDateTime(row.lastVerifiedAt) : DASH}</span> },
-                { key: 'restore', header: 'Restore', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastRestoreAt ? fmtDateTime(row.lastRestoreAt) : DASH}</span> },
+                { key: 'decrypt', header: 'Decrypt', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastDecryptAt ? fmtDateTime(row.lastDecryptAt) : DASH}</span> },
+                { key: 'restore', header: 'Isolated restore', nowrap: true, render: (row) => <span className="font-mono text-[12.5px] text-ink2">{row.lastRestoreAt ? fmtDateTime(row.lastRestoreAt) : DASH}</span> },
                 { key: 'state', header: 'State', render: (row) => {
                   const tone = coverageTone(row.state);
                   return (
