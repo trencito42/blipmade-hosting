@@ -13,6 +13,7 @@ import {
   mergeManifestAddons,
   parseInstallSpec,
   pluginPresent,
+  stalePluginFilename,
   verifiedGameVersion,
   waitForBackupCompletion,
 } from '../services/addon-lifecycle.js';
@@ -61,15 +62,20 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
       productSlug: row?.product.slug ?? null,
       installed,
       jobs: jobs.map((job) => ({ id: job.id, addonSlug: job.addonSlug, action: job.action, status: job.status, error: job.error, writes: job.writes, createdAt: job.createdAt })),
-      addons: addons.map((addon) => ({
-        slug: addon.slug,
-        name: addon.name,
-        summary: addon.summary,
-        kind: addon.kind,
-        version: addon.version,
-        installSpec: addon.installSpec,
-        installed: installed.includes(addon.slug),
-      })),
+      addons: addons.map((addon) => {
+        const artifact = installedArtifact(row?.installationManifest, addon.slug);
+        return {
+          slug: addon.slug,
+          name: addon.name,
+          summary: addon.summary,
+          kind: addon.kind,
+          version: addon.version,
+          installSpec: addon.installSpec,
+          installed: installed.includes(addon.slug),
+          installedVersion: artifact?.version ?? null,
+          installedAt: artifact?.at ?? null,
+        };
+      }),
       note: 'SOFTWARE add-ons write files only through a verified adapter after a locked backup.',
     };
   });
@@ -215,8 +221,19 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
         const file = await pluginFileFor(spec.project, gameVersion);
         try { await panelClient.createFolder(token, instance.pterodactylUuid, '/plugins'); } catch { /* exists */ }
         await panelClient.pullFile(token, instance.pterodactylUuid, file.url, '/plugins', file.filename);
-        const files = await panelClient.listFiles(token, instance.pterodactylUuid, '/plugins');
+        let files = await panelClient.listFiles(token, instance.pterodactylUuid, '/plugins');
         if (!pluginPresent(files, file.filename)) throw new Error('The plugin file was not found after the download.');
+        const staleFilename = stalePluginFilename(body.action, artifact?.filename, file.filename);
+        if (staleFilename) {
+          try {
+            await panelClient.deleteFile(token, instance.pterodactylUuid, `/plugins/${staleFilename}`);
+            files = await panelClient.listFiles(token, instance.pterodactylUuid, '/plugins');
+            if (pluginPresent(files, staleFilename)) throw new Error('The previous plugin file is still on the server.');
+          } catch (error) {
+            try { await panelClient.deleteFile(token, instance.pterodactylUuid, `/plugins/${file.filename}`); } catch { /* the locked backup remains the recovery point */ }
+            throw error;
+          }
+        }
         filename = file.filename;
         version = file.version;
       }

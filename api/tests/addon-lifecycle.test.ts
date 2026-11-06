@@ -6,6 +6,7 @@ import {
   mergeManifestAddons,
   parseInstallSpec,
   pluginPresent,
+  stalePluginFilename,
   waitForBackupCompletion,
 } from '../src/services/addon-lifecycle.js';
 
@@ -32,6 +33,19 @@ describe('addon lifecycle', () => {
     const decision = addonDecision({ ...paperInstall, backupCompleted: true });
     expect(decision.ok).toBe(true);
     expect(decision.writes).toBe(true);
+  });
+
+  it('updates a recorded Paper plugin only after a completed backup', () => {
+    const decision = addonDecision({
+      ...paperInstall,
+      action: 'update',
+      installed: true,
+      backupCompleted: true,
+      artifact: { slug: 'luckperms', status: 'installed', filename: 'LuckPerms-5.4.jar', version: '5.4', at: '2026-11-06T00:00:00.000Z' },
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.writes).toBe(true);
+    expect(decision.backupRequired).toBe(true);
   });
 
   it('refuses Forge for Bukkit plugins', () => {
@@ -145,5 +159,11 @@ describe('addon lifecycle', () => {
   it('confirms the plugin file is present', () => {
     expect(pluginPresent([{ name: 'LuckPerms.jar' }], 'LuckPerms.jar')).toBe(true);
     expect(pluginPresent([{ name: 'other.jar' }], 'LuckPerms.jar')).toBe(false);
+  });
+
+  it('removes the previous filename only when an update changes it', () => {
+    expect(stalePluginFilename('update', 'LuckPerms-5.4.jar', 'LuckPerms-5.5.jar')).toBe('LuckPerms-5.4.jar');
+    expect(stalePluginFilename('update', 'LuckPerms.jar', 'LuckPerms.jar')).toBeNull();
+    expect(stalePluginFilename('install', 'LuckPerms-5.4.jar', 'LuckPerms-5.5.jar')).toBeNull();
   });
 });

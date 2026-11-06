@@ -195,3 +195,7 @@ export async function waitForBackupCompletion(input: {
 export function pluginPresent(files: { name: string }[], filename: string): boolean {
   return files.some((file) => file.name === filename);
 }
+
+export function stalePluginFilename(action: AddonAction, current: string | null | undefined, next: string): string | null {
+  return action === 'update' && current && current !== next ? current : null;
+}
