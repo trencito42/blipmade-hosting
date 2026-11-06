@@ -10,6 +10,7 @@ import { notifySubscriptionActivated } from './notifications.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
 import { dispatchCrmEvent } from './crm-dispatch.js';
 import { reverseReferralOnOrder } from './crm-referral.js';
+import { couponSpecFromOrderItems } from './promotion-coupon.js';
 
 let client: Stripe | null = null;
 
@@ -346,15 +347,25 @@ export async function createSponsoredSubscriptionCheckout(
   }
 
   const promotion = await prisma.promotion.findUnique({ where: { id: order.promotionId } });
-  const periods = promotion?.recurringPeriods && promotion.recurringPeriods > 0 ? promotion.recurringPeriods : 0;
+  let couponSpec;
+  try {
+    couponSpec = couponSpecFromOrderItems(promotion?.recurringPeriods, order.items);
+  } catch (error) {
+    throw badRequest(error instanceof Error ? error.message : 'This billing arrangement cannot carry a repeating promotion.');
+  }
   const coupon = await stripe.coupons.create(
     {
       percent_off: 100,
-      duration: periods > 0 ? 'repeating' : 'once',
-      // shortcut: Stripe months, yearly terms need duration_in_months mapping when billing is yearly
-      ...(periods > 0 ? { duration_in_months: periods } : {}),
+      duration: couponSpec.duration,
+      ...(couponSpec.duration === 'repeating' ? { duration_in_months: couponSpec.duration_in_months } : {}),
       name: `Blipmade promotion · ${order.number}`,
-      metadata: { orderId: order.id, promotionId: order.promotionId },
+      metadata: {
+        orderId: order.id,
+        promotionId: order.promotionId,
+        discountedPeriods: String(couponSpec.periods),
+        billingPeriod: couponSpec.period,
+        couponMonths: String(couponSpec.months),
+      },
     },
     { idempotencyKey: `blipmade-promotion-coupon-${order.id}` },
   );

@@ -86,6 +86,19 @@ export function memorySaasAdapter(): SaasAdapter & { store: Map<string, { state:
   };
 }
 
+export function ownershipTxt(hostname: string, token: string): { type: 'TXT'; name: string; value: string } {
+  const host = hostname.trim().toLowerCase();
+  return { type: 'TXT', name: `_cf-custom-hostname.${host}`, value: token };
+}
+
+export function saasReconcile(recorded: SaasHostnameState, provider: SaasHostnameState): SaasHostnameState {
+  if (recorded === 'disabled') return 'disabled';
+  if (provider === 'active') return 'active';
+  if (provider === 'blocked') return 'blocked';
+  if (provider === 'pending_certificate' && recorded === 'pending_dns') return 'pending_certificate';
+  return recorded;
+}
+
 export async function liveSaasCreate(hostname: string, token: string, account: string): Promise<{ id: string; state: SaasHostnameState } | { error: string }> {
   if (!cloudflareSaasEnabled()) return { error: 'Cloudflare for SaaS is off.' };
   const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/custom_hostnames`, {

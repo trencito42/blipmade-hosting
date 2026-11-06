@@ -24,6 +24,7 @@ test.describe('admin CRM desk', () => {
           snapshot: { mrrCents: 600, marketingOptIn: 40, marketingOptOut: 40 },
         };
       }
+      if (path === '/admin/crm/referrals') return { referrals: [{ id: 'r1', referrerId: 'u1', referredId: 'u2', code: 'ABCD1234', status: 'qualified' }] };
       if (path === '/admin/crm/risk') return { evaluations: [], autoReject: false };
       return undefined;
     });
@@ -41,6 +42,8 @@ test.describe('admin CRM desk', () => {
     await page.getByRole('button', { name: 'Analytics' }).click();
     await expect(page.getByText('MRR cents (snapshot)')).toBeVisible();
     await expect(page.getByText('1400')).toBeVisible();
+    await page.getByRole('button', { name: 'Referrals' }).click();
+    await expect(page.getByText('ABCD1234 · qualified')).toBeVisible();
     await page.getByRole('button', { name: 'Risk review' }).click();
     await expect(page.getByText('Shadow mode')).toBeVisible();
   });

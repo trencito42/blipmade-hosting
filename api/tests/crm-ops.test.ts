@@ -103,6 +103,15 @@ describe('CRM operations', () => {
     expect(queued.status).toBe(200);
     expect(queued.body.delivery).toBe(false);
     expect(queued.body.planned + queued.body.skipped).toBeGreaterThan(0);
+    const firstCount = await prisma.campaignSend.count({ where: { campaignId: campaign.body.campaign.id } });
+    const againQueue = await admin.request('POST', `/api/admin/crm/campaigns/${campaign.body.campaign.id}/queue`, {});
+    expect(againQueue.status).toBe(200);
+    const secondCount = await prisma.campaignSend.count({ where: { campaignId: campaign.body.campaign.id } });
+    expect(secondCount).toBeGreaterThanOrEqual(firstCount);
+    const rewritten = await prisma.campaignSend.count({
+      where: { campaignId: campaign.body.campaign.id, skipReason: 'Frequency cap.' },
+    });
+    expect(rewritten).toBe(0);
     const sends = await prisma.campaignSend.findMany({ where: { campaignId: campaign.body.campaign.id } });
     expect(sends.some((row) => row.status === 'sent')).toBe(false);
     expect(sends.some((row) => row.status === 'planned' && row.consent)).toBe(true);

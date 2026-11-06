@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { get } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
 import { getStartup, readFile, updateStartup, writeFile } from '../../lib/instance-api';
 import { Panel, PrimaryButton, TextInput, useToast } from '../../ui-app';
@@ -8,13 +9,20 @@ import { gameWorkspace, mergeConfigLines, readConfigValue } from './game-setting
 /** Settings that belong to this game. Other panel tools stay on their own tabs. */
 export default function GameTab({ instance }: TabProps) {
   const toast = useToast();
+  const capabilities = useAsync<{ slug: string; profile: { title: string; configKeys: { key: string; label: string; source: 'env' | 'properties' }[]; configFile: string | null } | null }>(
+    (signal) => get(`/instances/${encodeURIComponent(instance.id)}/game-capabilities`, undefined, signal),
+    [instance.id],
+  );
   const workspace = gameWorkspace(instance.product.slug);
-  const file = workspace?.fields.find((field) => field.file)?.file ?? null;
+  const file = capabilities.data?.profile?.configFile ?? workspace?.fields.find((field) => field.file)?.file ?? null;
   const startup = useAsync((signal) => (workspace && !file ? getStartup(instance.id, signal) : Promise.resolve(null)), [instance.id, file, workspace?.slug]);
   const config = useAsync((signal) => (file ? readFile(instance.id, file, signal) : Promise.resolve(null)), [instance.id, file]);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
-  if (!workspace) return null;
+  const fields = capabilities.data?.profile?.configKeys.length
+    ? capabilities.data.profile.configKeys
+    : workspace?.fields ?? [];
+  if (!workspace && !fields.length) return null;
   const current = (key: string, source: 'env' | 'properties') => {
     if (key in draft) return draft[key] ?? '';
     if (source === 'env') return startup.data?.variables.find((variable) => variable.key === key)?.value ?? '';
@@ -39,9 +47,9 @@ export default function GameTab({ instance }: TabProps) {
   };
 
   return (
-    <Panel title={workspace.title} description={workspace.summary}>
+    <Panel title={capabilities.data?.profile?.title ?? workspace?.title ?? 'Game'} description={workspace?.summary ?? 'Only settings this game actually stores.'}>
       <div className="grid gap-3">
-        {workspace.fields.map((field) => (
+        {fields.map((field) => (
           <TextInput
             key={field.key}
             label={field.label}

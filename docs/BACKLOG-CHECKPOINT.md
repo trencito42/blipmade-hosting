@@ -1,7 +1,8 @@
 # Backlog checkpoint
 
-resume_sha: b3e493f8a80c5ee73864406e27f51271a0b7c228
-production_sha: b3e493f8a80c5ee73864406e27f51271a0b7c228
+resume_sha: pending this commit
+production_sha: 71179bd19e995d6fe03617784964d855882c9fff
+ci_before: https://github.com/trencito42/blipmade-hosting/actions/runs/42287012366 success
 flags:
   PAYMENTS_ENABLED: false
   MAIL_SALES_ENABLED: false
@@ -11,47 +12,27 @@ flags:
   MAIL_DNS_WRITES: false
   MARKETING_DELIVERY_ENABLED: false
 
-crm_issue_28:
-  compiler: empty AST throws, unknown facts refused, op/type checks, depth/node caps
-  graph: unique ids, yes+no branches, cycles, unreachable, MAX_STEPS, appliedNodes skip
-  family: resolvePromotion uses quote item slugs; unknown family fail closed
-  risk: risk.read / risk.write; no customers.read leak
-  analytics: yearly/12 MRR; firstPaid = MIN(paidAt) in range, not distinct payers
-  facts: all instances + CatalogVariant families; event derive + repairStaleFacts
-  events: registration, email_verified, first_purchase, ticket_opened
-  worker: resumeWaitingAutomations 10s, repairStaleFacts 5m, dispatchDueCampaigns 60s
-  campaigns: queueCampaign shared by route+worker; consent/frequency; planned not sent
-  automations: POST /run uses runAutomation (same crash-safe engine as worker)
-  referrals: lookupReferralCode before create; invalid code 400; qualify on first_purchase; reverse on refund
-  stripe_coupon: repeating + duration_in_months when recurringPeriods > 0 (months, not yearly)
-  discord: planCommunityAnnouncement memory/off; delivered always false
-  tests: crm.test + crm-ops + Playwright stub desk (announce)
+this_slice:
+  stripe: promotionCouponSpec maps billing periods to Stripe months; yearly 2+ fail closed (Stripe 12-month cap)
+  campaigns: dispatchCursor + dispatchCompletedAt; worker does not rewrite recipients; frequency cap ignores same campaign
+  #18: SANDBOX_LIMITS, cancelIsolatedBuild, recoverStaleBuilds, dispatch payload never executes in API
+  #19: GAME_CAPABILITIES registry + GET /instances/:id/game-capabilities; GameTab reads registry
+  #25: ownership TXT + saasReconcile Admin
+  #27: quote TTL 15m; expired fixture quotes not sellable
+  #28: Referrals desk + Playwright stub; Discord memory adapter unchanged
+  tests: promotion-coupon, domain-lifecycle, crm, crm-ops, catalog-structure, addon-lifecycle 50/50
 
-shipped_this_slice:
-  247f4170 CRM engine unify, firstPaid, referral 400, campaign worker, Discord memory adapter
-  7db4de34 Admin preset rollback UI + catalog-structure test
-  b3e493f8 hide Game tab unless product has GAME_WORKSPACES
-
-missing_for_github_close:
-  live staff Playwright (needs E2E_STAFF_* on isolated bench)
-  live Stripe tax/credit posting (PAYMENTS_ENABLED false)
-  live marketing send (MARKETING_DELIVERY_ENABLED false)
-  Discord production post (forbidden)
-  GitHub issue comments (no gh on this host)
-
-issues:
-  28 not closed (live send / Stripe / staff E2E still owner)
-  20 not closed (0 orderable SKUs; rollback Admin now exists; commercial publish still gated)
-  19 Game tab hidden for unsupported slugs; Minecraft Java stays on Minecraft tab
-  22 18 21 24 25 26 27 remain flags-off with isolated adapters; no live entitlements
+issue_status:
+  28 INCOMPLETE: isolated staff Playwright still needs a bench API; live send/Stripe off
+  20 ENGINEERING COMPLETE / ACTIVATION BLOCKED: catalog lifecycle + rollback; 0 orderable SKUs
+  19 INCOMPLETE: registry + Minecraft tab exist; player/world/plugin backends already on Minecraft Java; other games config-only
+  22 ENGINEERING COMPLETE / ACTIVATION BLOCKED: addon jobs + backup gate; no writes on customer servers in tests
+  18 ENGINEERING COMPLETE / ACTIVATION BLOCKED: provisioner/lifecycle; SMART_DEPLOY_SANDBOX missing so jobs stay blocked_no_sandbox
+  21 INCOMPLETE: proration exists; recurring coupon mapping now correct; live payments off
+  24 ENGINEERING COMPLETE / ACTIVATION BLOCKED: SRV registry; GAME_CONNECT off
+  25 ENGINEERING COMPLETE / ACTIVATION BLOCKED: adapter + ownership + reconcile; paid entitlement off
+  26 ENGINEERING COMPLETE / ACTIVATION BLOCKED: preview/approval; MAIL_DNS_WRITES off
+  27 ENGINEERING COMPLETE / ACTIVATION BLOCKED: fixture .example only; DOMAIN_COMMERCE off
 
 next_executable:
-  authenticated Playwright bench if E2E_STAFF_* exists; else vendor-sandbox work only when credentials exist
-
-ci: GitHub Actions not listed from this host (no gh)
-
-external:
-  SMART_DEPLOY_SANDBOX
-  CF SaaS entitlement
-  GAME_CONNECT client
-  registrar live
+  deploy this SHA, confirm CI, then Minecraft capability-gated Advanced UI leftovers and Smart Connect staging allocation tests if a disposable node exists

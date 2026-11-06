@@ -5,7 +5,7 @@ import { Link } from '../router';
 import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput } from '../ui-app';
 import { can, denseGhost, densePrimary, useAdminSession } from './Overview';
 
-type Tab = 'overview' | 'segments' | 'campaigns' | 'automations' | 'templates' | 'tasks' | 'opportunities' | 'analytics' | 'risk';
+type Tab = 'overview' | 'segments' | 'campaigns' | 'automations' | 'templates' | 'tasks' | 'opportunities' | 'analytics' | 'referrals' | 'risk';
 
 interface Campaign { id: string; name: string; status: string; suppressed: boolean; channel?: string; objective?: string }
 interface Segment { id: string; name: string; kind?: string; version?: number }
@@ -22,6 +22,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'tasks', label: 'Tasks' },
   { id: 'opportunities', label: 'Opportunities' },
   { id: 'analytics', label: 'Analytics' },
+  { id: 'referrals', label: 'Referrals' },
   { id: 'risk', label: 'Risk review' },
 ];
 
@@ -99,6 +100,7 @@ export default function CrmDesk() {
       {tab === 'tasks' && <TasksPane mayWrite={mayCustomers} />}
       {tab === 'opportunities' && <OpportunitiesPane />}
       {tab === 'analytics' && <AnalyticsPane />}
+      {tab === 'referrals' && <ReferralsPane />}
       {tab === 'risk' && (mayRiskRead ? <RiskPane mayWrite={mayRisk} /> : <EmptyState title="No access" description="Risk review needs risk.read." />)}
     </div>
   );
@@ -411,6 +413,22 @@ function AnalyticsPane() {
           </div>
         ))}
       </dl>
+    </Panel>
+  );
+}
+
+function ReferralsPane() {
+  const state = useAsync<{ referrals: { id: string; referrerId: string; referredId: string; code: string; status: string }[] }>((signal) => get('/admin/crm/referrals', undefined, signal), []);
+  if (state.loading && !state.data) return <LoadingBlock rows={2} label="Loading referrals" />;
+  if (state.error) return <ErrorState title="Referrals could not be loaded" message={state.error.message} onRetry={state.reload} />;
+  return (
+    <Panel title="Referral accounting" description="Pending becomes qualified on first paid order. A refund of that order reverses the row. Credits are not invented.">
+      <ul className="grid gap-2">
+        {(state.data?.referrals ?? []).map((row) => (
+          <li key={row.id} className="rounded-2xl bg-s2 px-3 py-2 text-[14px] text-ink">{row.code} · {row.status}</li>
+        ))}
+        {(state.data?.referrals ?? []).length === 0 && <EmptyState title="No referrals." description="A customer shares a code. Invalid codes fail at registration." />}
+      </ul>
     </Panel>
   );
 }

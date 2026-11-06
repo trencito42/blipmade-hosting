@@ -18,10 +18,11 @@ import {
 } from '../services/addon-lifecycle.js';
 import { fixtureProvider, domainCommerceEnabled } from '../services/domain-commerce.js';
 import { nextRegistrationState, quoteToRegistration, sellingAllowed, type RegistrationEvent, type RegistrationState } from '../services/domain-lifecycle.js';
-import { cloudflareSaasEnabled, memorySaasAdapter, saasPlan, saasTransition } from '../services/cloudflare-saas.js';
+import { cloudflareSaasEnabled, memorySaasAdapter, ownershipTxt, saasPlan, saasReconcile, saasTransition, type SaasHostnameState } from '../services/cloudflare-saas.js';
 import { mailDnsWritesEnabled, mailToCustomerRecords, mailWriteDecision, previewMailDns, rollbackCopy } from '../services/mail-dns-apply.js';
 import { mailDnsRecords } from '../services/mail-dns.js';
-import { planIsolatedBuild } from '../services/isolated-build.js';
+import { cancelIsolatedBuild, planIsolatedBuild } from '../services/isolated-build.js';
+import { capabilitiesFor } from '../services/game-capabilities.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
 import * as application from '../services/pterodactyl/application.js';
@@ -256,6 +257,31 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     return { job, plan };
   });
 
+  app.get('/catalog/import/:id/builds', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const source = await prisma.importSource.findFirst({ where: { id, userId: user.id } });
+    if (!source) throw notFound('Import not found.');
+    const jobs = await prisma.isolatedBuildJob.findMany({ where: { importSourceId: source.id }, orderBy: { createdAt: 'desc' }, take: 20 });
+    return { jobs, executes: false };
+  });
+
+  app.post('/catalog/builds/:jobId/cancel', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { jobId } = z.object({ jobId: z.string() }).parse(request.params);
+    const result = await cancelIsolatedBuild(jobId, user.id);
+    if (!result.ok && result.status === 'missing') throw notFound(result.reason);
+    if (!result.ok) throw badRequest(result.reason);
+    return result;
+  });
+
+  app.get('/instances/:id/game-capabilities', async (request: FastifyRequest) => {
+    const { instance } = await ownedInstance(request);
+    const row = await prisma.instance.findUnique({ where: { id: instance.id }, select: { product: { select: { slug: true } } } });
+    const slug = row?.product.slug ?? '';
+    return { slug, profile: capabilitiesFor(slug) };
+  });
+
   app.post('/domains/:id/mail-dns', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
@@ -392,7 +418,17 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     const created = await saasMemory.create(plan.hostname);
     const next = saasTransition('draft', 'submit') ?? 'pending_dns';
     const row = await prisma.saasCustomHostname.create({ data: { userId: staff.id, hostname: plan.hostname, state: next, providerId: created.id } });
-    return { hostname: row, plan };
+    return { hostname: row, plan, ownership: ownershipTxt(plan.hostname, row.id) };
+  });
+
+  app.post('/admin/domains/saas/:id/reconcile', { preHandler: requirePermission('settings.write') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const row = await prisma.saasCustomHostname.findUnique({ where: { id } });
+    if (!row) throw notFound('Custom hostname not found.');
+    const provider = row.providerId ? await saasMemory.status(row.providerId) : { state: row.state as SaasHostnameState };
+    const state = saasReconcile(row.state as SaasHostnameState, provider.state);
+    const updated = await prisma.saasCustomHostname.update({ where: { id }, data: { state } });
+    return { hostname: updated, ownership: ownershipTxt(updated.hostname, updated.id) };
   });
 
   app.get('/admin/domains/commerce', { preHandler: requirePermission('settings.read') }, async () => {

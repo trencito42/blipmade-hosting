@@ -1,4 +1,4 @@
-import type { DomainCommerceAction, DomainOffer } from './domain-commerce.js';
+import { quoteStillValid, type DomainCommerceAction, type DomainOffer } from './domain-commerce.js';
 
 export type RegistrationState =
   | 'quoted'
@@ -40,7 +40,7 @@ export function nextRegistrationState(state: RegistrationState, event: Registrat
 }
 
 export function sellingAllowed(enabled: boolean, offer: DomainOffer): boolean {
-  return enabled && offer.state === 'available' && offer.amount !== null && offer.domain.endsWith('.example');
+  return enabled && offer.state === 'available' && offer.amount !== null && offer.domain.endsWith('.example') && quoteStillValid(offer);
 }
 
 export function quoteToRegistration(userId: string, offer: DomainOffer, action: DomainCommerceAction): {
