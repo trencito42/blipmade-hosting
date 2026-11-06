@@ -20,6 +20,7 @@ export interface FactDefinition {
 export const FACT_REGISTRY: Record<string, FactDefinition> = {
   'core.lifecycle': { key: 'core.lifecycle', kind: 'enum', classification: 'general', source: 'account', values: ['lead', 'active', 'churned', 'suspended'], marketing: true },
   'core.plan_family': { key: 'core.plan_family', kind: 'string', classification: 'general', source: 'catalog', marketing: true },
+  'core.plan_families': { key: 'core.plan_families', kind: 'string', classification: 'general', source: 'catalog', marketing: true },
   'billing.spend_cents': { key: 'billing.spend_cents', kind: 'number', classification: 'general', source: 'billing', marketing: true },
   'billing.spend_band': { key: 'billing.spend_band', kind: 'enum', classification: 'general', source: 'billing', values: ['none', 'low', 'mid', 'high'], marketing: true },
   'billing.paid_orders': { key: 'billing.paid_orders', kind: 'number', classification: 'general', source: 'billing', marketing: true },
@@ -102,33 +103,76 @@ export function assertMarketingFact(key: string): FactDefinition {
   return def;
 }
 
+const CMPS: CmpOp[] = ['eq', 'neq', 'gt', 'lt', 'gte', 'lte', 'contains', 'not_contains', 'in', 'not_in', 'exists', 'not_exists', 'older_than_days', 'within_days'];
+const MAX_SEGMENT_DEPTH = 8;
+const MAX_SEGMENT_NODES = 40;
+const NUMERIC_CMP = new Set<CmpOp>(['gt', 'lt', 'gte', 'lte']);
+const TEXT_CMP = new Set<CmpOp>(['contains', 'not_contains']);
+const DATE_CMP = new Set<CmpOp>(['older_than_days', 'within_days']);
+
+function asCmp(value: unknown): CmpOp {
+  if (typeof value !== 'string' || !CMPS.includes(value as CmpOp)) throw new Error('That comparison is not supported.');
+  return value as CmpOp;
+}
+
+function countExpr(expr: SegmentExpr): number {
+  if ('op' in expr && (expr.op === 'and' || expr.op === 'or')) return 1 + expr.children.reduce((sum, child) => sum + countExpr(child), 0);
+  if ('op' in expr && expr.op === 'not') return 1 + countExpr(expr.child);
+  return 1;
+}
+
+function assertCmpForFact(def: FactDefinition, cmp: CmpOp): void {
+  if (cmp === 'exists' || cmp === 'not_exists') return;
+  if (def.kind === 'number' && (TEXT_CMP.has(cmp) || DATE_CMP.has(cmp))) throw new Error(`Fact ${def.key} is numeric.`);
+  if (def.kind === 'enum' && (NUMERIC_CMP.has(cmp) || TEXT_CMP.has(cmp) || DATE_CMP.has(cmp))) throw new Error(`Fact ${def.key} is an enumeration.`);
+  if (def.kind === 'date' && !DATE_CMP.has(cmp) && cmp !== 'eq' && cmp !== 'neq') throw new Error(`Fact ${def.key} is a date.`);
+  if (def.kind === 'string' && NUMERIC_CMP.has(cmp)) throw new Error(`Fact ${def.key} is not numeric.`);
+}
+
+function parseExpr(raw: unknown, depth: number): SegmentExpr {
+  if (depth > MAX_SEGMENT_DEPTH) throw new Error('The segment is nested too deeply.');
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('The segment filter is not valid.');
+  const row = raw as Record<string, unknown>;
+  if ('expr' in row) return parseExpr(row.expr, depth + 1);
+  if (row.op === 'and' || row.op === 'or') {
+    if (!Array.isArray(row.children) || row.children.length < 1) throw new Error('A group must contain at least one condition.');
+    return { op: row.op, children: row.children.map((child) => parseExpr(child, depth + 1)) };
+  }
+  if (row.op === 'not') return { op: 'not', child: parseExpr(row.child, depth + 1) };
+  if (typeof row.fact === 'string') {
+    const def = assertMarketingFact(row.fact);
+    const cmp = asCmp(row.cmp ?? 'eq');
+    assertCmpForFact(def, cmp);
+    if ((cmp === 'in' || cmp === 'not_in') && !Array.isArray(row.values)) throw new Error('in / not in needs a list of values.');
+    if (NUMERIC_CMP.has(cmp) && !Number.isFinite(Number(row.value))) throw new Error('A numeric comparison needs a number.');
+    return { fact: def.key, cmp, value: typeof row.value === 'string' ? row.value : row.value != null ? String(row.value) : undefined, values: Array.isArray(row.values) ? row.values.map(String) : undefined, days: typeof row.days === 'number' ? row.days : undefined };
+  }
+  if (row.field === 'tags' || row.field === 'marketing' || row.field === 'created_at') {
+    const cmp = asCmp(row.cmp ?? 'eq');
+    if (row.field === 'marketing' && cmp !== 'eq' && cmp !== 'neq') throw new Error('Marketing consent only supports equals.');
+    if (row.field === 'created_at' && !DATE_CMP.has(cmp)) throw new Error('Account age only supports duration comparisons.');
+    return { field: row.field, cmp, value: typeof row.value === 'string' ? row.value : undefined, values: Array.isArray(row.values) ? row.values.map(String) : undefined, days: typeof row.days === 'number' ? row.days : undefined };
+  }
+  if (row.facts || row.marketing !== undefined || row.tags) {
+    const children: SegmentExpr[] = [];
+    for (const [key, value] of Object.entries((row.facts ?? {}) as Record<string, unknown>)) {
+      if (typeof value !== 'string') throw new Error('Fact values must be strings.');
+      const def = assertMarketingFact(key);
+      children.push({ fact: def.key, cmp: 'eq', value });
+    }
+    if (row.marketing === true) children.push({ field: 'marketing', cmp: 'eq', value: 'true' });
+    if (row.marketing === false) children.push({ field: 'marketing', cmp: 'eq', value: 'false' });
+    if (Array.isArray(row.tags) && row.tags.length) children.push({ field: 'tags', cmp: 'in', values: row.tags.map(String) });
+    if (!children.length) throw new Error('The segment has no conditions.');
+    return { op: 'and', children };
+  }
+  throw new Error('The segment has no conditions.');
+}
+
 export function parseSegmentFilter(raw: unknown): SegmentExpr {
-  if (!raw || typeof raw !== 'object') return { op: 'and', children: [] };
-  const row = raw as SegmentFilter & SegmentExpr;
-  if ('expr' in row && row.expr) return parseSegmentFilter(row.expr);
-  if ('op' in row && (row.op === 'and' || row.op === 'or') && Array.isArray((row as { children?: unknown }).children)) {
-    return { op: row.op, children: ((row as { children: unknown[] }).children).map(parseSegmentFilter) };
-  }
-  if ('op' in row && row.op === 'not' && 'child' in row) {
-    return { op: 'not', child: parseSegmentFilter((row as { child: unknown }).child) };
-  }
-  if ('fact' in row && typeof (row as { fact: unknown }).fact === 'string') {
-    const node = row as { fact: string; cmp?: CmpOp; value?: string; values?: string[]; days?: number };
-    assertMarketingFact(node.fact);
-    return { fact: canonicalFactKey(node.fact), cmp: node.cmp ?? 'eq', value: node.value, values: node.values, days: node.days };
-  }
-  if ('field' in row && typeof (row as { field: unknown }).field === 'string') {
-    return row as SegmentExpr;
-  }
-  const children: SegmentExpr[] = [];
-  for (const [key, value] of Object.entries(row.facts ?? {})) {
-    assertMarketingFact(key);
-    children.push({ fact: canonicalFactKey(key), cmp: 'eq', value });
-  }
-  if (row.marketing === true) children.push({ field: 'marketing', cmp: 'eq', value: 'true' });
-  if (row.marketing === false) children.push({ field: 'marketing', cmp: 'eq', value: 'false' });
-  if (row.tags?.length) children.push({ field: 'tags', cmp: 'in', values: row.tags });
-  return { op: 'and', children };
+  const expr = parseExpr(raw, 0);
+  if (countExpr(expr) > MAX_SEGMENT_NODES) throw new Error('The segment has too many conditions.');
+  return expr;
 }
 
 function factValue(ctx: SegmentContext, key: string): FactRow | undefined {
@@ -160,7 +204,7 @@ function cmpNumber(left: number, op: CmpOp, right: number): boolean {
 
 export function evalExpr(expr: SegmentExpr, ctx: SegmentContext, now = new Date()): boolean {
   if ('op' in expr && (expr.op === 'and' || expr.op === 'or')) {
-    if (!expr.children.length) return expr.op === 'and';
+    if (!expr.children.length) return false;
     return expr.op === 'and' ? expr.children.every((child) => evalExpr(child, ctx, now)) : expr.children.some((child) => evalExpr(child, ctx, now));
   }
   if ('op' in expr && expr.op === 'not') return !evalExpr(expr.child, ctx, now);
@@ -343,6 +387,11 @@ export function campaignMayDeliver(input: {
   return { ok: true, reason: 'Delivery is enabled.', deliver: true };
 }
 
+export function monthlyRecurringCents(amount: number, period: 'MONTHLY' | 'YEARLY' | string | null | undefined): number {
+  if (period === 'YEARLY') return Math.round(amount / 12);
+  return amount;
+}
+
 export function spendBand(cents: number): string {
   if (cents <= 0) return 'none';
   if (cents < 2000) return 'low';
@@ -380,8 +429,9 @@ export function promotionCrmGate(input: {
   if (input.privateCode && (!input.userId || input.assignedUserId !== input.userId)) {
     return { ok: false, reason: 'This code is assigned to another account.' };
   }
-  if (input.familySlug && input.orderFamily && input.familySlug !== input.orderFamily) {
-    return { ok: false, reason: 'This code does not apply to this product family.' };
+  if (input.familySlug) {
+    if (!input.orderFamily) return { ok: false, reason: 'The product family of this order is unknown, so the code cannot apply.' };
+    if (input.familySlug !== input.orderFamily) return { ok: false, reason: 'This code does not apply to this product family.' };
   }
   return { ok: true };
 }

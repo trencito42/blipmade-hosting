@@ -16,7 +16,7 @@ export async function deriveCustomerFacts(userId: string): Promise<void> {
       discordCommunityLinks: { select: { id: true }, take: 1 },
       connectedIdentities: { select: { id: true }, take: 1 },
       tickets: { where: { status: { not: 'CLOSED' } }, select: { id: true }, take: 1 },
-      instances: { select: { status: true, product: { select: { slug: true } } }, take: 20 },
+      instances: { select: { status: true, createdAt: true, productId: true, product: { select: { slug: true, id: true } } } },
     },
   });
   if (!user) return;
@@ -27,11 +27,17 @@ export async function deriveCustomerFacts(userId: string): Promise<void> {
   const cents = spent._sum.amount ?? 0;
   const active = user.instances.some((row) => row.status === 'ONLINE' || row.status === 'RESTARTING');
   const lifecycle = user.suspendedAt ? 'suspended' : paidOrders === 0 ? 'lead' : active ? 'active' : 'churned';
-  const family = user.instances[0]?.product.slug ?? '';
+  const families = await familiesForProductIds(user.instances.map((row) => row.productId));
+  const newest = [...user.instances].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const live = newest.filter((row) => row.status === 'ONLINE' || row.status === 'RESTARTING');
+  const primaryId = (live[0] ?? newest[0])?.productId;
+  const family = (primaryId ? families.get(primaryId) : null) ?? 'none';
+  const familyList = [...new Set([...families.values()].filter(Boolean))].sort().join(',');
   const staleAt = new Date(Date.now() + STALE_MS);
   const rows: { key: string; value: string; numeric?: number; occurredAt?: Date; source: string; classification: FactClass }[] = [
     { key: 'core.lifecycle', value: lifecycle, source: 'account', classification: 'general' },
     { key: 'core.plan_family', value: family || 'none', source: 'catalog', classification: 'general' },
+    { key: 'core.plan_families', value: familyList || 'none', source: 'catalog', classification: 'general' },
     { key: 'billing.spend_cents', value: String(cents), numeric: cents, source: 'billing', classification: 'general' },
     { key: 'billing.spend_band', value: spendBand(cents), source: 'billing', classification: 'general' },
     { key: 'billing.paid_orders', value: String(paidOrders), numeric: paidOrders, source: 'billing', classification: 'general' },
@@ -72,6 +78,26 @@ export async function deriveCustomerFacts(userId: string): Promise<void> {
   }
 }
 
+export async function familiesForProductIds(productIds: string[]): Promise<Map<string, string>> {
+  if (!productIds.length) return new Map();
+  const variants = await prisma.catalogVariant.findMany({
+    where: { productId: { in: [...new Set(productIds)] } },
+    select: { productId: true, family: { select: { slug: true } } },
+  });
+  return new Map(variants.map((row) => [row.productId, row.family.slug]));
+}
+
+export async function familiesForProductSlugs(slugs: string[]): Promise<(string | null)[]> {
+  if (!slugs.length) return [];
+  const products = await prisma.product.findMany({ where: { slug: { in: slugs } }, select: { id: true, slug: true } });
+  const families = await familiesForProductIds(products.map((row) => row.id));
+  return slugs.map((slug) => {
+    const product = products.find((row) => row.slug === slug);
+    if (!product) return null;
+    return families.get(product.id) ?? null;
+  });
+}
+
 export async function customerInSegment(userId: string, segmentId: string): Promise<boolean> {
   const segment = await prisma.customerSegment.findUnique({ where: { id: segmentId } });
   if (!segment) return false;
@@ -102,4 +128,15 @@ export async function recomputeFactsPage(take = 200, cursor?: string): Promise<{
   });
   for (const user of users) await deriveCustomerFacts(user.id);
   return { count: users.length, next: users.at(-1)?.id ?? null };
+}
+
+export async function repairStaleFacts(take = 50): Promise<number> {
+  const stale = await prisma.customerFact.findMany({
+    where: { OR: [{ staleAt: { lte: new Date() } }, { staleAt: null }], provenance: 'derive' },
+    distinct: ['userId'],
+    take,
+    select: { userId: true },
+  });
+  for (const row of stale) await deriveCustomerFacts(row.userId);
+  return stale.length;
 }

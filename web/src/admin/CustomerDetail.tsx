@@ -353,8 +353,8 @@ export default function CustomerDetail() {
           ))}
         </div>
       </nav>
-      {section === 'overview' && (
-        <RiskPanel customerId={customer.id} mayWrite={mayWrite} onChanged={state.reload} />
+      {section === 'overview' && can(staff, 'risk.read') && (
+        <RiskPanel customerId={customer.id} mayWrite={can(staff, 'risk.write')} onChanged={state.reload} />
       )}
       {section === 'growth' && <CustomerGrowth customerId={customer.id} />}
       {section === 'security' && (

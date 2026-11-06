@@ -2714,6 +2714,7 @@ model AutomationRun {
   waitUntil     DateTime?
   lastError     String?
   attempts      Int       @default(0)
+  appliedNodes  String[]  @default([])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

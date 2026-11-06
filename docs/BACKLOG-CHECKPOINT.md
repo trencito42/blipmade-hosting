@@ -1,7 +1,7 @@
 # Backlog checkpoint
 
-resume_sha: work/disable-checkout CRM growth platform (after ae3f0a3)
-production_before: ae3f0a3cf5fedf111850ac84047ae01fd941e8ef
+resume_sha: work/disable-checkout CRM fail-closed compiler, graph, family, risk RBAC
+production_before: 428eacb5e6f8773c6907b77bca80f0f867847723
 flags:
   PAYMENTS_ENABLED: false
   MAIL_SALES_ENABLED: false
@@ -12,20 +12,21 @@ flags:
   MARKETING_DELIVERY_ENABLED: false
 
 crm_issue_28:
-  facts: namespaced registry, derive from billing/tickets/discord/oauth/consent
-  segments: nested AND/OR, compileSegmentWhere (no take 200)
-  campaigns: studio + queue with per-recipient consent, Discord DMs refused
-  automations: persistent graph, wait, branch, dedupe, delivery off
-  promotions: segment/first-purchase/private gates in resolvePromotion
-  risk: evaluation history + overrides, shadow, no auto-reject
-  analytics: real aggregates only
-  ui: /admin/crm tabs + customer Growth 360
-  campaignMayDeliver: never hardcoded marketingConsent true on approve
+  compiler: empty AST throws, unknown facts refused, op/type checks, depth/node caps
+  graph: unique ids, yes+no branches, cycles, unreachable, MAX_STEPS, appliedNodes skip
+  family: resolvePromotion uses quote item slugs; unknown family fail closed
+  risk: risk.read / risk.write; no customers.read leak
+  analytics: yearly/12 MRR snapshot vs period collected/refund/tax
+  facts: all instances + CatalogVariant families; event derive + repairStaleFacts
+  events: registration, email_verified, first_purchase, ticket_opened
+  worker: resumeWaitingAutomations 10s, repairStaleFacts 5m
+  campaigns: consent/frequency at queue; planned not sent while delivery off
+  tests: crm.test + crm-ops (250 audience) + Playwright stub desk
 
 missing_for_github_close:
-  E2E browser journeys against a staff session
+  live staff Playwright against production session
   live Stripe tax/credit posting (PAYMENTS_ENABLED false)
-  live marketing send
+  live marketing send (MARKETING_DELIVERY_ENABLED false)
   GitHub issue write
 
 external:

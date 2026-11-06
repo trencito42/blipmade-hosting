@@ -571,6 +571,8 @@ async function main(): Promise<void> {
   // The containers are asked about every minute: the customer zone shows
   // what the node says, so the state of a service that runs has to be fresh.
   timers.push(setInterval(() => void watchRuntimeState().catch((error) => console.error('[worker] the state of the containers could not be read', error)), 60_000));
+  timers.push(setInterval(() => void import('./services/crm-dispatch.js').then(({ resumeWaitingAutomations }) => resumeWaitingAutomations()).catch((error) => console.error('[worker] crm wait resume failed', error)), 10_000));
+  timers.push(setInterval(() => void import('./services/crm-facts.js').then(({ repairStaleFacts }) => repairStaleFacts()).catch((error) => console.error('[worker] crm fact repair failed', error)), 5 * 60_000));
 }
 
 const shutdown = async () => {

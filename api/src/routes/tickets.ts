@@ -22,6 +22,7 @@ import {
   notifyTicketStatusChanged,
 } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
+import { dispatchCrmEvent } from '../services/crm-dispatch.js';
 import {
   readAttachment,
   removeAttachment,
@@ -241,6 +242,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
     await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'created', message: 'Ticket opened.', actorId: user.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.created', targetType: 'ticket', targetId: ticket.id });
+    void dispatchCrmEvent({ trigger: 'ticket_opened', userId: user.id, eventId: `ticket:${ticket.id}` }).catch(() => undefined);
 
     // The customer is told that the ticket is in the queue, and the staff
     // that works the queue is told that a new ticket arrived. The two

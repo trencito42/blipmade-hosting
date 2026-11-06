@@ -77,6 +77,8 @@ export default function CrmDesk() {
   const session = useAdminSession();
   const mayWrite = can(session.staff, 'promotions.write');
   const mayCustomers = can(session.staff, 'customers.write');
+  const mayRisk = can(session.staff, 'risk.write');
+  const mayRiskRead = can(session.staff, 'risk.read');
   const [tab, setTab] = useState<Tab>('overview');
   return (
     <div className="grid gap-4">
@@ -97,7 +99,7 @@ export default function CrmDesk() {
       {tab === 'tasks' && <TasksPane mayWrite={mayCustomers} />}
       {tab === 'opportunities' && <OpportunitiesPane />}
       {tab === 'analytics' && <AnalyticsPane />}
-      {tab === 'risk' && <RiskPane mayWrite={mayCustomers} />}
+      {tab === 'risk' && (mayRiskRead ? <RiskPane mayWrite={mayRisk} /> : <EmptyState title="No access" description="Risk review needs risk.read." />)}
     </div>
   );
 }
@@ -148,7 +150,7 @@ function SegmentsPane({ mayWrite }: { mayWrite: boolean }) {
         {(segments.data?.segments ?? []).map((segment) => (
           <li key={segment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-3 py-2">
             <span className="text-[14px] text-ink">{segment.name} · v{segment.version ?? 1} · {segment.kind ?? 'dynamic'}</span>
-            {mayWrite && <SoftButton type="button" onClick={() => void runPreview.run(segment.id)}>Count audience</SoftButton>}
+            <SoftButton type="button" onClick={() => void runPreview.run(segment.id)}>Count audience</SoftButton>
           </li>
         ))}
       </ul>
@@ -212,6 +214,7 @@ function CampaignsPane({ mayWrite }: { mayWrite: boolean }) {
               <span className="flex gap-2">
                 <SoftButton type="button" onClick={() => void queue.run(campaign.id)}>Queue (no live send)</SoftButton>
                 <SoftButton type="button" onClick={() => void act.run(campaign.id, 'pause')}>Pause</SoftButton>
+                <SoftButton type="button" onClick={() => void act.run(campaign.id, 'suppress')}>Suppress</SoftButton>
               </span>
             )}
             {mayWrite && campaign.status === 'paused' && <SoftButton type="button" onClick={() => void act.run(campaign.id, 'resume')}>Resume</SoftButton>}
@@ -253,7 +256,15 @@ function AutomationsPane({ mayWrite }: { mayWrite: boolean }) {
       )}
       <ul className="grid gap-2">
         {(state.data?.automations ?? []).map((row) => (
-          <li key={row.id} className="rounded-2xl bg-s2 px-3 py-2 text-[14px] text-ink">{row.name} · {row.trigger} · {row.paused ? 'paused' : row.status}</li>
+          <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-3 py-2 text-[14px] text-ink">
+            <span>{row.name} · {row.trigger} · {row.paused ? 'paused' : row.status}</span>
+            {mayWrite && (
+              <span className="flex gap-1">
+                {row.status !== 'active' && <SoftButton type="button" onClick={() => void post(`/admin/crm/automations/${encodeURIComponent(row.id)}/activate`, {}).then(() => state.reload())}>Activate</SoftButton>}
+                {!row.paused && <SoftButton type="button" onClick={() => void post(`/admin/crm/automations/${encodeURIComponent(row.id)}/pause`, {}).then(() => state.reload())}>Pause</SoftButton>}
+              </span>
+            )}
+          </li>
         ))}
         {(state.data?.automations ?? []).length === 0 && <EmptyState title="No automations." description="A draft records the graph. It does not send mail." />}
       </ul>
@@ -322,21 +333,28 @@ function OpportunitiesPane() {
 }
 
 function AnalyticsPane() {
-  const state = useAsync<{ acquisition: number; paidOrders: number; mrrCents: number; churnedSubscriptions: number; promotionRedemptions: number; marketingOptIn: number; marketingOptOut: number; invented: boolean }>((signal) => get('/admin/crm/analytics', undefined, signal), []);
+  const state = useAsync<{
+    snapshotAt: string;
+    period: { acquisition: number; paidOrders: number; collectedCents: number; refundedCents: number; taxCents: number; churnedSubscriptions: number; promotionRedemptions: number };
+    snapshot: { mrrCents: number; marketingOptIn: number; marketingOptOut: number };
+  }>((signal) => get('/admin/crm/analytics', undefined, signal), []);
   if (state.loading && !state.data) return <LoadingBlock rows={3} label="Loading analytics" />;
   if (state.error) return <ErrorState title="Analytics could not be loaded" message={state.error.message} onRetry={state.reload} />;
   const data = state.data!;
   return (
-    <Panel title="Growth analytics" description="Counts from User, Order, Subscription, CampaignSend and NotificationPreference. Nothing is estimated.">
+    <Panel title="Growth analytics" description="Period metrics use paidAt/createdAt in range. MRR is a current snapshot: yearly amounts are divided by 12. Nothing is estimated.">
+      <p className="mb-2 text-[12px] text-ink3">Snapshot {data.snapshotAt}</p>
       <dl className="grid gap-2 sm:grid-cols-3">
         {([
-          ['New customers', data.acquisition],
-          ['Paid orders', data.paidOrders],
-          ['Active MRR cents', data.mrrCents],
-          ['Cancelled subscriptions', data.churnedSubscriptions],
-          ['Promotion redemptions', data.promotionRedemptions],
-          ['Marketing opt-in', data.marketingOptIn],
-          ['Marketing opt-out', data.marketingOptOut],
+          ['New customers (period)', data.period.acquisition],
+          ['Paid orders (period)', data.period.paidOrders],
+          ['Collected cents (period)', data.period.collectedCents],
+          ['Refunded cents (period)', data.period.refundedCents],
+          ['Tax cents (period)', data.period.taxCents],
+          ['Cancelled subscriptions (period)', data.period.churnedSubscriptions],
+          ['MRR cents (snapshot)', data.snapshot.mrrCents],
+          ['Marketing opt-in (snapshot)', data.snapshot.marketingOptIn],
+          ['Marketing opt-out (snapshot)', data.snapshot.marketingOptOut],
         ] as const).map(([label, value]) => (
           <div key={label} className="rounded-2xl bg-s2 px-4 py-3">
             <dt className="text-[12px] text-ink3">{label}</dt>

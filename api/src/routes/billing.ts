@@ -225,7 +225,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     const subtotal = priced.reduce((sum, item) => sum + item.total, 0);
     const quoteCurrency = priced[0]?.currency ?? 'EUR';
 
-    const resolved = await resolvePromotion(body.promotionCode, user.id);
+    const resolved = await resolvePromotion(body.promotionCode, user.id, { productSlugs: body.items.map((item) => item.productSlug) });
     let discount = 0;
     if (resolved.valid && resolved.code) {
       const promotion = await prisma.promotion.findUnique({ where: { code: resolved.code } });

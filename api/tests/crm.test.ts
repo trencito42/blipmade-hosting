@@ -5,6 +5,7 @@ import {
   compileSegmentWhere,
   evalExpr,
   matchesSegment,
+  monthlyRecurringCents,
   parseSegmentFilter,
   promotionCrmGate,
   spendBand,
@@ -55,6 +56,13 @@ describe('crm segments and campaigns', () => {
     expect(() => parseSegmentFilter({ fact: 'security.shared_ip', cmp: 'eq', value: '1' })).toThrow(/Unknown fact|Security/);
   });
 
+  it('fails closed on empty or unsupported AST', () => {
+    expect(() => parseSegmentFilter({})).toThrow(/no conditions/);
+    expect(() => parseSegmentFilter({ op: 'and', children: [] })).toThrow(/at least one/);
+    expect(() => parseSegmentFilter({ fact: 'core.lifecycle', cmp: 'gt', value: '1' })).toThrow(/enumeration/);
+    expect(() => compileSegmentWhere({})).toThrow(/no conditions/);
+  });
+
   it('compiles a Prisma where without sampling the first 200 rows', () => {
     const where = compileSegmentWhere({ facts: { lifecycle: 'active' }, marketing: true });
     expect(where).toMatchObject({ role: 'CUSTOMER' });
@@ -103,6 +111,12 @@ describe('crm segments and campaigns', () => {
       firstPurchaseOnly: false, paidOrders: 0, privateCode: true, assignedUserId: 'u1', userId: 'u2',
       familySlug: null, orderFamily: null, inSegment: true, hasSegment: false,
     }).ok).toBe(false);
+    expect(promotionCrmGate({
+      firstPurchaseOnly: false, paidOrders: 0, privateCode: false, assignedUserId: null, userId: 'u1',
+      familySlug: 'minecraft', orderFamily: null, inSegment: true, hasSegment: false,
+    }).ok).toBe(false);
+    expect(monthlyRecurringCents(1200, 'YEARLY')).toBe(100);
+    expect(monthlyRecurringCents(500, 'MONTHLY')).toBe(500);
   });
 });
 
@@ -163,6 +177,21 @@ describe('crm automation', () => {
   it('backs off retries', () => {
     expect(backoffMs(0)).toBe(1000);
     expect(backoffMs(8)).toBe(60_000);
+  });
+
+  it('rejects cycles and missing branches', () => {
+    const cycle = parseGraph({
+      start: 'a',
+      nodes: [{ id: 'a', type: 'wait', ms: 10 }, { id: 'b', type: 'stop' }],
+      edges: [{ from: 'a', to: 'a' }],
+    });
+    expect('error' in cycle).toBe(true);
+    const missing = parseGraph({
+      start: 'if',
+      nodes: [{ id: 'if', type: 'condition', expr: { fact: 'core.lifecycle', cmp: 'eq', value: 'active' } }, { id: 'yes', type: 'stop' }],
+      edges: [{ from: 'if', to: 'yes', branch: 'yes' }],
+    });
+    expect('error' in missing).toBe(true);
   });
 
   it('branches on eligibility', () => {

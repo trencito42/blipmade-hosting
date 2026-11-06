@@ -2,6 +2,8 @@
 export const PERMISSIONS = [
   'customers.read',
   'customers.write',
+  'risk.read',
+  'risk.write',
   'orders.read',
   'orders.write',
   'services.read',

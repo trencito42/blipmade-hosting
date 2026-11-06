@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { audit } from '../lib/audit.js';
@@ -11,6 +11,7 @@ import {
   explainMatch,
   factDefinition,
   marketingDeliveryEnabled,
+  monthlyRecurringCents,
   opportunityFromFacts,
   parseSegmentFilter,
   validateTemplate,
@@ -221,22 +222,26 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     const campaign = await prisma.marketingCampaign.findUnique({ where: { id } });
     if (!campaign) throw notFound('Campaign not found.');
     if (campaign.status !== 'approved') throw badRequest('Only an approved campaign can be queued.');
-    let where = campaign.segmentId
-      ? compileSegmentWhere((await prisma.customerSegment.findUnique({ where: { id: campaign.segmentId } }))?.filter ?? {})
-      : { role: 'CUSTOMER' as const };
-    if (campaign.eligibility) {
-      where = compileSegmentWhere(campaign.eligibility, where);
+    if (!campaign.segmentId && !body.testEmails?.length) throw badRequest('Choose a segment or a test recipient list.');
+    const cursor = z.object({ cursor: z.string().optional() }).parse(request.query ?? {});
+    let where: Record<string, unknown> = { role: 'CUSTOMER' };
+    if (campaign.segmentId) {
+      const segment = await prisma.customerSegment.findUnique({ where: { id: campaign.segmentId } });
+      if (!segment) throw badRequest('The campaign segment was deleted.');
+      where = compileSegmentWhere(segment.filter);
     }
-    if (body.testEmails?.length) {
-      where = { AND: [where, { email: { in: body.testEmails } }] };
-    }
+    if (campaign.eligibility) where = compileSegmentWhere(campaign.eligibility, where);
+    if (body.testEmails?.length) where = { AND: [where, { email: { in: body.testEmails } }] };
     const users = await prisma.user.findMany({
       where,
       select: { id: true, email: true, notificationPreference: { select: { marketing: true } } },
-      take: 5_000,
+      take: 200,
+      orderBy: { id: 'asc' },
+      ...(cursor.cursor ? { skip: 1, cursor: { id: cursor.cursor } } : {}),
     });
     let planned = 0;
     let skipped = 0;
+    const since = campaign.frequencyHours ? new Date(Date.now() - campaign.frequencyHours * 3_600_000) : null;
     for (const user of users) {
       const consent = user.notificationPreference?.marketing === true;
       const gate = campaignMayDeliver({
@@ -246,17 +251,40 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
         pausedAt: campaign.pausedAt,
         scheduledAt: campaign.scheduledAt,
       });
-      const status = gate.deliver ? 'queued' : 'skipped';
-      if (status === 'queued') planned += 1;
-      else skipped += 1;
+      let status = 'skipped';
+      let skipReason = gate.reason;
+      if (gate.ok && consent) {
+        if (since) {
+          const recent = await prisma.campaignSend.count({ where: { userId: user.id, createdAt: { gte: since }, status: { in: ['planned', 'queued'] } } });
+          if (recent > 0) {
+            skipped += 1;
+            skipReason = 'Frequency cap.';
+            await prisma.campaignSend.upsert({
+              where: { campaignId_userId: { campaignId: campaign.id, userId: user.id } },
+              create: { campaignId: campaign.id, userId: user.id, status: 'skipped', consent, skipReason },
+              update: { status: 'skipped', consent, skipReason },
+            });
+            continue;
+          }
+        }
+        status = gate.deliver ? 'queued' : 'planned';
+        skipReason = gate.deliver ? null : gate.reason;
+        planned += 1;
+      } else skipped += 1;
       await prisma.campaignSend.upsert({
         where: { campaignId_userId: { campaignId: campaign.id, userId: user.id } },
-        create: { campaignId: campaign.id, userId: user.id, status, consent, skipReason: gate.deliver ? null : gate.reason },
-        update: { status, consent, skipReason: gate.deliver ? null : gate.reason },
+        create: { campaignId: campaign.id, userId: user.id, status, consent, skipReason },
+        update: { status, consent, skipReason },
       });
     }
     await audit({ actorId: staff.id, actorEmail: staff.email, action: 'crm.campaign.queue', targetType: 'marketing_campaign', targetId: id, meta: { planned, skipped, test: Boolean(body.testEmails?.length) } });
-    return { planned, skipped, delivery: marketingDeliveryEnabled(), note: marketingDeliveryEnabled() ? null : 'Rows were planned. Live send is off.' };
+    return {
+      planned,
+      skipped,
+      nextCursor: users.at(-1)?.id ?? null,
+      delivery: marketingDeliveryEnabled(),
+      note: marketingDeliveryEnabled() ? null : 'Rows were planned. No message was sent.',
+    };
   });
 
   app.get('/admin/crm/templates', { preHandler: requirePermission('promotions.read') }, async () => {
@@ -302,6 +330,51 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     return { automation };
   });
 
+  app.post('/admin/crm/automations/:id/activate', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const graph = parseGraph((await prisma.marketingAutomation.findUnique({ where: { id } }))?.graph);
+    if (!graph || 'error' in graph) throw badRequest(graph && 'error' in graph ? graph.error : 'Automation not found.');
+    const automation = await prisma.marketingAutomation.update({ where: { id }, data: { status: 'active', paused: false } });
+    return { automation };
+  });
+
+  app.post('/admin/crm/automations/:id/simulate', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ userId: z.string(), consent: z.boolean() }).parse(request.body ?? {});
+    const automation = await prisma.marketingAutomation.findUnique({ where: { id } });
+    if (!automation) throw notFound('Automation not found.');
+    const graph = parseGraph(automation.graph);
+    if ('error' in graph) throw badRequest(graph.error);
+    await deriveCustomerFacts(body.userId);
+    const user = await prisma.user.findUnique({
+      where: { id: body.userId },
+      select: { id: true, tags: true, createdAt: true, notificationPreference: { select: { marketing: true } }, customerFacts: true },
+    });
+    if (!user) throw notFound('Customer not found.');
+    const stepped = stepAutomation({
+      graph: graph as AutoGraph,
+      state: { nodeId: (graph as AutoGraph).start, status: 'running', waitUntil: null, attempts: 0, lastError: null, applied: [], steps: 0 },
+      ctx: {
+        facts: user.customerFacts,
+        tags: user.tags,
+        marketing: user.notificationPreference?.marketing ?? false,
+        createdAt: user.createdAt,
+        userId: user.id,
+      },
+      consent: body.consent && (user.notificationPreference?.marketing ?? false),
+    });
+    return { effects: stepped.effects, state: stepped.state, persisted: false, delivery: marketingDeliveryEnabled() };
+  });
+
+  app.post('/admin/crm/automations/:id/cancel-runs', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const result = await prisma.automationRun.updateMany({
+      where: { automationId: id, status: { in: ['waiting', 'running', 'failed'] } },
+      data: { status: 'cancelled', waitUntil: null },
+    });
+    return { cancelled: result.count };
+  });
+
   app.post('/admin/crm/automations/:id/run', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z.object({ userId: z.string(), eventId: z.string().min(8).max(80), consent: z.boolean() }).parse(request.body ?? {});
@@ -326,7 +399,7 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
       });
     const stepped = stepAutomation({
       graph: graph as AutoGraph,
-      state: { nodeId: started.nodeId, status: 'running', waitUntil: started.waitUntil, attempts: started.attempts, lastError: started.lastError } as AutoState,
+      state: { nodeId: started.nodeId, status: 'running', waitUntil: started.waitUntil, attempts: started.attempts, lastError: started.lastError, applied: started.appliedNodes, steps: 0 } as AutoState,
       ctx: {
         facts: user.customerFacts,
         tags: user.tags,
@@ -343,7 +416,9 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
         await prisma.user.update({ where: { id: user.id }, data: { tags } });
       }
       if (effect.type === 'task' && effect.payload && typeof effect.payload === 'object' && 'title' in effect.payload) {
-        await prisma.crmTask.create({ data: { userId: user.id, title: String((effect.payload as { title: string }).title) } });
+        const title = String((effect.payload as { title: string }).title);
+        const exists = await prisma.crmTask.findFirst({ where: { userId: user.id, title, status: 'open' } });
+        if (!exists) await prisma.crmTask.create({ data: { userId: user.id, title } });
       }
     }
     const run = await prisma.automationRun.update({
@@ -353,6 +428,7 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
         status: stepped.state.status,
         waitUntil: stepped.state.waitUntil,
         lastError: stepped.state.lastError,
+        appliedNodes: stepped.state.applied,
       },
     });
     return { run, effects: stepped.effects, delivery: marketingDeliveryEnabled() };
@@ -398,36 +474,39 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     const from = query.from ? new Date(query.from) : new Date(Date.now() - 30 * 86_400_000);
     const to = query.to ? new Date(query.to) : new Date();
     const range = { gte: from, lte: to };
-    const [registered, paid, mrr, churned, redemptions, sends, optIn, optOut] = await Promise.all([
+    const [registered, paid, collected, refunds, tax, churned, redemptions, sends, optIn, optOut, subs] = await Promise.all([
       prisma.user.count({ where: { role: 'CUSTOMER', createdAt: range } }),
-      prisma.order.count({ where: { status: { in: ['PAID', 'FULFILLED'] }, createdAt: range } }),
-      prisma.subscription.aggregate({ where: { status: 'ACTIVE' }, _sum: { amount: true } }),
-      prisma.subscription.count({ where: { status: 'CANCELLED', updatedAt: range } }),
+      prisma.order.count({ where: { status: { in: ['PAID', 'FULFILLED'] }, paidAt: range } }),
+      prisma.payment.aggregate({ where: { status: 'SUCCEEDED', createdAt: range }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { status: 'REFUNDED', createdAt: range }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: 'PAID', paidAt: range }, _sum: { tax: true } }),
+      prisma.subscription.count({ where: { status: 'CANCELLED', cancelledAt: range } }),
       prisma.promotionRedemption.count({ where: { createdAt: range } }),
       prisma.campaignSend.groupBy({ by: ['status'], _count: true }),
       prisma.notificationPreference.count({ where: { marketing: true } }),
       prisma.notificationPreference.count({ where: { marketing: false } }),
+      prisma.subscription.findMany({ where: { status: 'ACTIVE' }, select: { amount: true, orderItem: { select: { config: true } } } }),
     ]);
+    const mrrCents = subs.reduce((sum, row) => {
+      const period = row.orderItem?.config && typeof row.orderItem.config === 'object' && 'period' in row.orderItem.config
+        ? String((row.orderItem.config as { period?: string }).period)
+        : 'MONTHLY';
+      return sum + monthlyRecurringCents(row.amount, period);
+    }, 0);
     return {
-      from, to,
-      acquisition: registered,
-      paidOrders: paid,
-      mrrCents: mrr._sum.amount ?? 0,
-      churnedSubscriptions: churned,
-      promotionRedemptions: redemptions,
-      campaignSends: sends,
-      marketingOptIn: optIn,
-      marketingOptOut: optOut,
+      from, to, snapshotAt: new Date(),
+      period: { acquisition: registered, paidOrders: paid, collectedCents: collected._sum.amount ?? 0, refundedCents: refunds._sum.amount ?? 0, taxCents: tax._sum.tax ?? 0, churnedSubscriptions: churned, promotionRedemptions: redemptions },
+      snapshot: { mrrCents, marketingOptIn: optIn, marketingOptOut: optOut, campaignSends: sends },
       invented: false,
     };
   });
 
-  app.get('/admin/crm/risk', { preHandler: requirePermission('customers.read') }, async () => {
+  app.get('/admin/crm/risk', { preHandler: requirePermission('risk.read') }, async () => {
     const rows = await prisma.riskEvaluation.findMany({ orderBy: { createdAt: 'desc' }, take: 50 });
     return { evaluations: rows, shadow: true, autoReject: false };
   });
 
-  app.post('/admin/crm/risk/:userId/evaluate', { preHandler: requirePermission('customers.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/crm/risk/:userId/evaluate', { preHandler: requirePermission('risk.write') }, async (request: FastifyRequest) => {
     const staff = await requireAuth(request);
     const { userId } = z.object({ userId: z.string() }).parse(request.params);
     const risk = await assessCustomer(userId);
@@ -439,7 +518,7 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     return { evaluation: row, risk, autoReject: false };
   });
 
-  app.post('/admin/crm/risk/:userId/override', { preHandler: requirePermission('customers.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/crm/risk/:userId/override', { preHandler: requirePermission('risk.write') }, async (request: FastifyRequest) => {
     const staff = await requireAuth(request);
     const { userId } = z.object({ userId: z.string() }).parse(request.params);
     const body = z.object({ signalId: z.string().min(2).max(40), decision: z.enum(['dismiss', 'confirm']), note: z.string().trim().min(4).max(500) }).parse(request.body ?? {});
@@ -536,18 +615,28 @@ export async function registerCrmRoutes(app: FastifyInstance): Promise<void> {
     return { updated: body.userIds.length };
   });
 
-  app.get('/admin/crm/export/segment/:id', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
+  app.get('/admin/crm/export/segment/:id', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest, reply: FastifyReply) => {
     const staff = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
+    const query = z.object({ cursor: z.string().optional(), format: z.enum(['json', 'csv']).default('csv') }).parse(request.query ?? {});
     const segment = await prisma.customerSegment.findUnique({ where: { id } });
     if (!segment) throw notFound('Segment not found.');
     const users = await prisma.user.findMany({
       where: compileSegmentWhere(segment.filter),
       select: { id: true, email: true, createdAt: true, tags: true },
-      take: 5_000,
+      take: 500,
+      orderBy: { id: 'asc' },
+      ...(query.cursor ? { skip: 1, cursor: { id: query.cursor } } : {}),
     });
-    await audit({ actorId: staff.id, actorEmail: staff.email, action: 'crm.segment.export', targetType: 'customer_segment', targetId: id, meta: { count: users.length } });
-    return { rows: users.map((user) => ({ id: user.id, email: user.email, createdAt: user.createdAt, tags: user.tags })) };
+    await audit({ actorId: staff.id, actorEmail: staff.email, action: 'crm.segment.export', targetType: 'customer_segment', targetId: id, meta: { count: users.length, format: query.format } });
+    const nextCursor = users.at(-1)?.id ?? null;
+    if (query.format === 'json') return { rows: users, nextCursor };
+    const cell = (value: string) => /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+    const lines = ['id,email,created_at,tags', ...users.map((user) => [user.id, user.email, user.createdAt.toISOString(), user.tags.join('|')].map(cell).join(','))];
+    reply.header('content-type', 'text/csv; charset=utf-8');
+    reply.header('content-disposition', `attachment; filename="segment-${id}.csv"`);
+    reply.header('x-next-cursor', nextCursor ?? '');
+    return lines.join('\n') + '\n';
   });
 }
 

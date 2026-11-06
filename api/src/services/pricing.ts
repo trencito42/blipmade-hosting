@@ -24,7 +24,7 @@ import { checkCustomerVariables, parseCustomerVariableSpecs, sealVariables } fro
 import { checkoutSpecs } from './install-variables.js';
 import { hasFreeEntitlement } from './promotion-policy.js';
 import { promotionCrmGate } from './crm.js';
-import { customerInSegment } from './crm-facts.js';
+import { customerInSegment, familiesForProductSlugs } from './crm-facts.js';
 import type { BillingPeriod, Prisma, Product, ProductFulfilment, ProductOption, ProductPrice } from '@prisma/client';
 
 export interface ResourceConfig {
@@ -740,6 +740,7 @@ export async function countEffectiveRedemptions(
 export async function resolvePromotion(
   code: string | undefined | null,
   userId?: string | null,
+  context?: { productSlugs?: string[] },
 ): Promise<PromotionResult> {
   if (!code) return { code: '', valid: false, discount: 0 };
   const promotion = await prisma.promotion.findUnique({ where: { code: code.trim().toUpperCase() } });
@@ -765,6 +766,22 @@ export async function resolvePromotion(
   }
   const paidOrders = userId ? await prisma.order.count({ where: { userId, status: { in: ['PAID', 'FULFILLED'] } } }) : 0;
   const inSegment = promotion.segmentId && userId ? await customerInSegment(userId, promotion.segmentId) : !promotion.segmentId;
+  let orderFamily: string | null = null;
+  if (promotion.familySlug) {
+    const slugs = context?.productSlugs ?? [];
+    if (!slugs.length) {
+      return { code: promotion.code, valid: false, reason: 'The product family of this order is unknown, so the code cannot apply.', discount: 0 };
+    }
+    const families = await familiesForProductSlugs(slugs);
+    if (families.some((family) => !family)) {
+      return { code: promotion.code, valid: false, reason: 'The product family of this order is unknown, so the code cannot apply.', discount: 0 };
+    }
+    const unique = [...new Set(families as string[])];
+    if (unique.length !== 1) {
+      return { code: promotion.code, valid: false, reason: 'This code does not apply to this product family.', discount: 0 };
+    }
+    orderFamily = unique[0] ?? null;
+  }
   const crm = promotionCrmGate({
     firstPurchaseOnly: promotion.firstPurchaseOnly,
     paidOrders,
@@ -772,7 +789,7 @@ export async function resolvePromotion(
     assignedUserId: promotion.assignedUserId,
     userId: userId ?? null,
     familySlug: promotion.familySlug,
-    orderFamily: null,
+    orderFamily,
     inSegment,
     hasSegment: Boolean(promotion.segmentId),
   });
@@ -992,7 +1009,7 @@ export async function buildQuote(
   const subtotal = priced.reduce((sum, item) => sum + item.total, 0);
   const currency = priced[0]?.currency ?? 'EUR';
 
-  const resolved = await resolvePromotion(promotionCode, userId);
+  const resolved = await resolvePromotion(promotionCode, userId, { productSlugs: items.map((item) => item.productSlug) });
   let discount = 0;
   let promotionRecord: QuoteResult['promotionRecord'] = null;
 

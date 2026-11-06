@@ -1007,7 +1007,7 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
   // --- the risk of an account, and bulk tags -----------------------------------------------------
 
   /** How much the team should look twice at an account, and why. It decides nothing. */
-  app.get('/admin/customers/:id/risk', { preHandler: [requirePermission('customers.read')] }, async (request) => {
+  app.get('/admin/customers/:id/risk', { preHandler: [requirePermission('risk.read')] }, async (request) => {
     const { customer } = await customerOf(request);
     const risk = await assessCustomer(customer.id);
     if (!risk) throw notFound('Customer not found.');
@@ -1016,7 +1016,7 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
   });
 
   /** A human decision sits next to the score. Blocking also closes sessions and suspends the account. */
-  app.post('/admin/customers/:id/risk-decision', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+  app.post('/admin/customers/:id/risk-decision', { preHandler: [requirePermission('risk.write')] }, async (request) => {
     const { actor, customer } = await customerOf(request);
     assertMayActOnAccount(actor, customer.role, customer.id);
     const body = z.object({ decision: z.enum(['approved', 'review', 'blocked', 'clear']), reason: z.string().trim().min(5).max(1000) }).parse(request.body ?? {});
