@@ -53,6 +53,7 @@ type Tab =
   | 'git'
   | 'minecraft'
   | 'game'
+  | 'addons'
   | 'access';
 type PowerAction = 'start' | 'restart' | 'stop' | 'kill';
 
@@ -73,6 +74,7 @@ const NetworkTab = lazy(() => import('./instance/NetworkTab'));
 const StartupTab = lazy(() => import('./instance/StartupTab'));
 const SchedulesTab = lazy(() => import('./instance/SchedulesTab'));
 const UptimeTab = lazy(() => import('./instance/UptimeTab'));
+const AddonCenter = lazy(() => import('./instance/AddonCenter').then((module) => ({ default: module.AddonCenter })));
 const GitTab = lazy(() => import('./instance/GitTab'));
 const MinecraftTab = lazy(() => import('./instance/MinecraftTab'));
 const GameTab = lazy(() => import('./instance/GameTab'));
@@ -125,6 +127,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'git', label: 'Deploy' },
   { value: 'minecraft', label: 'Minecraft' },
   { value: 'game', label: 'Game' },
+  { value: 'addons', label: 'Add-ons' },
   { value: 'access', label: 'Access' },
 ];
 
@@ -134,8 +137,8 @@ const MINECRAFT_SLUGS = ['minecraft-paper', 'minecraft-folia', 'minecraft-forge'
 const GAME_SLUGS = ['minecraft-bedrock', 'rust', 'fivem', 'counter-strike-1-6', 'counter-strike-2', 'valheim', 'factorio'];
 
 function primaryTabsFor(slug: string | undefined): Tab[] {
-  if (slug && MINECRAFT_SLUGS.includes(slug)) return ['overview', 'console', 'minecraft', 'backups', 'settings'];
-  if (slug && GAME_SLUGS.includes(slug)) return ['overview', 'console', 'game', 'backups', 'settings'];
+  if (slug && MINECRAFT_SLUGS.includes(slug)) return ['overview', 'console', 'minecraft', 'addons', 'backups', 'settings'];
+  if (slug && GAME_SLUGS.includes(slug)) return ['overview', 'console', 'game', 'addons', 'backups', 'settings'];
   if (slug === 'nodejs' || slug === 'discord-bot') return ['overview', 'console', 'git', 'domains', 'settings'];
   if (slug && ['mariadb', 'postgresql', 'mongodb', 'redis'].includes(slug)) return ['overview', 'databases', 'backups', 'settings'];
   return ['overview', 'console', 'files', 'backups', 'settings'];
@@ -144,7 +147,7 @@ function primaryTabsFor(slug: string | undefined): Tab[] {
 /** What a member of a shared server does not get: the parts that belong to the owner. */
 const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
 /** A viewer only looks. */
-const VIEWER_HIDDEN: Tab[] = ['files', 'startup', 'schedules', 'databases', 'backups', 'network', 'git', 'minecraft', 'game'];
+const VIEWER_HIDDEN: Tab[] = ['files', 'startup', 'schedules', 'databases', 'backups', 'network', 'git', 'minecraft', 'game', 'addons'];
 
 const POWER_LABEL: Record<PowerAction, string> = {
   start: 'Start',
@@ -737,6 +740,7 @@ export default function InstanceDetail() {
           {tab === 'git' && <GitTab instance={instance} />}
           {tab === 'minecraft' && <MinecraftTab instance={instance} />}
           {tab === 'game' && <GameTab instance={instance} />}
+          {tab === 'addons' && <AddonCenter instanceId={instance.id} />}
           {tab === 'access' && <AccessTab instance={instance} />}
         </Suspense>
         )}

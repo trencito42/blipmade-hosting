@@ -55,6 +55,8 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/tickets', label: 'Support queue', shortLabel: 'Tickets', icon: 'doc' },
   { to: '/admin/knowledge', label: 'Knowledge base', shortLabel: 'Know-how', icon: 'doc' },
   { to: '/admin/promotions', label: 'Promotions', shortLabel: 'Promos', icon: 'shield' },
+  { to: '/admin/crm', label: 'CRM', shortLabel: 'CRM', icon: 'flow' },
+  { to: '/admin/domains/commerce', label: 'Domains commerce', shortLabel: 'Registrar', icon: 'globe' },
   { to: '/admin/infrastructure', label: 'Infrastructure', shortLabel: 'Infra', icon: 'globe' },
   { to: '/admin/ops', label: 'Operations', shortLabel: 'Ops', icon: 'heart' },
   { to: '/admin/ops/backups', label: 'Backups & recovery', shortLabel: 'Backups', icon: 'heart' },
@@ -109,9 +111,9 @@ const A = (to: string): NavEntry => {
  */
 export const ADMIN_GROUPS: NavGroup[] = [
   { id: 'home', label: 'Dashboard', icon: 'chart', items: [A('/admin')] },
-  { id: 'customers-sales', label: 'Customers & sales', icon: 'card', items: [A('/admin/customers'), A('/admin/orders'), A('/admin/promotions'), A('/admin/reports')] },
+  { id: 'customers-sales', label: 'Customers & sales', icon: 'card', items: [A('/admin/customers'), A('/admin/orders'), A('/admin/promotions'), A('/admin/crm'), A('/admin/reports')] },
   { id: 'products-pricing', label: 'Products & pricing', icon: 'db', items: [A('/admin/products'), A('/admin/catalog/families'), A('/admin/pricing')] },
-  { id: 'hosting-services', label: 'Hosting services', icon: 'rocket', items: [A('/admin/services'), A('/admin/vps'), A('/admin/mail'), A('/admin/infrastructure')] },
+  { id: 'hosting-services', label: 'Hosting services', icon: 'rocket', items: [A('/admin/services'), A('/admin/vps'), A('/admin/mail'), A('/admin/domains/commerce'), A('/admin/infrastructure')] },
   { id: 'support-desk', label: 'Support desk', icon: 'doc', items: [A('/admin/support'), A('/admin/tickets'), A('/admin/knowledge')] },
   { id: 'support-workflows', label: 'Support workflows', icon: 'flow', items: [A('/admin/support/bots'), A('/admin/support/automations'), A('/admin/support/analytics')] },
   { id: 'trust-status', label: 'Trust & status', icon: 'shield', items: [A('/admin/abuse'), A('/admin/incidents')] },

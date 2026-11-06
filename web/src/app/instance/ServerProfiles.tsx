@@ -4,7 +4,7 @@ import { useAction, useAsync } from '../../lib/useAsync';
 import { Link } from '../../router';
 import { Panel, PrimaryButton, SoftButton, TextInput } from '../../ui-app';
 
-interface Profile { id: string; name: string; productSlug: string; ram: number; cpu: number; disk: number; createdAt: string }
+interface Profile { id: string; name: string; productSlug: string; ram: number; cpu: number; disk: number; manifest: unknown; createdAt: string }
 
 /** Remembers the size of this server. Applying a different size goes through the existing resource change. */
 export function ServerProfiles({ instance }: { instance: { id: string; ram: number; cpu: number; disk: number; product: { slug: string } } }) {
@@ -22,7 +22,7 @@ export function ServerProfiles({ instance }: { instance: { id: string; ram: numb
   const profiles = state.data?.profiles ?? [];
 
   return (
-    <Panel title="Saved profiles" description="A profile remembers the current size and product. It does not switch the game and it does not touch the files.">
+    <Panel title="Saved profiles" description="A profile remembers size, product and the install manifest. Applying size still goes through resource change. Replaying files needs a backup and the add-on center.">
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-[180px] flex-1">
           <TextInput label="Profile name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Before the event" autoComplete="off" />
@@ -36,7 +36,7 @@ export function ServerProfiles({ instance }: { instance: { id: string; ram: numb
           return (
             <li key={profile.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-s2 px-3 py-2 text-[13.5px] text-ink2">
               <span className="font-semibold text-ink">{profile.name}</span>
-              <span>{profile.ram} MB · {profile.cpu} vCPU · {profile.disk} GB</span>
+              <span>{profile.ram} MB · {profile.cpu} vCPU · {profile.disk} GB{profile.manifest ? ' · manifest saved' : ''}</span>
               {same ? <span className="text-acc">Current</span> : <Link to={`/app/instances/${encodeURIComponent(instance.id)}/resources/edit?ram=${profile.ram}&cpu=${profile.cpu}&disk=${profile.disk}`} className="font-semibold text-acc">Apply this size</Link>}
               <SoftButton type="button" onClick={() => void remove.run(profile.id)} disabled={remove.pending}>Delete</SoftButton>
             </li>

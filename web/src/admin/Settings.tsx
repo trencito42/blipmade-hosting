@@ -64,6 +64,8 @@ const CONTROL_AREAS = [
   ['/admin/products', 'Catalog', 'Products, visibility, deployability, resources and product-specific fields.'],
   ['/admin/pricing', 'Pricing', 'Resource rates, product prices and billing periods.'],
   ['/admin/promotions', 'Promotions', 'Campaign windows, eligibility, limits and redemption controls.'],
+  ['/admin/crm', 'CRM', 'Segments, campaign drafts, approval and consent. Delivery stays off.'],
+  ['/admin/domains/commerce', 'Domains commerce', 'Sandbox registrar and Cloudflare for SaaS diagnostics.'],
   ['/admin/infrastructure', 'Infrastructure', 'Nodes, capacity, runtime templates and synchronization.'],
   ['/admin/incidents', 'Incidents & announcements', 'Public incidents, maintenance notices and customer banners.'],
   ['/admin/mail/plans', 'Mail plans', 'Hosted-mail limits, quotas and plan prices.'],

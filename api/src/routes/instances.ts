@@ -614,7 +614,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     return reply.code(204).send();
   });
 
-  const profileSelect = { id: true, name: true, productSlug: true, ram: true, cpu: true, disk: true, createdAt: true } as const;
+  const profileSelect = { id: true, name: true, productSlug: true, ram: true, cpu: true, disk: true, manifest: true, createdAt: true } as const;
 
   app.get('/instances/:id/profiles', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
@@ -640,7 +640,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const count = await prisma.serverProfile.count({ where: { instanceId: instance.id } });
     if (count >= 20) throw badRequest('This server already has 20 saved profiles.');
     const profile = await prisma.serverProfile.create({
-      data: { userId: instance.userId, instanceId: instance.id, name: body.name, productSlug: instance.product.slug, ram: instance.ram, cpu: instance.cpu, disk: instance.disk },
+      data: { userId: instance.userId, instanceId: instance.id, name: body.name, productSlug: instance.product.slug, ram: instance.ram, cpu: instance.cpu, disk: instance.disk, manifest: instance.installationManifest ?? undefined },
       select: profileSelect,
     });
     return { profile };

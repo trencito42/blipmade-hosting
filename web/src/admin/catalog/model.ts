@@ -76,6 +76,7 @@ export interface AddonRow {
   product: { id: string; slug: string; name: string } | null;
   productOption: { id: string; code: string; name: string; amount: number; currency: string } | null;
   variantIds: string[];
+  installSpec: { adapter: string; project?: string } | null;
 }
 
 export interface FamilyDetail {

@@ -25,5 +25,6 @@ test('domains list includes registrar and nameserver guides without DNS automati
   assert.match(list, /Leave nameservers where they are/);
   assert.match(list, /Mail MX, SPF, DKIM and DMARC stay copy-paste/);
   assert.match(list, /mail-dns-preview/);
+  assert.match(list, /mail-dns/);
   assert.doesNotMatch(list, /change nameservers for you|migrate nameservers automatically/i);
 });

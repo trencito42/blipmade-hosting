@@ -328,7 +328,7 @@ export function AddonNew() {
   const family = useAsync<FamilyDetail>((signal) => get(`/admin/catalog/families/${encodeURIComponent(id)}`, undefined, signal), [id]);
   const products = useAsync<{ products: { id: string; slug: string; name: string }[] }>((signal) => get('/admin/products', undefined, signal), []);
   const options = useAsync<{ options: { id: string; code: string; name: string }[] }>((signal) => get('/admin/options', undefined, signal), []);
-  const [draft, setDraft] = useState({ slug: '', name: '', summary: '', kind: 'SOFTWARE', productId: '', productOptionId: '', variantId: '' });
+  const [draft, setDraft] = useState({ slug: '', name: '', summary: '', kind: 'SOFTWARE', productId: '', productOptionId: '', variantId: '', project: '' });
   const { dirty, discard, finish } = useLeave(backTo, draft.slug !== '' || draft.name !== '', 'Discard this add-on?');
   const send = useAction(async () => post(`/admin/catalog/families/${encodeURIComponent(id)}/addons`, {
     slug: draft.slug.trim(),
@@ -339,6 +339,7 @@ export function AddonNew() {
     productOptionId: draft.kind === 'PLATFORM_FEATURE' ? draft.productOptionId : null,
     variantIds: draft.variantId ? [draft.variantId] : [],
     active: false,
+    installSpec: draft.kind === 'SOFTWARE' && draft.project.trim() ? { adapter: 'minecraft-plugin', project: draft.project.trim() } : null,
   }));
   const linkOk = draft.kind === 'SOFTWARE' || (draft.kind === 'MANAGED_SERVICE' && draft.productId !== '') || (draft.kind === 'PLATFORM_FEATURE' && draft.productOptionId !== '');
   const ok = mayWrite && linkOk && /^[a-z0-9-]{2,60}$/.test(draft.slug.trim()) && draft.name.trim().length >= 2 && draft.summary.trim().length >= 2 && !send.pending;
@@ -359,6 +360,9 @@ export function AddonNew() {
             <TextInput label="Slug" value={draft.slug} autoComplete="off" disabled={!mayWrite} onChange={(event) => setDraft({ ...draft, slug: event.target.value })} />
             <TextInput label="Name" value={draft.name} disabled={!mayWrite} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
             <TextInput label="Summary" value={draft.summary} disabled={!mayWrite} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} />
+            {draft.kind === 'SOFTWARE' ? (
+              <TextInput label="Modrinth project" value={draft.project} disabled={!mayWrite} hint="Paper plugin slug only. Leave empty when there is no verified installer." onChange={(event) => setDraft({ ...draft, project: event.target.value })} />
+            ) : null}
             {draft.kind === 'MANAGED_SERVICE' ? (
               <SelectField id="addon-product" label="Product" value={draft.productId} disabled={!mayWrite} onChange={(productId) => setDraft({ ...draft, productId })}>
                 <option value="">Choose the service product</option>

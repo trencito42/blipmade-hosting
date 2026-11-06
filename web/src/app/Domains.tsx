@@ -49,10 +49,26 @@ function isPlatformHostname(hostname: string): boolean {
 
 /** Ownership proof and DNS records of one domain. Own page, not the list. */
 function MailDnsPreview({ domainId }: { domainId: string }) {
+  const { push } = useToast();
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [diff, setDiff] = useState<string | null>(null);
   const state = useAsync<{ records: { name: string; type: string; value: string; purpose: string }[]; note: string }>(
     (signal) => get(`/domains/${encodeURIComponent(domainId)}/mail-dns-preview`, undefined, signal),
     [domainId],
   );
+  const apply = useAction(async (approve: boolean) => {
+    const answer = await post<{ previewId?: string; preview: { action: string; type: string; name: string }[]; note?: string; applied?: boolean }>(
+      `/domains/${encodeURIComponent(domainId)}/mail-dns`,
+      { approve, previewId: approve ? previewId ?? undefined : undefined, sandboxZone: [] },
+    );
+    if (!approve) {
+      setPreviewId(answer.previewId ?? null);
+      setDiff(answer.preview.map((row) => `${row.action} ${row.type} ${row.name}`).join('\n'));
+      return;
+    }
+    push(answer.note ?? (answer.applied ? 'Mail DNS was written.' : 'Approval stored. Customer mail DNS was not changed.'), 'ok');
+    setPreviewId(null);
+  });
   if (state.loading || !state.data) return null;
   return (
     <div className="mt-4 rounded-2xl bg-s1 p-4">
@@ -63,6 +79,12 @@ function MailDnsPreview({ domainId }: { domainId: string }) {
           <li key={`${record.type}:${record.name}`}>{record.type} {record.name} → {record.value}</li>
         ))}
       </ul>
+      {diff && <pre className="mt-2 whitespace-pre-wrap font-mono text-[12px] text-ink2">{diff}</pre>}
+      {apply.error && <p role="alert" className="mt-2 text-[13px] text-bad">{apply.error}</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <SoftButton type="button" disabled={apply.pending} onClick={() => void apply.run(false)}>Review writes</SoftButton>
+        <SoftButton type="button" disabled={apply.pending || !previewId} onClick={() => void apply.run(true)}>Approve (no live write while MAIL_DNS_WRITES is off)</SoftButton>
+      </div>
     </div>
   );
 }

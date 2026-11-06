@@ -169,7 +169,7 @@ function AccountAccess({
 
 export default function CustomerDetail() {
   const { id = '' } = useParams();
-  const [section, setSection] = useState<'overview' | 'services' | 'billing' | 'support' | 'security'>('overview');
+  const [section, setSection] = useState<'overview' | 'services' | 'billing' | 'support' | 'security' | 'growth'>('overview');
   const session = useAdminSession();
   const staff = session.staff;
 
@@ -338,6 +338,7 @@ export default function CustomerDetail() {
             ['services', 'Services'],
             ['billing', 'Billing'],
             ['support', 'Support'],
+            ['growth', 'Growth'],
             ['security', 'Account & security'],
           ] as const).map(([key, label]) => (
             <button
@@ -355,6 +356,7 @@ export default function CustomerDetail() {
       {section === 'overview' && (
         <RiskPanel customerId={customer.id} mayWrite={mayWrite} onChanged={state.reload} />
       )}
+      {section === 'growth' && <CustomerGrowth customerId={customer.id} />}
       {section === 'security' && (
         <>
       <AccountAccess
@@ -1038,6 +1040,33 @@ function PanelAccessPanel({ customerId, mayWrite }: { customerId: string; mayWri
         onCancel={() => setForgetting(false)}
         onConfirm={() => void run(() => del(`/admin/customers/${customerId}/panel/credential`), 'The key is forgotten.')}
       />
+    </Panel>
+  );
+}
+
+function CustomerGrowth({ customerId }: { customerId: string }) {
+  const state = useAsync<{ facts: { key: string; value: string; source: string }[]; tags: string[]; marketing: { marketing: boolean; marketingOptInAt: string | null } | null }>(
+    (signal) => get(`/admin/customers/${encodeURIComponent(customerId)}/crm`, undefined, signal),
+    [customerId],
+  );
+  return (
+    <Panel title="Customer 360 facts" description="Billing, consent, Discord and support. Campaigns stay on the CRM desk and never send without consent.">
+      {state.loading && !state.data ? <LoadingBlock rows={2} label="Loading facts" />
+        : state.error ? <ErrorState title="Facts could not be loaded" message={state.error.message} onRetry={state.reload} />
+        : (
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {(state.data?.facts ?? []).map((fact) => (
+              <div key={`${fact.source}:${fact.key}`} className="rounded-2xl bg-s2 px-4 py-3">
+                <dt className="text-[12.5px] text-ink3">{fact.key} · {fact.source}</dt>
+                <dd className="text-[14px] text-ink">{fact.value}</dd>
+              </div>
+            ))}
+            <div className="rounded-2xl bg-s2 px-4 py-3">
+              <dt className="text-[12.5px] text-ink3">marketing</dt>
+              <dd className="text-[14px] text-ink">{state.data?.marketing?.marketing ? 'opt-in' : 'suppressed or unset'}</dd>
+            </div>
+          </dl>
+        )}
     </Panel>
   );
 }

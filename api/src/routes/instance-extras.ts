@@ -85,36 +85,4 @@ export async function registerInstanceExtraRoutes(app: FastifyInstance): Promise
       services: records.map((record) => ({ id: record.instanceId, name: byId.get(record.instanceId) ?? 'Service', cancelledAt: record.cancelledAt, deletedOn: record.scheduledFor })),
     };
   });
-
-  app.get('/instances/:id/addons', async (request: FastifyRequest) => {
-    const { instance } = await owned(request);
-    const row = await prisma.instance.findUnique({ where: { id: instance.id }, select: { productId: true } });
-    const variant = row
-      ? await prisma.catalogVariant.findUnique({
-          where: { productId: row.productId },
-          include: {
-            family: {
-              include: {
-                addons: { where: { active: true }, include: { compatibilities: { select: { variantId: true } } } },
-              },
-            },
-          },
-        })
-      : null;
-    const addons = variant
-      ? variant.family.addons.filter(
-          (addon) => addon.compatibilities.length === 0 || addon.compatibilities.some((row) => row.variantId === variant.id),
-        )
-      : [];
-    return {
-      addons: addons.map((addon) => ({
-        slug: addon.slug,
-        name: addon.name,
-        summary: addon.summary,
-        kind: addon.kind,
-        install: addon.kind === 'SOFTWARE' ? 'Use the Minecraft or game tab after a backup. This route does not write files.' : 'Priced add-ons stay on the order. They are not installed from this list.',
-      })),
-      note: 'Live runtime files are not changed here.',
-    };
-  });
 }

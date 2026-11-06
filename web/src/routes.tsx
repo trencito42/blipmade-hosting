@@ -117,6 +117,8 @@ const AdminInfraNode = lazy(() => import('./admin/OpsDetailPages').then((m) => (
 const AdminAbuseReopen = lazy(() => import('./admin/abuse/AbuseReopen'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
+const AdminCrmDesk = lazy(() => import('./admin/CrmDesk'));
+const AdminDomainCommerce = lazy(() => import('./admin/DomainCommerce'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
 const AppSetupTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.SetupTwoFactor })));
 const AppDisableTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.DisableTwoFactor })));
@@ -383,6 +385,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/knowledge', component: AdminKnowledge, title: 'Knowledge base', area: 'admin', exact: true },
   { pattern: '/admin/tickets/:id', component: AdminTicketDetail, title: 'Ticket', area: 'admin' },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
+  { pattern: '/admin/crm', component: AdminCrmDesk, title: 'CRM', area: 'admin' },
+  { pattern: '/admin/domains/commerce', component: AdminDomainCommerce, title: 'Domains commerce', area: 'admin' },
   { pattern: '/admin/promotions/new', component: AdminPromotionNew, title: 'New promotion', area: 'admin', layout: 'editor' },
   { pattern: '/admin/promotions/:id/edit', component: AdminPromotionEdit, title: 'Edit campaign', area: 'admin', layout: 'editor' },
   { pattern: '/admin/promotions/:id', component: AdminPromotionDetail, title: 'Campaign control', area: 'admin' },

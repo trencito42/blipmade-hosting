@@ -56,6 +56,7 @@ import { registerGitDeployRoutes } from './routes/git-deploy.js';
 import { registerMinecraftRoutes } from './routes/minecraft.js';
 import { registerGameConnectRoutes } from './routes/game-connect.js';
 import { registerPlatformBacklogRoutes } from './routes/platform-backlog.js';
+import { registerPlatformProductRoutes } from './routes/platform-product.js';
 import { registerInstanceHelpRoutes } from './routes/instance-help.js';
 import { registerInstanceExtraRoutes } from './routes/instance-extras.js';
 import { registerAbuseRoutes } from './routes/abuse.js';
@@ -293,6 +294,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerMinecraftRoutes(api);
       await registerGameConnectRoutes(api);
       await registerPlatformBacklogRoutes(api);
+      await registerPlatformProductRoutes(api);
       await registerInstanceHelpRoutes(api);
       await registerInstanceExtraRoutes(api);
       await registerAbuseRoutes(api);

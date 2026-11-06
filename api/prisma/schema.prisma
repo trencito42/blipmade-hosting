@@ -85,6 +85,11 @@ model User {
   connectedIdentities ConnectedIdentity[]
   githubAppInstallations GitHubAppInstallation[]
   discordCommunityLinks DiscordCommunityLink[]
+  customerFacts CustomerFact[]
+  segmentsOwned CustomerSegment[] @relation("SegmentCreator")
+  campaigns MarketingCampaign[] @relation("CampaignCreator")
+  domainRegistrations DomainRegistration[]
+  saasHostnames SaasCustomHostname[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -649,6 +654,8 @@ model CatalogAddonDefinition {
   productOption   ProductOption?   @relation(fields: [productOptionId], references: [id], onDelete: Restrict)
   productId       String?
   product         Product?         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  /// Adapter used after purchase. Never a price. Example: { "adapter": "minecraft-plugin", "project": "luckperms" }.
+  installSpec     Json?
   active          Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -1087,6 +1094,7 @@ model Instance {
   checks        InstanceCheck[]
   offsiteBackups OffsiteBackup[]
   gitDeploy GitDeploy?
+  addonJobs InstanceAddonJob[]
   /// Tell the owner when the memory or the disk use passes this percentage of the plan. Null means no alert.
   alertMemoryPercent Int?
   alertDiskPercent   Int?
@@ -1105,6 +1113,8 @@ model ServerProfile {
   ram         Int
   cpu         Float
   disk        Int
+  /// Snapshot of installationManifest when the profile was saved. Apply never writes files without a backup.
+  manifest    Json?
   createdAt   DateTime @default(now())
 
   @@index([instanceId, createdAt])
@@ -1234,6 +1244,7 @@ model ImportSource {
   /// Numeric GitHub repository id as a string.
   githubRepositoryId String?
   githubRepositoryFullName String?
+  buildJobs IsolatedBuildJob[]
 
   @@index([userId, createdAt])
   @@index([phase, appliedAt])
@@ -2496,4 +2507,126 @@ model GameConnect {
   updatedAt        DateTime  @updatedAt
 
   @@index([state])
+}
+
+/// One install, update or removal of a catalogue add-on on a server.
+model InstanceAddonJob {
+  id              String   @id @default(cuid())
+  instanceId      String
+  instance        Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  addonSlug       String
+  action          String
+  status          String   @default("pending")
+  backupRequired  Boolean  @default(true)
+  backupOk        Boolean  @default(false)
+  writes          Boolean  @default(false)
+  error           String?
+  idempotencyKey  String?
+  result          Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([instanceId, idempotencyKey])
+  @@index([instanceId, createdAt])
+}
+
+/// Typed fact about a customer. Source is billing, support, Discord or staff.
+model CustomerFact {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  source    String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([key, value])
+}
+
+/// Saved filter over typed facts. It does not copy customer rows.
+model CustomerSegment {
+  id        String   @id @default(cuid())
+  name      String
+  filter    Json
+  createdBy String
+  creator   User     @relation("SegmentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  campaigns MarketingCampaign[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Marketing campaign. Delivery stays off until MARKETING_DELIVERY_ENABLED is on.
+model MarketingCampaign {
+  id          String   @id @default(cuid())
+  name        String
+  status      String   @default("draft")
+  body        String
+  segmentId   String?
+  segment     CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  createdBy   String
+  creator     User     @relation("CampaignCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approvedAt  DateTime?
+  approvedBy  String?
+  deliveredAt DateTime?
+  suppressed  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+/// Cloudflare for SaaS custom hostname. Live API calls need CF_SAAS_ENABLED and an entitlement.
+model SaasCustomHostname {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hostname    String
+  state       String   @default("draft")
+  providerId  String?
+  lastError   String?
+  certificate String   @default("unknown")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([hostname])
+  @@index([userId, state])
+}
+
+/// Domain registration lifecycle. Fixture/sandbox only until a registrar is approved.
+model DomainRegistration {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain     String
+  action     String
+  state      String
+  amount     Int?
+  currency   String   @default("EUR")
+  providerId String
+  externalId String?
+  lastError  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([domain, state])
+}
+
+/// Build of an imported project. The API never executes the archive. A sandbox host must exist to run commands.
+model IsolatedBuildJob {
+  id             String       @id @default(cuid())
+  importSourceId String
+  importSource   ImportSource @relation(fields: [importSourceId], references: [id], onDelete: Cascade)
+  status         String       @default("planned")
+  buildCommand   String
+  startCommand   String
+  sandboxHost    String?
+  log            String       @default("")
+  lastError      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([importSourceId, createdAt])
 }

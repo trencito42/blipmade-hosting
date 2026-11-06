@@ -4,7 +4,8 @@ import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { badRequest } from '../lib/errors.js';
 import * as operations from '../services/panel/operations.js';
-import { connectInfo, syncGameConnect } from '../services/game-connect.js';
+import { prisma } from '../db.js';
+import { connectInfo, removeGameConnect, syncGameConnect } from '../services/game-connect.js';
 
 /**
  * The clean address of a game server. The owner and the members of a shared server can read it; the owner and a manager
@@ -30,5 +31,16 @@ export async function registerGameConnectRoutes(app: FastifyInstance): Promise<v
     const result = await syncGameConnect(instance.id);
     if (result.state === 'DISABLED') throw badRequest(result.reason ?? 'Smart Connect is off.');
     return { ...(await connectInfo(instance.id)), wrote: result.wrote };
+  });
+
+  app.delete('/instances/:id/connect', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const instance = await load(request);
+    const row = await prisma.gameConnect.findUnique({ where: { instanceId: instance.id } });
+    if (!row) return { removed: false };
+    const removed = await removeGameConnect(row.id);
+    return { removed };
   });
 }

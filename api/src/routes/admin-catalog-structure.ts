@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import type { CatalogAddonKind, Prisma } from '@prisma/client';
+import { Prisma, type CatalogAddonKind } from '@prisma/client';
 import { prisma } from '../db.js';
 import { audit } from '../lib/audit.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
@@ -103,6 +103,7 @@ async function loadFamily(id: string) {
           kind: true,
           version: true,
           active: true,
+          installSpec: true,
           productOptionId: true,
           productId: true,
           product: { select: { id: true, slug: true, name: true } },
@@ -374,6 +375,29 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
     return reply.code(201).send({ version: viewVersion(version), note: STRUCTURE_NOTE });
   });
 
+  app.post('/admin/catalog/preset-versions/:versionId/rollback', { ...limited, preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request: FastifyRequest, reply) => {
+    const actor = await requireStaff(request);
+    const { versionId } = z.object({ versionId: z.string().min(1) }).parse(request.params);
+    const source = await prisma.catalogPresetVersion.findUnique({ where: { id: versionId } });
+    if (!source?.publishedAt) throw badRequest('Only a published version can be rolled back to. A new draft is created from it.');
+    const latest = await prisma.catalogPresetVersion.findFirst({ where: { presetId: source.presetId }, orderBy: { version: 'desc' } });
+    if (latest && !latest.publishedAt) throw conflict('Finish or discard the current draft first.');
+    const version = await prisma.catalogPresetVersion.create({
+      data: {
+        presetId: source.presetId,
+        version: (latest?.version ?? source.version) + 1,
+        summary: source.summary,
+        notes: `Rolled back to v${source.version}.`,
+        recommendedRamMb: source.recommendedRamMb,
+        recommendedCpu: source.recommendedCpu,
+        recommendedDiskGb: source.recommendedDiskGb,
+        plugins: source.plugins,
+      },
+    });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'catalog.preset.version.rollback', targetType: 'catalog_preset_version', targetId: version.id, meta: { from: source.version, to: version.version }, ip: request.ip });
+    return reply.code(201).send({ version: viewVersion(version), note: STRUCTURE_NOTE });
+  });
+
   app.post('/admin/catalog/families/:id/addons', { ...limited, preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
@@ -387,6 +411,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
         productId: z.string().min(1).nullable().default(null),
         variantIds: variantIds.default([]),
         active: z.boolean().default(false),
+        installSpec: z.object({ adapter: z.enum(['minecraft-plugin', 'unsupported']), project: z.string().regex(/^[A-Za-z0-9_-]{2,64}$/).optional() }).nullable().optional(),
       })
       .strict()
       .parse(request.body);
@@ -410,6 +435,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
         kind: body.kind as CatalogAddonKind,
         productOptionId: body.productOptionId,
         productId: body.productId,
+        installSpec: body.installSpec ?? undefined,
         active: body.active,
         compatibilities: { create: body.variantIds.map((variantId) => ({ variantId })) },
       },
@@ -429,6 +455,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
         active: z.boolean(),
         variantIds,
         expectedVersion: z.number().int().positive(),
+        installSpec: z.object({ adapter: z.enum(['minecraft-plugin', 'unsupported']), project: z.string().regex(/^[A-Za-z0-9_-]{2,64}$/).optional() }).nullable(),
       })
       .partial()
       .strict()
@@ -445,6 +472,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
     if (body.name !== undefined) data.name = body.name;
     if (body.summary !== undefined) data.summary = body.summary;
     if (body.active !== undefined) data.active = body.active;
+    if (body.installSpec !== undefined) data.installSpec = body.installSpec === null ? Prisma.DbNull : body.installSpec;
     const addon = await prisma.$transaction(async (tx) => {
       const updated = await tx.catalogAddonDefinition.update({ where: { id: addonId }, data, select: { id: true, slug: true, name: true, summary: true, kind: true, version: true, active: true } });
       if (body.variantIds) {
