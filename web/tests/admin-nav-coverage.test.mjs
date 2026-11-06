@@ -21,7 +21,7 @@ function matches(text, pattern) {
 test('all primary admin routes remain in the sidebar once and only once', () => {
   const all = matches(section(nav, 'export const ADMIN_NAV: NavEntry[] = ['), /\bto:\s*'([^']+)'/g);
   const grouped = matches(section(nav, 'export const ADMIN_GROUPS: NavGroup[] = ['), /A\('([^']+)'\)/g);
-  assert.equal(all.length, 33);
+  assert.equal(all.length, 35);
   assert.ok(all.includes('/admin/catalog/families'));
   assert.equal(new Set(all).size, all.length);
   assert.deepEqual([...grouped].sort(), [...all].sort());

@@ -3,20 +3,32 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
-import { badRequest, forbidden, notFound } from '../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { requireAuth, requirePermission } from '../plugins/auth.js';
-import { addonDecision, installedAddonSlugs, mergeManifestAddons, parseInstallSpec } from '../services/addon-lifecycle.js';
+import {
+  addonDecision,
+  busyAddonJob,
+  installedAddonSlugs,
+  installedArtifact,
+  mergeManifestAddons,
+  parseInstallSpec,
+  pluginPresent,
+  verifiedGameVersion,
+  waitForBackupCompletion,
+} from '../services/addon-lifecycle.js';
 import { campaignMayDeliver, campaignTransition, matchesSegment, spendBand, type SegmentFilter } from '../services/crm.js';
 import { fixtureProvider, domainCommerceEnabled } from '../services/domain-commerce.js';
 import { nextRegistrationState, quoteToRegistration, sellingAllowed, type RegistrationEvent, type RegistrationState } from '../services/domain-lifecycle.js';
 import { cloudflareSaasEnabled, memorySaasAdapter, saasPlan, saasTransition } from '../services/cloudflare-saas.js';
-import { applyMailDns, mailDnsWritesEnabled, previewMailDns, rollbackCopy, type MailZoneRow } from '../services/mail-dns-apply.js';
+import { mailDnsWritesEnabled, mailToCustomerRecords, mailWriteDecision, previewMailDns, rollbackCopy } from '../services/mail-dns-apply.js';
 import { mailDnsRecords } from '../services/mail-dns.js';
 import { planIsolatedBuild } from '../services/isolated-build.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
+import * as application from '../services/pterodactyl/application.js';
 import { pluginFileFor } from '../services/minecraft.js';
 import { DNS_PREVIEW_TTL_MS, approvalDecision, recordsFingerprint } from '../services/dns-approval.js';
+import { openZoneToken, previewCustomerRecords, publishCustomerRecords } from '../services/customer-cloudflare.js';
 
 const saasMemory = memorySaasAdapter();
 
@@ -72,9 +84,16 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
       idempotencyKey: z.string().min(8).max(80).optional(),
       gameVersion: z.string().regex(/^\d+\.\d+(\.\d+)?$/).optional(),
     }).parse(request.body ?? {});
+    const previous = body.idempotencyKey
+      ? await prisma.instanceAddonJob.findUnique({ where: { instanceId_idempotencyKey: { instanceId: instance.id, idempotencyKey: body.idempotencyKey } } })
+      : null;
+    if (previous?.status === 'succeeded') return { job: previous, replayed: true };
+    if (previous && (previous.status === 'pending' || previous.status === 'running')) {
+      throw conflict('Another add-on change is already running on this server.');
+    }
     const row = await prisma.instance.findUnique({
       where: { id: instance.id },
-      select: { productId: true, product: { select: { slug: true } }, installationManifest: true, pterodactylUuid: true },
+      select: { productId: true, product: { select: { slug: true } }, installationManifest: true, pterodactylUuid: true, pterodactylServerId: true },
     });
     if (!row) throw notFound('Instance not found.');
     const variant = await prisma.catalogVariant.findUnique({
@@ -84,76 +103,139 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     const addon = variant?.family.addons.find((entry) => entry.slug === slug);
     if (!variant || !addon) throw notFound('Add-on not found for this family.');
     const compatible = !addon.compatibilities.length || addon.compatibilities.some((entry) => entry.variantId === variant.id);
-    const installed = installedAddonSlugs(row.installationManifest).includes(slug);
-    let hasBackup = body.confirmBackup;
-    if (body.confirmBackup && instance.pterodactylUuid) {
-      const token = await operations.customerToken(instance);
+    const artifact = installedArtifact(row.installationManifest, slug);
+    const installed = Boolean(artifact);
+    let liveVersion: string | null = null;
+    if (row.pterodactylServerId) {
       try {
-        await panelClient.createBackup(token, instance.pterodactylUuid, { name: `Before add-on ${slug}`.slice(0, 100), locked: true });
-        hasBackup = true;
+        const server = await application.getServer(row.pterodactylServerId);
+        liveVersion = verifiedGameVersion(server.container.environment.MINECRAFT_VERSION ?? server.container.environment.MC_VERSION ?? null);
       } catch {
-        throw badRequest('A locked backup could not be made, so the add-on was not changed.');
+        liveVersion = null;
       }
+    }
+    if (body.gameVersion && liveVersion && body.gameVersion !== liveVersion) {
+      throw badRequest('The version sent is not the version this server runs.');
+    }
+    const gameVersion = liveVersion;
+    const active = await prisma.instanceAddonJob.findMany({ where: { instanceId: instance.id, status: { in: ['pending', 'running'] } }, select: { status: true } });
+    if (busyAddonJob(active)) throw conflict('Another add-on change is already running on this server.');
+    let job;
+    try {
+      const pending = {
+        addonSlug: slug,
+        action: body.action,
+        status: 'pending',
+        backupRequired: addon.kind === 'SOFTWARE',
+        backupOk: false,
+        writes: false,
+        error: null as string | null,
+      };
+      job = previous?.status === 'failed'
+        ? await prisma.instanceAddonJob.update({ where: { id: previous.id }, data: pending })
+        : await prisma.instanceAddonJob.create({
+          data: { instanceId: instance.id, idempotencyKey: body.idempotencyKey, ...pending },
+        });
+    } catch {
+      throw conflict('Another add-on change is already running on this server.');
+    }
+    const mark = async (data: { status: string; error?: string | null; backupOk?: boolean; writes?: boolean; result?: object }) =>
+      prisma.instanceAddonJob.update({ where: { id: job.id }, data });
+
+    const gate = addonDecision({
+      kind: addon.kind,
+      compatible,
+      action: body.action,
+      installed,
+      backupCompleted: false,
+      spec: parseInstallSpec(addon.installSpec),
+      productSlug: row.product.slug,
+      gameVersion,
+      artifact,
+    });
+    if (!gate.ok && !gate.backupRequired) {
+      await mark({ status: 'failed', error: gate.reason });
+      throw badRequest(gate.reason);
+    }
+    if (!gate.writes && gate.ok) {
+      const done = await mark({ status: 'succeeded', writes: false, result: { adapter: gate.adapter } });
+      await audit({ actorId: user.id, actorEmail: user.email, action: `instance.addon.${body.action}`, targetType: 'instance', targetId: instance.id, meta: { slug, writes: false } });
+      return { job: done, decision: gate, installed: installedAddonSlugs(row.installationManifest) };
+    }
+
+    if (!body.confirmBackup || !instance.pterodactylUuid) {
+      await mark({ status: 'failed', error: 'A completed locked backup is required before files change.' });
+      throw badRequest('A completed locked backup is required before files change.');
+    }
+    await mark({ status: 'running' });
+    const token = await operations.customerToken(instance);
+    let created;
+    try {
+      created = await panelClient.createBackup(token, instance.pterodactylUuid, { name: `Before add-on ${slug}`.slice(0, 100), locked: true });
+    } catch {
+      await mark({ status: 'failed', error: 'A locked backup could not be made, so the add-on was not changed.' });
+      throw badRequest('A locked backup could not be made, so the add-on was not changed.');
+    }
+    const waited = await waitForBackupCompletion({
+      created: { uuid: created.uuid, completed_at: created.completed_at, is_successful: created.is_successful },
+      list: async () => (await panelClient.listBackups(token, instance.pterodactylUuid as string)).map((row) => ({
+        uuid: row.uuid, completed_at: row.completed_at, is_successful: row.is_successful,
+      })),
+    });
+    if (!waited.ok) {
+      await mark({ status: 'failed', error: waited.reason, backupOk: false });
+      throw badRequest(waited.reason);
     }
     const decision = addonDecision({
       kind: addon.kind,
       compatible,
       action: body.action,
       installed,
-      hasBackup,
+      backupCompleted: true,
       spec: parseInstallSpec(addon.installSpec),
       productSlug: row.product.slug,
+      gameVersion,
+      artifact,
     });
-    if (body.idempotencyKey) {
-      const existing = await prisma.instanceAddonJob.findUnique({ where: { instanceId_idempotencyKey: { instanceId: instance.id, idempotencyKey: body.idempotencyKey } } });
-      if (existing) return { job: existing, replayed: true };
-    }
-    if (!decision.ok) {
-      await prisma.instanceAddonJob.create({
-        data: {
-          instanceId: instance.id,
-          addonSlug: slug,
-          action: body.action,
-          status: 'failed',
-          backupRequired: decision.backupRequired,
-          backupOk: hasBackup,
-          writes: false,
-          error: decision.reason,
-          idempotencyKey: body.idempotencyKey,
-        },
-      });
+    if (!decision.ok || !decision.writes) {
+      await mark({ status: 'failed', error: decision.reason, backupOk: true });
       throw badRequest(decision.reason);
     }
-    let writes = false;
     const spec = parseInstallSpec(addon.installSpec);
-    if (decision.writes && spec?.adapter === 'minecraft-plugin' && spec.project && instance.pterodactylUuid) {
-      const token = await operations.customerToken(instance);
-      const file = await pluginFileFor(spec.project, body.gameVersion ?? '1.21.1');
+    let filename = artifact?.filename ?? '';
+    let version = artifact?.version ?? '';
+    try {
       if (body.action === 'remove') {
-        await panelClient.deleteFile(token, instance.pterodactylUuid, `/plugins/${file.filename}`).catch(() => undefined);
+        if (!filename) throw new Error('No recorded plugin file exists for this add-on.');
+        await panelClient.deleteFile(token, instance.pterodactylUuid, `/plugins/${filename}`);
+        const files = await panelClient.listFiles(token, instance.pterodactylUuid, '/plugins');
+        if (pluginPresent(files, filename)) throw new Error('The plugin file is still on the server.');
       } else {
+        if (!spec?.project || !gameVersion) throw new Error('The Minecraft version of this server is unknown.');
+        const file = await pluginFileFor(spec.project, gameVersion);
         try { await panelClient.createFolder(token, instance.pterodactylUuid, '/plugins'); } catch { /* exists */ }
         await panelClient.pullFile(token, instance.pterodactylUuid, file.url, '/plugins', file.filename);
+        const files = await panelClient.listFiles(token, instance.pterodactylUuid, '/plugins');
+        if (!pluginPresent(files, file.filename)) throw new Error('The plugin file was not found after the download.');
+        filename = file.filename;
+        version = file.version;
       }
-      writes = true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The file operation failed. The manifest was not changed.';
+      await mark({ status: 'failed', error: message, backupOk: true, writes: false });
+      throw badRequest(message);
     }
-    const nextManifest = mergeManifestAddons(row.installationManifest, slug, body.action === 'remove' ? 'removed' : 'installed');
+    const latest = await prisma.instance.findUnique({ where: { id: instance.id }, select: { installationManifest: true } });
+    const nextManifest = mergeManifestAddons(
+      latest?.installationManifest,
+      slug,
+      body.action === 'remove' ? 'removed' : 'installed',
+      body.action === 'remove' ? undefined : { filename, version, project: spec?.project },
+    );
     await prisma.instance.update({ where: { id: instance.id }, data: { installationManifest: nextManifest as object } });
-    const job = await prisma.instanceAddonJob.create({
-      data: {
-        instanceId: instance.id,
-        addonSlug: slug,
-        action: body.action,
-        status: 'succeeded',
-        backupRequired: decision.backupRequired,
-        backupOk: hasBackup,
-        writes,
-        idempotencyKey: body.idempotencyKey,
-        result: { adapter: decision.adapter },
-      },
-    });
-    await audit({ actorId: user.id, actorEmail: user.email, action: `instance.addon.${body.action}`, targetType: 'instance', targetId: instance.id, meta: { slug, writes } });
-    return { job, decision, installed: installedAddonSlugs(nextManifest) };
+    const done = await mark({ status: 'succeeded', backupOk: true, writes: true, error: null, result: { adapter: decision.adapter, filename, version, backupUuid: waited.backup.uuid } });
+    await audit({ actorId: user.id, actorEmail: user.email, action: `instance.addon.${body.action}`, targetType: 'instance', targetId: instance.id, meta: { slug, writes: true, filename } });
+    return { job: done, decision, installed: installedAddonSlugs(nextManifest) };
   });
 
   app.post('/catalog/import/:id/build', async (request: FastifyRequest) => {
@@ -180,21 +262,40 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const domain = await prisma.instanceDomain.findFirst({ where: { id, claimedByUserId: user.id } });
     if (!domain) throw notFound('Domain not found.');
-    const body = z.object({ approve: z.boolean().default(false), previewId: z.string().optional(), sandboxZone: z.array(z.object({ type: z.string(), name: z.string(), value: z.string(), owned: z.boolean().optional() })).optional() }).parse(request.body ?? {});
+    const body = z.object({ approve: z.boolean().default(false), previewId: z.string().optional() }).parse(request.body ?? {});
     const records = mailDnsRecords({ domain: domain.hostname, mailHostname: env.MAIL_HOSTNAME, dkimPublic: null, fromAddress: `postmaster@${domain.hostname}` });
-    const zone: MailZoneRow[] = body.sandboxZone ?? [];
-    const preview = previewMailDns(records, zone);
-    const fingerprint = recordsFingerprint(records.map((record) => ({ type: record.type === 'MX' ? 'TXT' : record.type, name: record.name, content: record.value })));
+    const wanted = mailToCustomerRecords(records);
+    const fingerprint = recordsFingerprint(wanted);
+    const link = await prisma.cloudflareZoneLink.findUnique({ where: { userId: user.id } });
+    const provider = link ? 'cloudflare' as const : 'none';
+    const gate = mailWriteDecision({ writesEnabled: mailDnsWritesEnabled(), provider });
+    let preview = previewMailDns(records, []);
+    if (link) {
+      const token = openZoneToken(link.tokenSealed);
+      if (token) {
+        const owned = await prisma.dnsRecordGrant.findMany({ where: { domainId: domain.id }, select: { type: true, name: true, cloudflareId: true } });
+        const live = await previewCustomerRecords(token, link.zoneId, link.zoneName, wanted, owned);
+        preview = live.map((row) => ({ type: row.type, name: row.name, wanted: row.wanted, current: row.current, action: row.action }));
+      }
+    }
     if (!body.approve) {
       const stored = await prisma.dnsApproval.create({
         data: { userId: user.id, domainId: domain.id, fingerprint, diff: preview as object, expiresAt: new Date(Date.now() + DNS_PREVIEW_TTL_MS) },
       });
-      return { previewId: stored.id, expiresAt: stored.expiresAt, preview, writes: false, rollback: rollbackCopy(preview), note: 'Existing mail DNS is not changed until you approve this preview.' };
+      return {
+        previewId: stored.id,
+        expiresAt: stored.expiresAt,
+        preview,
+        outcome: 'preview',
+        applied: false,
+        writes: false,
+        rollback: rollbackCopy(preview),
+        note: 'Existing mail DNS is not changed until you approve this preview against the connected zone.',
+      };
     }
     if (!body.previewId) throw badRequest('Approve the preview that was just shown.');
     const saved = await prisma.dnsApproval.findFirst({ where: { id: body.previewId, userId: user.id, domainId: domain.id } });
     if (!saved) throw badRequest('That preview does not belong to this hostname.');
-    const live = previewMailDns(records, zone);
     const decision = approvalDecision({
       now: Date.now(),
       expiresAt: saved.expiresAt.getTime(),
@@ -202,17 +303,55 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
       fingerprint: saved.fingerprint,
       currentFingerprint: fingerprint,
       stored: saved.diff as never,
-      live: live as never,
+      live: preview as never,
     });
     if (!decision.ok) throw badRequest(decision.reason);
     await prisma.dnsApproval.updateMany({ where: { id: saved.id, consumedAt: null }, data: { consumedAt: new Date() } });
-    if (!mailDnsWritesEnabled()) {
-      return { preview, applied: false, note: 'Approval stored. MAIL_DNS_WRITES is off, so customer mail DNS was not changed.', rollback: rollbackCopy(preview) };
+    if (gate.outcome !== 'ready' || !link) {
+      return {
+        preview,
+        outcome: gate.outcome,
+        applied: false,
+        writes: false,
+        rollback: rollbackCopy(preview),
+        note: gate.outcome === 'preview_only'
+          ? 'Approval stored. MAIL_DNS_WRITES is off, so customer mail DNS was not changed.'
+          : 'No Cloudflare zone is connected. Mail DNS was not written.',
+      };
     }
-    const applied = applyMailDns(records, zone);
-    if (applied.conflicts.length) throw badRequest(`Conflicts: ${applied.conflicts.join(', ')}`);
-    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.mail_dns.apply', targetType: 'instance_domain', targetId: domain.id, meta: { written: applied.written } });
-    return { preview, applied: true, written: applied.written, rollback: rollbackCopy(preview) };
+    const token = openZoneToken(link.tokenSealed);
+    if (!token) throw badRequest('The saved Cloudflare token could not be read. Connect the zone again.');
+    const owned = await prisma.dnsRecordGrant.findMany({ where: { domainId: domain.id }, select: { type: true, name: true, cloudflareId: true } });
+    const result = await publishCustomerRecords(token, link.zoneId, link.zoneName, wanted, owned);
+    if (result.created.length) {
+      await prisma.dnsRecordGrant.createMany({
+        data: result.created.map((row) => ({
+          domainId: domain.id,
+          zoneId: link.zoneId,
+          type: row.type,
+          name: row.name,
+          content: row.content,
+          cloudflareId: row.cloudflareId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    const verify = await previewCustomerRecords(token, link.zoneId, link.zoneName, wanted, [
+      ...owned,
+      ...result.created.map((row) => ({ type: row.type, name: row.name, cloudflareId: row.cloudflareId })),
+    ]);
+    const drifted = verify.filter((row) => row.action === 'create' || row.action === 'update' || row.action === 'conflict');
+    const applied = result.skipped.length === 0 && drifted.length === 0;
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.mail_dns.apply', targetType: 'instance_domain', targetId: domain.id, meta: { written: result.written.length, skipped: result.skipped.length, drifted: drifted.length } });
+    return {
+      preview: verify.map((row) => ({ type: row.type, name: row.name, wanted: row.wanted, current: row.current, action: row.action })),
+      outcome: applied ? 'applied' : 'partial',
+      applied,
+      written: result.written,
+      skipped: result.skipped,
+      rollback: rollbackCopy(preview),
+      note: applied ? null : 'Cloudflare did not confirm every mail record. Existing zone records were left in place.',
+    };
   });
 
   app.post('/domains/commerce/orders', async (request: FastifyRequest) => {

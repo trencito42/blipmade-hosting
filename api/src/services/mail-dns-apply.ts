@@ -21,6 +21,23 @@ export function mailDnsWritesEnabled(): boolean {
   return process.env.MAIL_DNS_WRITES === 'true';
 }
 
+export type MailDnsOutcome = 'preview_only' | 'provider_unavailable' | 'ready';
+
+/** HTTP applied is true only after a real provider write. Memory simulation never counts. */
+export function mailWriteDecision(input: { writesEnabled: boolean; provider: 'cloudflare' | 'none' }): { outcome: MailDnsOutcome; applied: false } {
+  if (!input.writesEnabled) return { outcome: 'preview_only', applied: false };
+  if (input.provider !== 'cloudflare') return { outcome: 'provider_unavailable', applied: false };
+  return { outcome: 'ready', applied: false };
+}
+
+export function mailToCustomerRecords(records: MailDnsRecord[]): import('./dns-approval.js').CustomerRecord[] {
+  return records.map((record) => {
+    if (record.type === 'MX') return { type: 'MX', name: record.name, content: record.value, priority: record.priority ?? 10 };
+    if (record.type === 'CNAME') return { type: 'CNAME', name: record.name, content: record.value };
+    return { type: 'TXT', name: record.name, content: record.value };
+  });
+}
+
 function key(row: { type: string; name: string }): string {
   return `${row.type}:${row.name.toLowerCase()}`;
 }

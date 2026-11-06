@@ -4,9 +4,10 @@ import { createHash } from 'node:crypto';
 export const DNS_PREVIEW_TTL_MS = 10 * 60 * 1000;
 
 export interface CustomerRecord {
-  type: 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'SRV';
+  type: 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'SRV' | 'MX';
   name: string;
   content: string;
+  priority?: number;
   data?: { priority: number; weight: number; port: number; target: string };
 }
 
@@ -31,6 +32,7 @@ export function recordsFingerprint(records: CustomerRecord[]): string {
       type: record.type,
       name: record.name.toLowerCase(),
       content: record.content,
+      priority: record.priority ?? null,
       data: record.data ?? null,
     }))
     .sort((left, right) => `${left.type} ${left.name}`.localeCompare(`${right.type} ${right.name}`));

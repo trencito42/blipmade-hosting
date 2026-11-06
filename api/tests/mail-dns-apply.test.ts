@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMailDns, previewMailDns, rollbackCopy } from '../src/services/mail-dns-apply.js';
+import { applyMailDns, mailWriteDecision, previewMailDns, rollbackCopy } from '../src/services/mail-dns-apply.js';
 import { mailDnsRecords } from '../src/services/mail-dns.js';
 
 describe('mail dns apply', () => {
@@ -25,5 +25,8 @@ describe('mail dns apply', () => {
     expect(applied.written).toBeGreaterThan(0);
     expect(applied.conflicts).toEqual([]);
     expect(rollbackCopy(preview).every((row) => row.value === null)).toBe(true);
+    expect(mailWriteDecision({ writesEnabled: false, provider: 'cloudflare' })).toEqual({ outcome: 'preview_only', applied: false });
+    expect(mailWriteDecision({ writesEnabled: true, provider: 'none' })).toEqual({ outcome: 'provider_unavailable', applied: false });
+    expect(mailWriteDecision({ writesEnabled: true, provider: 'cloudflare' })).toEqual({ outcome: 'ready', applied: false });
   });
 });

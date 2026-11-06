@@ -59,7 +59,7 @@ function MailDnsPreview({ domainId }: { domainId: string }) {
   const apply = useAction(async (approve: boolean) => {
     const answer = await post<{ previewId?: string; preview: { action: string; type: string; name: string }[]; note?: string; applied?: boolean }>(
       `/domains/${encodeURIComponent(domainId)}/mail-dns`,
-      { approve, previewId: approve ? previewId ?? undefined : undefined, sandboxZone: [] },
+      { approve, previewId: approve ? previewId ?? undefined : undefined },
     );
     if (!approve) {
       setPreviewId(answer.previewId ?? null);

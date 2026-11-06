@@ -5,7 +5,7 @@ import type { CustomerRecord, OwnedRecord, RecordPreview } from './dns-approval.
 export { DNS_PREVIEW_TTL_MS, approvalDecision, recordsFingerprint } from './dns-approval.js';
 export type { CustomerRecord, OwnedRecord, RecordPreview } from './dns-approval.js';
 
-const WRITABLE = new Set(['A', 'AAAA', 'CNAME', 'TXT', 'SRV']);
+const WRITABLE = new Set(['A', 'AAAA', 'CNAME', 'TXT', 'SRV', 'MX']);
 
 interface CfResponse {
   ok: boolean;
@@ -187,7 +187,9 @@ export async function publishCustomerRecords(
     }
     const payload = record.type === 'SRV'
       ? { type: 'SRV', name, data: record.data, ttl: 120 }
-      : { type: record.type, name, content: record.content, ttl: 120, ...(record.type === 'TXT' ? {} : { proxied: false }) };
+      : record.type === 'MX'
+        ? { type: 'MX', name, content: record.content, priority: record.priority ?? 10, ttl: 120 }
+        : { type: record.type, name, content: record.content, ttl: 120, ...(record.type === 'TXT' ? {} : { proxied: false }) };
     if (found.action === 'update' && found.ours?.id) {
       const saved = await cf(token, 'PATCH', `/zones/${zoneId}/dns_records/${found.ours.id}`, payload);
       if (!saved.ok) skipped.push(saved.errors[0] ?? `${label} was not updated.`);
