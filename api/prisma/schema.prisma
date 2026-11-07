@@ -2642,6 +2642,7 @@ model MarketingCampaign {
   updatedAt   DateTime @updatedAt
 
   @@index([status, createdAt])
+  @@index([status, scheduledAt])
 }
 
 /// One planned or attempted campaign recipient. Consent is stored at queue time and re-checked before send.

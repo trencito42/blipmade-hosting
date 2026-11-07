@@ -5,7 +5,6 @@
  */
 
 import type { BillingPeriod } from '@prisma/client';
-import { monthsOfPeriod, periodOfConfig } from './pricing.js';
 
 export const STRIPE_MAX_COUPON_MONTHS = 12;
 
@@ -25,7 +24,7 @@ export function promotionCouponSpec(input: {
   const periods = input.recurringPeriods && input.recurringPeriods > 0 ? input.recurringPeriods : 0;
   if (periods === 0) return { duration: 'once', months: 0, periods: 0, period };
   if (!Number.isInteger(periods) || periods < 1) throw new Error('Discounted billing periods must be a whole number of 1 or more.');
-  const months = periods * monthsOfPeriod(period);
+  const months = periods * (period === 'YEARLY' ? 12 : 1);
   if (months > STRIPE_MAX_COUPON_MONTHS) {
     throw new Error(
       `${periods} ${period === 'YEARLY' ? 'yearly' : 'monthly'} billing period(s) need ${months} calendar months. Stripe repeating coupons last at most ${STRIPE_MAX_COUPON_MONTHS} months.`,
@@ -39,10 +38,12 @@ export function couponSpecFromOrderItems(
   items: Array<{ config?: unknown }>,
 ): PromotionCouponSpec {
   if (!items.length) throw new Error('A sponsored subscription needs at least one order line.');
+  const periodOf = (config: unknown): BillingPeriod =>
+    (config as { period?: unknown } | null)?.period === 'YEARLY' ? 'YEARLY' : 'MONTHLY';
   return promotionCouponSpec({
     recurringPeriods,
-    period: periodOfConfig(items[0]?.config),
-    itemPeriods: items.map((item) => periodOfConfig(item.config)),
+    period: periodOf(items[0]?.config),
+    itemPeriods: items.map((item) => periodOf(item.config)),
   });
 }
 
