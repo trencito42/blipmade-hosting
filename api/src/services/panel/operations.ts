@@ -45,7 +45,7 @@ export async function loadOwnedInstance(
   /** The path of the request. A viewer reaches the activity, the usage, the console and the public address to join, and nothing that holds secrets (files, databases, backups, startup). */
   path?: string,
 ): Promise<OwnedInstance> {
-  const viewerMay = (method === 'GET' || method === 'HEAD') && !!path && /^\/(?:api\/)?instances\/[^/?]+\/(?:activity|resources|server|connect)(?:[/?]|$)/.test(path);
+  const viewerMay = (method === 'GET' || method === 'HEAD') && !!path && /^\/(?:api\/)?instances\/[^/?]+\/(?:activity|resources|server|connect|game-capabilities)(?:[/?]|$)/.test(path);
   const read = viewerMay;
   const instance = await prisma.instance.findFirst({
     where: method

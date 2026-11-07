@@ -8,7 +8,7 @@ async function json(route: Route, body: unknown) {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 }
 
-async function stub(page: Page, instance = INSTANCE) {
+async function stub(page: Page, instance = INSTANCE, capabilityManifest?: unknown) {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
     if (path === '/auth/session') return json(route, { user: USER });
@@ -18,10 +18,36 @@ async function stub(page: Page, instance = INSTANCE) {
     if (path === '/support/availability') return json(route, { available: false });
     if (path === '/support/chat/current' || path === '/support/bot/current') return json(route, { conversation: null });
     if (path === '/instances/i1') return json(route, { instance });
+    if (path === '/instances/i1/game-capabilities') return json(route, capabilityManifest ? { manifest: capabilityManifest } : {});
     if (path === '/instances/i1/backups') return json(route, { backups: BACKUPS, limit: 5, storage: 'local', preset: 'daily', lastRun: null, nextRun: null });
     return json(route, {});
   });
 }
+
+test('the server capability manifest owns the primary workspace navigation', async ({ page }) => {
+  await stub(page, INSTANCE, {
+    family: 'games',
+    features: { git: { supported: false, available: false }, addons: { supported: true, available: true } },
+    primaryTabs: ['overview', 'console', 'game', 'addons', 'backups', 'settings'],
+  });
+  await page.goto('/app/instances/i1');
+  const primary = page.getByRole('group', { name: 'Instance sections' }).or(page.locator('[aria-label="Instance sections"]'));
+  await expect(primary.getByRole('tab', { name: 'Game', exact: true }).or(primary.getByRole('button', { name: 'Game', exact: true })).first()).toBeVisible();
+  await expect(primary.getByRole('tab', { name: 'Files', exact: true }).or(primary.getByRole('button', { name: 'Files', exact: true }))).toHaveCount(0);
+});
+
+test('a viewer can read the console workspace but cannot send commands', async ({ page }) => {
+  await stub(page, { ...INSTANCE, access: 'viewer' }, {
+    family: 'web',
+    features: { console: { supported: true, available: true }, git: { supported: false, available: false }, addons: { supported: false, available: false } },
+    primaryTabs: ['overview', 'console', 'files', 'backups', 'settings'],
+  });
+  await page.goto('/app/instances/i1/console');
+  const input = page.getByRole('textbox', { name: 'Console command' });
+  await expect(input).toBeDisabled();
+  await expect(input).toHaveAttribute('placeholder', 'Read-only console');
+  await expect(page.getByText('Your viewer access can read output but cannot send commands.')).toBeVisible();
+});
 
 test('supported imported runtimes keep their Deploy workspace in the primary navigation', async ({ page }) => {
   await stub(page, { ...INSTANCE, product: { ...INSTANCE.product, slug: 'golang', name: 'Golang' } });

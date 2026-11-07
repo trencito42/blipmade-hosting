@@ -23,7 +23,7 @@ import { cloudflareSaasEnabled, memorySaasAdapter, ownershipTxt, saasPlan, saasR
 import { mailDnsWritesEnabled, mailToCustomerRecords, mailWriteDecision, previewMailDns, rollbackCopy } from '../services/mail-dns-apply.js';
 import { mailDnsRecords } from '../services/mail-dns.js';
 import { cancelIsolatedBuild, planIsolatedBuild } from '../services/isolated-build.js';
-import { capabilitiesFor } from '../services/game-capabilities.js';
+import { capabilitiesFor, instanceCapabilities } from '../services/game-capabilities.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
 import * as application from '../services/pterodactyl/application.js';
@@ -293,10 +293,20 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
   });
 
   app.get('/instances/:id/game-capabilities', async (request: FastifyRequest) => {
-    const { instance } = await ownedInstance(request);
-    const row = await prisma.instance.findUnique({ where: { id: instance.id }, select: { product: { select: { slug: true } } } });
+    const { user, instance } = await ownedInstance(request);
+    const row = await prisma.instance.findUnique({
+      where: { id: instance.id },
+      select: {
+        status: true,
+        pterodactylUuid: true,
+        product: { select: { slug: true } },
+        shares: { where: { userId: user.id, revokedAt: null }, select: { role: true }, take: 1 },
+      },
+    });
     const slug = row?.product.slug ?? '';
-    return { slug, profile: capabilitiesFor(slug) };
+    const access = instance.userId === user.id ? 'owner' : row?.shares[0]?.role === 'manager' ? 'manager' : 'viewer';
+    const deployed = Boolean(row?.pterodactylUuid) && !['PENDING', 'PROVISIONING', 'CANCELLED'].includes(row?.status ?? '');
+    return { slug, profile: capabilitiesFor(slug), manifest: instanceCapabilities({ productSlug: slug, deployed, access }) };
   });
 
   app.post('/domains/:id/mail-dns', async (request: FastifyRequest) => {

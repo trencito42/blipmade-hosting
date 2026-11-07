@@ -336,7 +336,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
   app.get('/instances/:id/metrics', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const instance = await loadInstance(user.id, id);
+    const instance = await loadInstance(user.id, id, 'GET');
     if (!instance.pterodactylUuid) return { metrics: null };
 
     try {
@@ -368,7 +368,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
   app.get('/instances/:id/console', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const instance = await loadInstance(user.id, id);
+    const instance = await loadInstance(user.id, id, 'GET');
     if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
 
     // The relay checks the ownership again when the socket is opened, so the
@@ -377,7 +377,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     // The console needs the client key of the customer. When there is no key
     // and the panel cannot issue one, the reason is said out loud instead of
     // opening a socket that would fail.
-    const hasKey = await hasCustomerCredential(user.id);
+    const hasKey = await hasCustomerCredential(instance.userId);
     if (!hasKey && !env.panelBridgeEnabled) {
       throw unavailable(
         'The console needs the client key of this customer on the panel. The key bridge of the panel is not installed yet (see docs/PANEL_BRIDGE.md), so the panel cannot issue one.',
@@ -388,9 +388,9 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
 
   /**
    * Console relay. The browser opens this socket with its session cookie, the
-   * API opens the panel console on its behalf and the traffic is piped in both
-   * directions. The panel token never reaches the browser, and the socket is
-   * only opened for an instance the caller owns.
+   * API opens the panel console on its behalf and streams output back. The
+   * panel token never reaches the browser. Owners and managers send commands
+   * through the separately-authorized HTTP route; viewers only receive output.
    */
   app.get('/instances/:id/console/stream', {
     websocket: true,
@@ -417,7 +417,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { command } = z.object({ command: z.string().trim().min(1).max(1000) }).parse(request.body);
 
-    const instance = await loadInstance(user.id, id);
+    const instance = await loadInstance(user.id, id, 'POST');
     if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
 
     const token = await clientTokenFor(instance);
@@ -701,8 +701,8 @@ function reply202(instanceId: string) {
  * Connects a browser to the console of a server.
  *
  * The panel token is added by the server and never leaves it, so a customer
- * cannot use it for anything else. Everything the browser sends is forwarded
- * to the console and everything the console sends is forwarded back.
+ * cannot use it for anything else. Console output is forwarded to the browser;
+ * commands use the separately-authorized HTTP route above.
  */
 async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise<void> {
   const user = request.user;
@@ -720,7 +720,10 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
   }
 
   const instance = await prisma.instance.findFirst({
-    where: { id: instanceId, userId: user.id },
+    where: {
+      id: instanceId,
+      OR: [{ userId: user.id }, { shares: { some: { userId: user.id, revokedAt: null } } }],
+    },
     include: { user: { select: { pterodactylUserId: true } } },
   });
   if (!instance) {
@@ -733,7 +736,7 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
   }
   let credentials: { socket: string; token: string };
   try {
-    const credential = await resolveCustomerCredential(user.id);
+    const credential = await resolveCustomerCredential(instance.userId);
     credentials = await client.consoleWebsocket(
       client.clientToken(credential.token),
       instance.pterodactylUuid,
@@ -778,7 +781,7 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
     } else if (packet.event === 'console output') {
       if (socket.readyState === socket.OPEN) socket.send(packet.args?.[0] ?? '');
     } else if (packet.event === 'token expiring' || packet.event === 'token expired') {
-      void resolveCustomerCredential(user.id).then((customer) => client.consoleWebsocket(client.clientToken(customer.token), instance.pterodactylUuid!)).then((fresh) => {
+      void resolveCustomerCredential(instance.userId).then((customer) => client.consoleWebsocket(client.clientToken(customer.token), instance.pterodactylUuid!)).then((fresh) => {
         credentials = fresh;
         if (target.readyState === target.OPEN) target.send(JSON.stringify({ event: 'auth', args: [fresh.token] }));
       }).catch(() => target.close());

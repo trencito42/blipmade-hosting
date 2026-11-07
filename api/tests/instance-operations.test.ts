@@ -351,6 +351,30 @@ describe('the operations of a customer on their own server', () => {
   });
 });
 
+describe('the console of a shared server', () => {
+  it('uses the owner panel key, lets a manager command, and keeps a viewer read-only', async () => {
+    const app = await getApp();
+    const owner = await registerAndLogin(app, 'console-owner@example.com');
+    const manager = await registerAndLogin(app, 'console-manager@example.com');
+    const viewer = await registerAndLogin(app, 'console-viewer@example.com');
+    panel.tokens.set(owner.userId, panelKey('s'));
+    await storeCredential(owner.userId, panelKey('s'));
+    const instance = await makeInstance(owner.userId);
+    await prisma.instanceShare.createMany({
+      data: [
+        { instanceId: instance.id, userId: manager.userId, role: 'manager', codeHash: 'console-manager', expiresAt: new Date(Date.now() + 60_000), redeemedAt: new Date() },
+        { instanceId: instance.id, userId: viewer.userId, role: 'viewer', codeHash: 'console-viewer', expiresAt: new Date(Date.now() + 60_000), redeemedAt: new Date() },
+      ],
+    });
+
+    expect((await manager.client.request('GET', `/api/instances/${instance.id}/console`)).status).toBe(200);
+    expect((await viewer.client.request('GET', `/api/instances/${instance.id}/console`)).status).toBe(200);
+    expect((await viewer.client.request('POST', `/api/instances/${instance.id}/command`, { command: 'status' })).status).toBe(404);
+    expect((await manager.client.request('POST', `/api/instances/${instance.id}/command`, { command: 'status' })).status).toBe(200);
+    expect(panel.calls.at(-1)?.token).toBe(panelKey('s'));
+  });
+});
+
 describe('the isolation between two customers', () => {
   it('does not let one customer reach the server of another one', async () => {
     const app = await getApp();

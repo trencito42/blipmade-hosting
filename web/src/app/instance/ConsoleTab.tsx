@@ -219,7 +219,8 @@ export default function ConsoleTab({ instance }: TabProps) {
     }
   };
 
-  const inputOff = isCodeServer || state !== 'open' || sending;
+  const readOnly = instance.access === 'viewer';
+  const inputOff = isCodeServer || readOnly || state !== 'open' || sending;
 
   return (
     <div className="grid gap-3">
@@ -287,7 +288,7 @@ export default function ConsoleTab({ instance }: TabProps) {
                   }}
                   onKeyDown={onKey}
                   disabled={inputOff}
-                  placeholder={isCodeServer ? 'Use the terminal of Code Server' : state === 'open' ? 'Type a command and press Enter' : 'Waiting for the connection'}
+                  placeholder={isCodeServer ? 'Use the terminal of Code Server' : readOnly ? 'Read-only console' : state === 'open' ? 'Type a command and press Enter' : 'Waiting for the connection'}
                   autoComplete="off"
                   autoCapitalize="off"
                   autoCorrect="off"
@@ -307,7 +308,9 @@ export default function ConsoleTab({ instance }: TabProps) {
               </p>
             )}
             <p className="mt-2 text-[12.5px] text-ink3">
-              {state === 'open'
+              {readOnly
+                ? 'Your viewer access can read output but cannot send commands.'
+                : state === 'open'
                 ? 'Arrow up and down walk through the commands you sent. Commands go through the Blipmade API.'
                 : 'The console reconnects on its own when the connection drops.'}
             </p>

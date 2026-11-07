@@ -5,7 +5,7 @@ import { saasTransition } from '../src/services/cloudflare-saas.js';
 import { planIsolatedBuild, SANDBOX_LIMITS, sandboxDispatchPayload } from '../src/services/isolated-build.js';
 import { ownershipTxt, saasReconcile } from '../src/services/cloudflare-saas.js';
 import { quoteStillValid } from '../src/services/domain-commerce.js';
-import { capabilitiesFor, hasCapability } from '../src/services/game-capabilities.js';
+import { capabilitiesFor, hasCapability, instanceCapabilities } from '../src/services/game-capabilities.js';
 
 describe('domain registration state machine', () => {
   it('moves quote to registered only through the provider', () => {
@@ -53,5 +53,22 @@ describe('game capability registry', () => {
     expect(hasCapability('minecraft-forge', 'minecraft-modpacks')).toBe(true);
     expect(hasCapability('rust', 'smart-connect')).toBe(false);
     expect(capabilitiesFor('nodejs')).toBeNull();
+  });
+
+  it('builds effective navigation and availability on the server', () => {
+    const paper = instanceCapabilities({ productSlug: 'minecraft-paper', deployed: true, access: 'owner' });
+    expect(paper).toMatchObject({ family: 'minecraft-java', edition: 'Java', loader: 'paper' });
+    expect(paper.primaryTabs).toEqual(['overview', 'console', 'minecraft', 'addons', 'backups', 'settings']);
+    expect(paper.features.plugins).toMatchObject({ supported: true, available: true, requiresRestart: true });
+    expect(paper.features.modpacks.supported).toBe(false);
+
+    const pending = instanceCapabilities({ productSlug: 'rust', deployed: false, access: 'owner' });
+    expect(pending.features.serverSettings).toMatchObject({ supported: true, available: false, reason: 'This service is not deployed yet.' });
+
+    const viewer = instanceCapabilities({ productSlug: 'nodejs', deployed: true, access: 'viewer' });
+    expect(viewer.family).toBe('web');
+    expect(viewer.features.console).toMatchObject({ supported: true, available: true });
+    expect(viewer.features.git).toMatchObject({ supported: true, available: false, reason: 'Your shared access is read-only.' });
+    expect(viewer.features.resourceScaling.reason).toMatch(/Only the service owner/);
   });
 });

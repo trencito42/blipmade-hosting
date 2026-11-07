@@ -153,6 +153,18 @@ function primaryTabsFor(slug: string | undefined): Tab[] {
   return ['overview', 'console', 'files', 'backups', 'settings'];
 }
 
+interface CapabilityManifest {
+  family: 'minecraft-java' | 'minecraft-bedrock' | 'games' | 'web' | 'bot' | 'database' | 'generic';
+  features: Record<string, { supported: boolean; available: boolean; reason?: string }>;
+  primaryTabs: string[];
+}
+
+function primaryTabsFromManifest(slug: string | undefined, manifest: CapabilityManifest | undefined): Tab[] {
+  if (!manifest) return primaryTabsFor(slug);
+  const tabs = manifest.primaryTabs.filter((value): value is Tab => TABS.some((entry) => entry.value === value));
+  return tabs.length ? tabs : primaryTabsFor(slug);
+}
+
 /** What a member of a shared server does not get: the parts that belong to the owner. */
 const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
 /** A viewer only looks. */
@@ -541,12 +553,18 @@ export default function InstanceDetail() {
     (signal) => get<{ instance: Instance }>(`/instances/${id}`, undefined, signal),
     [id],
   );
+  const capabilityData = useAsync<{ manifest: CapabilityManifest }>(
+    (signal) => get(`/instances/${encodeURIComponent(id)}/game-capabilities`, undefined, signal),
+    [id],
+  );
+  const manifest = capabilityData.data?.manifest;
   const visibleTabs = TABS.filter((entry) => {
     const access = data?.instance.access ?? 'owner';
-    // Deploy from Git is for the runtimes where the customer brings the code.
-    if (entry.value === 'minecraft' && !MINECRAFT_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
-    if (entry.value === 'game' && !GAME_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
-    if (entry.value === 'git' && !DEPLOY_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
+    // The server owns effective capabilities. Slug lists are only a compatibility fallback while it loads.
+    if (entry.value === 'minecraft' && (manifest ? manifest.family !== 'minecraft-java' : !MINECRAFT_SLUGS.includes(data?.instance.product.slug ?? ''))) return false;
+    if (entry.value === 'game' && (manifest ? !['minecraft-bedrock', 'games'].includes(manifest.family) : !GAME_SLUGS.includes(data?.instance.product.slug ?? ''))) return false;
+    if (entry.value === 'git' && (manifest ? !manifest.features.git?.supported : !DEPLOY_SLUGS.includes(data?.instance.product.slug ?? ''))) return false;
+    if (entry.value === 'addons' && manifest && !manifest.features.addons?.supported) return false;
     if (access === 'owner') return true;
     if (OWNER_ONLY.includes(entry.value)) return false;
     return access === 'manager' || !VIEWER_HIDDEN.includes(entry.value);
@@ -619,7 +637,7 @@ export default function InstanceDetail() {
   const canStop = live.power === 'running' || live.power === 'starting' || (live.power === 'unknown' && (status === 'online' || status === 'degraded'));
   const canRestart = canStart || canStop || isStopping;
   const canKill = isStopping || live.power === 'running' || live.power === 'starting' || status === 'online' || status === 'degraded';
-  const primaryTabs = primaryTabsFor(instance.product.slug);
+  const primaryTabs = primaryTabsFromManifest(instance.product.slug, manifest);
   const advancedOpen = showMore || !primaryTabs.includes(tab);
 
   return (
