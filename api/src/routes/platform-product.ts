@@ -28,6 +28,7 @@ import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
 import * as application from '../services/pterodactyl/application.js';
 import { pluginFileFor } from '../services/minecraft.js';
+import { streamHashes } from '../services/profile-snapshot.js';
 import { DNS_PREVIEW_TTL_MS, approvalDecision, recordsFingerprint } from '../services/dns-approval.js';
 import { openZoneToken, previewCustomerRecords, publishCustomerRecords } from '../services/customer-cloudflare.js';
 
@@ -210,6 +211,10 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     const spec = parseInstallSpec(addon.installSpec);
     let filename = artifact?.filename ?? '';
     let version = artifact?.version ?? '';
+    let artifactDetails: {
+      releaseId?: string; source?: 'modrinth'; sourceProjectId?: string; sourceUrl?: string; sha256?: string;
+      sourceSha512?: string; loader?: string; gameVersion?: string; dependencies?: { projectId: string | null; versionId: string | null; type: string }[];
+    } = {};
     try {
       if (body.action === 'remove') {
         if (!filename) throw new Error('No recorded plugin file exists for this add-on.');
@@ -223,6 +228,11 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
         await panelClient.pullFile(token, instance.pterodactylUuid, file.url, '/plugins', file.filename);
         let files = await panelClient.listFiles(token, instance.pterodactylUuid, '/plugins');
         if (!pluginPresent(files, file.filename)) throw new Error('The plugin file was not found after the download.');
+        const hashes = await streamHashes(await panelClient.downloadFile(token, instance.pterodactylUuid, `/plugins/${file.filename}`));
+        if (hashes.sha512 !== file.sourceSha512 || hashes.bytes !== file.size) {
+          await panelClient.deleteFile(token, instance.pterodactylUuid, `/plugins/${file.filename}`).catch(() => undefined);
+          throw new Error('The downloaded plugin failed its checksum.');
+        }
         const staleFilename = stalePluginFilename(body.action, artifact?.filename, file.filename);
         if (staleFilename) {
           try {
@@ -236,6 +246,17 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
         }
         filename = file.filename;
         version = file.version;
+        artifactDetails = {
+          releaseId: file.releaseId,
+          source: 'modrinth' as const,
+          sourceProjectId: file.projectId,
+          sourceUrl: file.url,
+          sha256: hashes.sha256,
+          sourceSha512: file.sourceSha512,
+          loader: file.loaders.find((loader) => ['paper', 'spigot', 'bukkit'].includes(loader)) ?? 'paper',
+          gameVersion,
+          dependencies: file.dependencies,
+        };
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'The file operation failed. The manifest was not changed.';
@@ -247,7 +268,7 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
       latest?.installationManifest,
       slug,
       body.action === 'remove' ? 'removed' : 'installed',
-      body.action === 'remove' ? undefined : { filename, version, project: spec?.project },
+      body.action === 'remove' ? undefined : { filename, version, project: spec?.project, ...artifactDetails },
     );
     await prisma.instance.update({ where: { id: instance.id }, data: { installationManifest: nextManifest as object } });
     const done = await mark({ status: 'succeeded', backupOk: true, writes: true, error: null, result: { adapter: decision.adapter, filename, version, backupUuid: waited.backup.uuid } });

@@ -1120,13 +1120,14 @@ model Instance {
   offsiteBackups OffsiteBackup[]
   gitDeploy GitDeploy?
   addonJobs InstanceAddonJob[]
+  profileActivationJobs ServerProfileActivationJob[]
   /// Tell the owner when the memory or the disk use passes this percentage of the plan. Null means no alert.
   alertMemoryPercent Int?
   alertDiskPercent   Int?
   resourceAlertedAt  DateTime?
 }
 
-/// A remembered size of a server. It does not change the product or the files.
+/// An immutable, reproducible snapshot of a supported server installation.
 model ServerProfile {
   id          String   @id @default(cuid())
   userId      String
@@ -1140,9 +1141,43 @@ model ServerProfile {
   disk        Int
   /// Snapshot of installationManifest when the profile was saved. Apply never writes files without a backup.
   manifest    Json?
+  /// Canonical snapshot of catalogue identity, runtime and immutable artifacts.
+  snapshot    Json?
+  snapshotVersion Int @default(1)
+  /// SHA-256 of the canonical snapshot JSON. A changed snapshot is refused.
+  snapshotSha256 String?
   createdAt   DateTime @default(now())
 
+  activationJobs ServerProfileActivationJob[]
+
   @@index([instanceId, createdAt])
+}
+
+/// Durable execution record created before profile activation touches the panel.
+model ServerProfileActivationJob {
+  id             String        @id @default(cuid())
+  instanceId     String
+  instance       Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  profileId      String
+  profile        ServerProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  actorId        String
+  idempotencyKey String
+  /// Unique only while work is active; cleared on every terminal state.
+  activeKey      String?       @unique
+  status         String        @default("pending")
+  progress       Int           @default(0)
+  step           String        @default("queued")
+  snapshotSha256 String
+  backupUuid     String?
+  backupSha256   String?
+  error          String?
+  result         Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([instanceId, idempotencyKey])
+  @@index([instanceId, createdAt])
+  @@index([status, updatedAt])
 }
 
 /// A switch from one catalogue product to another. The egg is not changed until the backup archive can be opened.

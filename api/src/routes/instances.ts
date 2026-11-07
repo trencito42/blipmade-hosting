@@ -17,6 +17,8 @@ import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, quoteStillValid, resizeStatus, settleFreeUpgradeOrder } from '../services/upgrades.js';
 import { assessRepurpose, repurposeInstance } from '../services/provisioning.js';
 import { repurposeConfirmed } from '../services/repurpose-gate.js';
+import { buildSnapshot, snapshotSha256 } from '../services/profile-snapshot.js';
+import { createProfileActivationJob, profileActivationPreview, requestProfileRecovery } from '../services/profile-activation.js';
 import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
 import { parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
 import { createCheckout } from '../services/stripe.js';
@@ -614,7 +616,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     return reply.code(204).send();
   });
 
-  const profileSelect = { id: true, name: true, productSlug: true, ram: true, cpu: true, disk: true, manifest: true, createdAt: true } as const;
+  const profileSelect = { id: true, name: true, productSlug: true, ram: true, cpu: true, disk: true, manifest: true, snapshotVersion: true, snapshotSha256: true, createdAt: true } as const;
 
   app.get('/instances/:id/profiles', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
@@ -639,8 +641,24 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const instance = await loadInstance(user.id, id);
     const count = await prisma.serverProfile.count({ where: { instanceId: instance.id } });
     if (count >= 20) throw badRequest('This server already has 20 saved profiles.');
+    const variant = await prisma.catalogVariant.findUnique({ where: { productId: instance.productId }, select: { id: true, familyId: true } });
+    if (!variant) throw badRequest('This service is not linked to the canonical catalogue and cannot be saved as a reproducible profile.');
+    const manifest = instance.installationManifest;
+    const preset = manifest && typeof manifest === 'object'
+      ? manifest as { presetSlug?: string; version?: number; orderInstall?: { gameVersion?: string } }
+      : null;
+    const presetVersion = preset?.presetSlug && typeof preset.version === 'number'
+      ? await prisma.catalogPresetVersion.findFirst({ where: { preset: { familyId: variant.familyId, slug: preset.presetSlug }, version: preset.version }, select: { id: true } })
+      : null;
+    const artifacts = manifest && typeof manifest === 'object' ? (manifest as { addons?: { loader?: string; gameVersion?: string }[] }).addons ?? [] : [];
+    const snapshot = buildSnapshot({
+      catalog: { familyId: variant.familyId, variantId: variant.id, productId: instance.productId, productSlug: instance.product.slug, presetVersionId: presetVersion?.id ?? null },
+      runtime: { productSlug: instance.product.slug, loader: artifacts[0]?.loader ?? null, gameVersion: artifacts[0]?.gameVersion ?? preset?.orderInstall?.gameVersion ?? null },
+      resources: { ram: instance.ram, cpu: instance.cpu, disk: instance.disk },
+      manifest,
+    });
     const profile = await prisma.serverProfile.create({
-      data: { userId: instance.userId, instanceId: instance.id, name: body.name, productSlug: instance.product.slug, ram: instance.ram, cpu: instance.cpu, disk: instance.disk, manifest: instance.installationManifest ?? undefined },
+      data: { userId: instance.userId, instanceId: instance.id, name: body.name, productSlug: instance.product.slug, ram: instance.ram, cpu: instance.cpu, disk: instance.disk, manifest: manifest ?? undefined, snapshot: snapshot as object, snapshotSha256: snapshotSha256(snapshot) },
       select: profileSelect,
     });
     return { profile };
@@ -653,9 +671,50 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const user = await requireAuth(request);
     const { id, profileId } = z.object({ id: z.string(), profileId: z.string() }).parse(request.params);
     const instance = await loadInstance(user.id, id);
+    if (await prisma.serverProfileActivationJob.count({ where: { profileId, instanceId: instance.id } })) throw conflict('A profile with activation history is kept for recovery and cannot be deleted.');
     const removed = await prisma.serverProfile.deleteMany({ where: { id: profileId, instanceId: instance.id } });
     if (!removed.count) throw notFound('Profile not found.');
     return { ok: true };
+  });
+
+  app.get('/instances/:id/profiles/:profileId/activation-preview', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id, profileId } = z.object({ id: z.string(), profileId: z.string() }).parse(request.params);
+    const instance = await loadInstance(user.id, id);
+    return profileActivationPreview(instance.id, profileId);
+  });
+
+  app.post('/instances/:id/profiles/:profileId/activate', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
+    const user = await requireAuth(request);
+    const { id, profileId } = z.object({ id: z.string(), profileId: z.string() }).parse(request.params);
+    const { idempotencyKey } = z.object({ idempotencyKey: z.string().min(8).max(80) }).parse(request.body ?? {});
+    const instance = await loadInstance(user.id, id);
+    const result = await createProfileActivationJob({ instanceId: instance.id, profileId, actorId: user.id, idempotencyKey });
+    if (!result.replayed) await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.profile_activation_queued', targetType: 'instance', targetId: instance.id, meta: { profileId, jobId: result.job.id } });
+    return reply.code(result.replayed ? 200 : 202).send(result);
+  });
+
+  app.get('/instances/:id/profile-activations', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const instance = await loadInstance(user.id, id);
+    const jobs = await prisma.serverProfileActivationJob.findMany({ where: { instanceId: instance.id }, orderBy: { createdAt: 'desc' }, take: 20 });
+    return { jobs };
+  });
+
+  app.post('/instances/:id/profile-activations/:jobId/recover', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id, jobId } = z.object({ id: z.string(), jobId: z.string() }).parse(request.params);
+    const instance = await loadInstance(user.id, id);
+    const job = await requestProfileRecovery({ instanceId: instance.id, jobId, actorId: user.id });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.profile_recovery_requested', targetType: 'instance', targetId: instance.id, meta: { jobId } });
+    return { job };
   });
 
   /** What a switch would do, judged by the same rules as the switch itself, before anything is touched. */

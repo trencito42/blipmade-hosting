@@ -20,6 +20,15 @@ export interface InstalledArtifact {
   filename: string;
   version: string;
   project?: string;
+  releaseId?: string;
+  source?: 'modrinth';
+  sourceProjectId?: string;
+  sourceUrl?: string;
+  sha256?: string;
+  sourceSha512?: string;
+  loader?: string;
+  gameVersion?: string;
+  dependencies?: { projectId: string | null; versionId: string | null; type: string }[];
   at: string;
 }
 
@@ -137,7 +146,7 @@ export function mergeManifestAddons(
   manifest: unknown,
   slug: string,
   state: 'installed' | 'removed',
-  artifact?: { filename: string; version: string; project?: string },
+  artifact?: Omit<InstalledArtifact, 'slug' | 'status' | 'at'>,
 ): Record<string, unknown> {
   const base = manifest && typeof manifest === 'object' ? { ...(manifest as Record<string, unknown>) } : {};
   const current = Array.isArray(base.addons) ? [...(base.addons as unknown[])] : [];
@@ -146,9 +155,7 @@ export function mergeManifestAddons(
     rest.push({
       slug,
       status: 'installed',
-      filename: artifact.filename,
-      version: artifact.version,
-      project: artifact.project,
+      ...artifact,
       at: new Date().toISOString(),
     } satisfies InstalledArtifact);
   }

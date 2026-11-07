@@ -236,21 +236,67 @@ export async function searchPlugins(query: string, gameVersion: string): Promise
   return data.hits.map((hit) => ({ slug: hit.slug, title: hit.title, description: hit.description, downloads: hit.downloads, icon: hit.icon_url ?? null }));
 }
 
-export interface PluginFile { url: string; filename: string; size: number; version: string }
+export interface PluginFile {
+  url: string;
+  filename: string;
+  size: number;
+  version: string;
+  releaseId: string;
+  projectId: string;
+  loaders: string[];
+  gameVersions: string[];
+  dependencies: { projectId: string | null; versionId: string | null; type: string }[];
+  sourceSha512: string;
+}
+
+interface ModrinthVersion {
+  id: string;
+  project_id: string;
+  version_number: string;
+  loaders: string[];
+  game_versions: string[];
+  dependencies?: { project_id: string | null; version_id: string | null; dependency_type: string }[];
+  files: { url: string; filename: string; primary: boolean; size: number; hashes?: { sha512?: string } }[];
+}
+
+function acceptedPluginFile(version: ModrinthVersion): PluginFile {
+  const file = version.files.find((entry) => entry.primary) ?? version.files[0];
+  if (!file || !file.url.startsWith('https://cdn.modrinth.com/') || !/^[A-Za-z0-9._+-]{1,120}\.jar$/.test(file.filename) || file.size > 50 * 1024 * 1024 || !/^[a-f0-9]{128}$/i.test(file.hashes?.sha512 ?? '')) {
+    throw badRequest('That file is not accepted.');
+  }
+  return {
+    url: file.url,
+    filename: file.filename,
+    size: file.size,
+    version: version.version_number,
+    releaseId: version.id,
+    projectId: version.project_id,
+    loaders: version.loaders,
+    gameVersions: version.game_versions,
+    dependencies: (version.dependencies ?? []).map((row) => ({ projectId: row.project_id, versionId: row.version_id, type: row.dependency_type })),
+    sourceSha512: file.hashes!.sha512!,
+  };
+}
 
 /** The newest file of a plugin that is built for this game version, from the CDN of Modrinth and nowhere else. */
 export async function pluginFileFor(slug: string, gameVersion: string): Promise<PluginFile> {
   if (!/^[A-Za-z0-9_-]{2,64}$/.test(slug)) throw badRequest('That is not a plugin.');
-  const versions = await cachedJson<{ version_number: string; files: { url: string; filename: string; primary: boolean; size: number }[] }[]>(
+  const versions = await cachedJson<ModrinthVersion[]>(
     `https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version?game_versions=${encodeURIComponent(JSON.stringify([gameVersion]))}&loaders=${encodeURIComponent(JSON.stringify(['paper', 'spigot', 'bukkit']))}`, 5,
   );
   const first = versions[0];
-  const file = first?.files.find((entry) => entry.primary) ?? first?.files[0];
-  if (!first || !file) throw badRequest(`No version of this plugin is built for Minecraft ${gameVersion}.`);
-  if (!file.url.startsWith('https://cdn.modrinth.com/') || !/^[A-Za-z0-9._+-]{1,120}\.jar$/.test(file.filename) || file.size > 50 * 1024 * 1024) {
-    throw badRequest('That file is not accepted.');
+  if (!first) throw badRequest(`No version of this plugin is built for Minecraft ${gameVersion}.`);
+  return acceptedPluginFile(first);
+}
+
+/** Resolves one immutable Modrinth release and refuses loader/runtime drift. */
+export async function pluginFileForRelease(releaseId: string, expected: { projectId: string; gameVersion: string; loader: string }): Promise<PluginFile> {
+  if (!/^[A-Za-z0-9_-]{4,64}$/.test(releaseId)) throw badRequest('That plugin release is not valid.');
+  const version = await cachedJson<ModrinthVersion>(`https://api.modrinth.com/v2/version/${encodeURIComponent(releaseId)}`, 30);
+  if (version.project_id !== expected.projectId || !version.game_versions.includes(expected.gameVersion) || !version.loaders.includes(expected.loader)) {
+    throw badRequest('The saved plugin release is not compatible with this runtime.');
   }
-  return { url: file.url, filename: file.filename, size: file.size, version: first.version_number };
+  return acceptedPluginFile(version);
 }
 
 export async function searchModpacks(query: string, gameVersion: string): Promise<PluginHit[]> {

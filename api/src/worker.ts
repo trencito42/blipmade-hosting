@@ -60,6 +60,7 @@ import { pruneSessions } from './plugins/auth.js';
 import { audit } from './lib/audit.js';
 import { createMetricsServer } from './lib/perf-metrics.js';
 import { perfConfig } from './lib/perf-config.js';
+import { recoverInterruptedProfileActivations, runPendingProfileActivations } from './services/profile-activation.js';
 
 /**
  * The provisioning worker.
@@ -272,7 +273,9 @@ async function reconcile(): Promise<void> {
   const credits = await retryPendingDowngradeCredits();
   const presets = await retryCatalogInstalls();
   const linked = await linkConfirmedServices();
-  if (purged || recovered || restored || credits || presets || linked) console.info(`[worker] import archives purged=${purged} recovered=${recovered} repurpose restored=${restored} downgrade credits=${credits} presets=${presets} linked=${linked}`);
+  const profiles = await runPendingProfileActivations();
+  const profileRecoveries = await recoverInterruptedProfileActivations();
+  if (purged || recovered || restored || credits || presets || linked || profiles || profileRecoveries) console.info(`[worker] import archives purged=${purged} recovered=${recovered} repurpose restored=${restored} downgrade credits=${credits} presets=${presets} linked=${linked} profiles=${profiles} profile recoveries=${profileRecoveries}`);
 }
 
 /**

@@ -20,6 +20,7 @@ interface ServiceControl {
   audit: { id: string; action: string; actorEmail: string | null; meta: unknown; createdAt: string }[];
   tickets: { id: string; number: number; subject: string; status: string; createdAt: string }[];
   abuse: { id: string; category: string; target: string; status: string; createdAt: string }[];
+  profileActivations: { id: string; status: string; progress: number; step: string; error: string | null; backupUuid: string | null; createdAt: string }[];
 }
 
 const retryable = new Set(['pending', 'provisioning', 'failed', 'degraded']);
@@ -34,6 +35,7 @@ export default function ServiceDetail() {
   const mayWriteServices = can(useAdminSession().staff, 'services.write');
   const state = useAsync<{ service: ServiceControl }>((signal) => get(`/admin/services/${id}`, undefined, signal), [id]);
   const [busy, setBusy] = useState(false);
+  const [recoveryJobId, setRecoveryJobId] = useState<string | null>(null);
   const [action, setAction] = useState<'retry' | 'suspend' | 'resume' | 'reinstall' | 'start' | 'stop' | 'restart' | 'kill' | null>(null);
   const [reason, setReason] = useState('');
   const run = async (work: () => Promise<unknown>, message: string) => {
@@ -96,6 +98,10 @@ export default function ServiceDetail() {
       </Panel>
     </div>
 
+    <Panel title="Profile activations" description="Durable jobs, verified backup checkpoints and recovery requests for reproducible profiles.">
+      {service.profileActivations.length === 0 ? <EmptyState title="No activation job." description="Customer profile activations will appear here." /> : <ul className="grid gap-2">{service.profileActivations.map((job) => <li key={job.id} className="rounded-2xl bg-s2 px-4 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-[13.5px] text-ink">{job.step} · {job.progress}%</strong><StatusPill status={job.status} /></div>{job.error && <p className="mt-1 text-[13px] text-bad">{job.error}</p>}<p className="mt-1 font-mono text-[11px] text-ink3">backup {job.backupUuid ?? 'not created'} · {fmtDateTime(job.createdAt)}</p>{mayWriteServices && job.status === 'recovery_required' && <button type="button" className={`${denseDanger} mt-2`} disabled={busy} onClick={() => { setReason(''); setRecoveryJobId(job.id); }}>Request restore</button>}</li>)}</ul>}
+    </Panel>
+
     <Panel title="Timeline" description="Service events and operator actions, newest first.">
       {service.events.length + service.audit.length === 0 ? <EmptyState title="No event yet." description="Provisioning and operator actions will appear here." /> : <ul className="grid gap-2">{[
         ...service.events.map((entry) => ({ id: `e-${entry.id}`, at: entry.createdAt, title: entry.type, body: entry.message })),
@@ -104,5 +110,6 @@ export default function ServiceDetail() {
     </Panel>
 
     <ConfirmWithReason open={action !== null} title={action === 'retry' ? `Retry provisioning for ${service.name}?` : action === 'reinstall' ? `Reinstall ${service.name}?` : action === 'resume' ? `Resume ${service.name}?` : action === 'suspend' ? `Suspend ${service.name}?` : `${action ?? 'Control'} ${service.name}?`} description={action === 'retry' ? 'Only the incomplete idempotent provisioning steps are queued again.' : action === 'reinstall' ? 'This erases the files in the container and installs the service again.' : action === 'kill' ? 'Force stop does not allow the process to shut down cleanly.' : 'The panel state and the platform record are changed together.'} confirmLabel={action === 'retry' ? 'Retry provisioning' : action === 'reinstall' ? 'Reinstall' : action === 'resume' ? 'Resume service' : action === 'suspend' ? 'Suspend service' : action === 'kill' ? 'Force stop' : action ?? 'Confirm'} reasonLabel="Reason for the audit log" reason={reason} onReasonChange={setReason} onCancel={() => setAction(null)} busy={busy} error={reason.trim().length < 3 ? 'Write a reason of at least three characters.' : null} onConfirm={() => { if (!action || reason.trim().length < 3) return; const chosen = action; setAction(null); if (chosen === 'retry') void run(() => post(`/admin/instances/${service.id}/retry`, { reason: reason.trim() }), 'Provisioning queued.'); else if (chosen === 'reinstall') void run(() => post(`/admin/instances/${service.id}/reinstall`, { confirm: true, reason: reason.trim() }), 'Reinstall requested.'); else if (chosen === 'suspend' || chosen === 'resume') void run(() => post(`/admin/instances/${service.id}/suspend`, { suspended: chosen === 'suspend', reason: reason.trim() }), chosen === 'suspend' ? 'Service suspended.' : 'Service resumed.'); else void run(() => post(`/admin/instances/${service.id}/power`, { action: chosen, reason: reason.trim() }), `${chosen} accepted.`); }} />
+    <ConfirmWithReason open={recoveryJobId !== null} title={`Restore the backup for ${service.name}?`} description="This replaces the current files with the locked backup made before profile activation. The action remains a request until the panel proves completion." confirmLabel="Request restore" reasonLabel="Reason for the audit log" reason={reason} onReasonChange={setReason} onCancel={() => setRecoveryJobId(null)} busy={busy} error={reason.trim().length < 3 ? 'Write a reason of at least three characters.' : null} onConfirm={() => { if (!recoveryJobId || reason.trim().length < 3) return; const jobId = recoveryJobId; setRecoveryJobId(null); void run(() => post(`/admin/services/${service.id}/profile-activations/${jobId}/recover`, { reason: reason.trim() }), 'Restore request accepted by the panel.'); }} />
   </div>;
 }

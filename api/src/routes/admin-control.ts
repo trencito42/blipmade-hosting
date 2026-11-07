@@ -8,6 +8,7 @@ import * as ptero from '../services/pterodactyl/application.js';
 import { audit } from '../lib/audit.js';
 import { enqueueMailProvisioning, enqueueProvisioning, enqueueVpsProvisioning } from '../services/queue.js';
 import { fulfilOrder } from './webhooks.js';
+import { requestProfileRecovery } from '../services/profile-activation.js';
 
 function lower(value: string | null | undefined): string | null {
   return value ? value.toLowerCase() : null;
@@ -101,10 +102,11 @@ export async function registerAdminControlRoutes(app: FastifyInstance): Promise<
     });
     if (!service) throw notFound('Service not found.');
 
-    const [audit, abuse, risk] = await Promise.all([
+    const [audit, abuse, risk, profileActivations] = await Promise.all([
       prisma.auditLog.findMany({ where: { targetType: 'instance', targetId: id }, orderBy: { createdAt: 'desc' }, take: 50 }),
       prisma.abuseReport.findMany({ where: { instanceId: id }, orderBy: { createdAt: 'desc' }, take: 20 }),
       assessCustomer(service.userId),
+      prisma.serverProfileActivationJob.findMany({ where: { instanceId: id }, orderBy: { createdAt: 'desc' }, take: 20 }),
     ]);
 
     let panel: { databases: number; backups: number; allocations: number; suspended: boolean } | null = null;
@@ -144,8 +146,18 @@ export async function registerAdminControlRoutes(app: FastifyInstance): Promise<
         audit,
         abuse,
         risk,
+        profileActivations,
       },
     };
+  });
+
+  app.post('/admin/services/:id/profile-activations/:jobId/recover', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id, jobId } = z.object({ id: z.string(), jobId: z.string() }).parse(request.params);
+    const { reason } = z.object({ reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
+    const job = await requestProfileRecovery({ instanceId: id, jobId });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'instance.profile_recovery_requested', targetType: 'instance', targetId: id, meta: { jobId, reason } });
+    return { job };
   });
 
   app.get('/admin/orders/:id', { preHandler: requirePermission('orders.read') }, async (request: FastifyRequest) => {
