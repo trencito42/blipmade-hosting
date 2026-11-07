@@ -198,16 +198,6 @@ export function OrderReviewStep({
           {orderError}
         </div>
       )}
-
-      {/* Submit Button */}
-      <PrimaryButton
-        type="button"
-        disabled={!canSubmit}
-        onClick={onPlaceOrder}
-        className="w-full py-4 text-[16px] font-bold"
-      >
-        {orderPending ? 'Creating order…' : quote?.total === 0 ? 'Confirm & Deploy Service' : 'Pay & Deploy Service'}
-      </PrimaryButton>
     </div>
   );
 }

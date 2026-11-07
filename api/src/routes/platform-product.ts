@@ -22,7 +22,7 @@ import { nextRegistrationState, quoteToRegistration, sellingAllowed, type Regist
 import { cloudflareSaasEnabled, memorySaasAdapter, ownershipTxt, saasPlan, saasReconcile, saasTransition, type SaasHostnameState } from '../services/cloudflare-saas.js';
 import { mailDnsWritesEnabled, mailToCustomerRecords, mailWriteDecision, previewMailDns, rollbackCopy } from '../services/mail-dns-apply.js';
 import { mailDnsRecords } from '../services/mail-dns.js';
-import { cancelIsolatedBuild, planIsolatedBuild } from '../services/isolated-build.js';
+import { cancelIsolatedBuild, planIsolatedBuild, runtimeForProduct } from '../services/isolated-build.js';
 import { capabilitiesFor, instanceCapabilities } from '../services/game-capabilities.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
@@ -281,11 +281,18 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const source = await prisma.importSource.findFirst({ where: { id, userId: user.id } });
     if (!source) throw notFound('Import not found.');
-    const plan = planIsolatedBuild({ buildCommand: source.buildCommand, startCommand: source.startCommand, runtime: source.productSlug });
+    const active = await prisma.isolatedBuildJob.findFirst({ where: { importSourceId: source.id, status: { in: ['queued', 'running'] } }, select: { id: true } });
+    if (active) throw conflict('A build for this import is already queued or running.');
+    const plan = planIsolatedBuild({
+      buildCommand: source.buildCommand.trim() || 'true',
+      startCommand: source.startCommand,
+      runtime: runtimeForProduct(source.productSlug),
+    });
     const job = await prisma.isolatedBuildJob.create({
       data: {
         importSourceId: source.id,
         status: plan.status,
+        runtime: plan.runtime,
         buildCommand: plan.buildCommand,
         startCommand: plan.startCommand,
         sandboxHost: plan.sandboxHost,
@@ -300,7 +307,29 @@ export async function registerPlatformProductRoutes(app: FastifyInstance): Promi
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const source = await prisma.importSource.findFirst({ where: { id, userId: user.id } });
     if (!source) throw notFound('Import not found.');
-    const jobs = await prisma.isolatedBuildJob.findMany({ where: { importSourceId: source.id }, orderBy: { createdAt: 'desc' }, take: 20 });
+    const jobs = await prisma.isolatedBuildJob.findMany({
+      where: { importSourceId: source.id },
+      select: {
+        id: true,
+        status: true,
+        runtime: true,
+        buildCommand: true,
+        startCommand: true,
+        sandboxHost: true,
+        log: true,
+        lastError: true,
+        inputSha256: true,
+        artifactSha256: true,
+        artifactBytesLength: true,
+        attempts: true,
+        startedAt: true,
+        finishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
     return { jobs, executes: false };
   });
 

@@ -24,11 +24,23 @@ export async function resetDatabase(): Promise<void> {
     .filter((name) => /^[A-Za-z0-9_]+$/.test(name))
     .map((name) => `"${name}"`);
   if (!names.length) return;
-  await prisma.$executeRaw`SELECT pg_advisory_lock(8723341)`;
+  let locked = false;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const res = await prisma.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_lock(8723341) as locked`;
+    if (res[0]?.locked) {
+      locked = true;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  if (!locked) {
+    await prisma.$executeRaw`SELECT pg_advisory_unlock_all()`.catch(() => undefined);
+    await prisma.$executeRaw`SELECT pg_advisory_lock(8723341)`;
+  }
   try {
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} CASCADE`);
   } finally {
-    await prisma.$executeRaw`SELECT pg_advisory_unlock(8723341)`;
+    await prisma.$executeRaw`SELECT pg_advisory_unlock(8723341)`.catch(() => undefined);
   }
 }
 

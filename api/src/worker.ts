@@ -61,6 +61,7 @@ import { audit } from './lib/audit.js';
 import { createMetricsServer } from './lib/perf-metrics.js';
 import { perfConfig } from './lib/perf-config.js';
 import { recoverInterruptedProfileActivations, runPendingProfileActivations } from './services/profile-activation.js';
+import { recoverStaleBuilds, runPendingIsolatedBuilds } from './services/isolated-build.js';
 
 /**
  * The provisioning worker.
@@ -276,6 +277,18 @@ async function reconcile(): Promise<void> {
   const profiles = await runPendingProfileActivations();
   const profileRecoveries = await recoverInterruptedProfileActivations();
   if (purged || recovered || restored || credits || presets || linked || profiles || profileRecoveries) console.info(`[worker] import archives purged=${purged} recovered=${recovered} repurpose restored=${restored} downgrade credits=${credits} presets=${presets} linked=${linked} profiles=${profiles} profile recoveries=${profileRecoveries}`);
+}
+
+let isolatedBuildSweepRunning = false;
+async function sweepIsolatedBuilds(): Promise<void> {
+  if (isolatedBuildSweepRunning) return;
+  isolatedBuildSweepRunning = true;
+  try {
+    const count = await runPendingIsolatedBuilds();
+    if (count) console.info(`[worker] dispatched ${count} isolated build(s)`);
+  } finally {
+    isolatedBuildSweepRunning = false;
+  }
 }
 
 /**
@@ -516,6 +529,7 @@ async function main(): Promise<void> {
   console.info(`[worker] starting in ${env.NODE_ENV}`);
   healthServer.listen(healthPort, '0.0.0.0');
   await reconcile();
+  await sweepIsolatedBuilds().catch((error) => console.error('[worker] isolated build dispatch failed', error));
   // The routes of the hostnames are put back right away, so a gateway that
   // was restarted while the worker was down serves the customers again
   // without waiting for the first tick.
@@ -528,6 +542,7 @@ async function main(): Promise<void> {
   // customer zone shows what the node says from the first moment.
   await watchRuntimeState().catch((error) => console.error('[worker] the state of the containers could not be read', error));
   timers.push(setInterval(() => void reconcile().catch((error) => console.error('[worker] reconcile failed', error)), 60_000));
+  timers.push(setInterval(() => void sweepIsolatedBuilds().catch((error) => console.error('[worker] isolated build dispatch failed', error)), 5_000));
   // The routes of the customers are checked every minute: the configuration of
   // the gateway is not a file of the platform, so a change on the edge takes
   // the routes away and this is what brings them back.
@@ -577,7 +592,7 @@ async function main(): Promise<void> {
   timers.push(setInterval(() => void import('./services/crm-dispatch.js').then(({ resumeWaitingAutomations }) => resumeWaitingAutomations()).catch((error) => console.error('[worker] crm wait resume failed', error)), 10_000));
   timers.push(setInterval(() => void import('./services/crm-facts.js').then(({ repairStaleFacts }) => repairStaleFacts()).catch((error) => console.error('[worker] crm fact repair failed', error)), 5 * 60_000));
   timers.push(setInterval(() => void import('./services/crm-campaigns.js').then(({ dispatchDueCampaigns }) => dispatchDueCampaigns()).catch((error) => console.error('[worker] crm campaign schedule failed', error)), 60_000));
-  timers.push(setInterval(() => void import('./services/isolated-build.js').then(({ recoverStaleBuilds }) => recoverStaleBuilds()).catch((error) => console.error('[worker] isolated build recover failed', error)), 60_000));
+  timers.push(setInterval(() => void recoverStaleBuilds().catch((error) => console.error('[worker] isolated build recover failed', error)), 60_000));
 }
 
 const shutdown = async () => {

@@ -22,6 +22,7 @@ import { EnvironmentSetupStep } from './steps/EnvironmentSetupStep';
 import { AddonSelectionStep } from './steps/AddonSelectionStep';
 import { OrderReviewStep } from './steps/OrderReviewStep';
 import { ProvisioningStep } from './steps/ProvisioningStep';
+import { IsolatedBuildPanel } from './IsolatedBuildPanel';
 
 export default function DeployStudio({ initialSlug }: { initialSlug?: string } = {}) {
   const params = useParams();
@@ -364,8 +365,22 @@ export default function DeployStudio({ initialSlug }: { initialSlug?: string } =
     if (currentStep.id === 'os') {
       return Boolean(selectedOs);
     }
-    if (currentStep.id === 'env' && (offering.kind === 'vps' || activeVariant?.fulfilment === 'VPS')) {
-      return Boolean(sshKey.trim());
+    if (currentStep.id === 'env') {
+      if (offering.kind === 'vps' || activeVariant?.fulfilment === 'VPS') {
+        return Boolean(sshKey.trim());
+      }
+      if (activeVariant?.customerVariables && typeof activeVariant.customerVariables === 'object') {
+        const specs = activeVariant.customerVariables as Record<string, { required?: boolean }>;
+        for (const [key, spec] of Object.entries(specs)) {
+          if (spec?.required && !variables[key]?.trim()) {
+            return false;
+          }
+        }
+      }
+    }
+    if (currentStep.id === 'review') {
+      const isMinecraft = offering.slug === 'minecraft';
+      return !placeOrder.pending && (!isMinecraft || acceptEula);
     }
     return true;
   })();
@@ -470,6 +485,10 @@ export default function DeployStudio({ initialSlug }: { initialSlug?: string } =
       finalLabel={placeOrder.pending ? 'Placing order…' : quote?.total === 0 ? 'Deploy now' : 'Pay & Deploy'}
       summary={sidebarSummary}
     >
+      {importSourceId && (currentStep?.id === 'source' || currentStep?.id === 'resources') && (
+        <IsolatedBuildPanel importSourceId={importSourceId} />
+      )}
+
       {/* 1. Plan Comparison Step (VPS / Email) */}
       {currentStep?.id === 'plan' && (
         <PlanComparisonStep

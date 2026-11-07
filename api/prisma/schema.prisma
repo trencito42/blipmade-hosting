@@ -21,88 +21,92 @@ enum Role {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
+  id                    String    @id @default(cuid())
+  email                 String    @unique
   /// Provider-aware canonical address used to stop trivial alias accounts.
-  emailIdentity  String?   @unique
+  emailIdentity         String?   @unique
   /// Null for OAuth-only accounts. Never assign a random password as a shortcut.
-  passwordHash   String?
+  passwordHash          String?
   // The name of the customer in two parts. The panel account of this customer
   // carries the same two parts, so no name is ever invented.
-  firstName      String
-  lastName       String
-  role           Role      @default(CUSTOMER)
-  emailVerifiedAt DateTime?
-  billingAddress Json?
+  firstName             String
+  lastName              String
+  role                  Role      @default(CUSTOMER)
+  emailVerifiedAt       DateTime?
+  billingAddress        Json?
   // The panel account that belongs to this customer. The mapping is
   // permanent and is never derived from an address.
-  pterodactylUserId String?
+  pterodactylUserId     String?
   // The external id that the panel account carries. It is the only link
   // between the two identities, and it is what a reconciliation looks up.
-  pterodactylExternalId String? @unique
-  suspendedAt    DateTime?
+  pterodactylExternalId String?   @unique
+  suspendedAt           DateTime?
   // The moment the customer asked for the account to be closed. The account is
   // not deleted by the request: a person looks at it first.
-  deletionRequestedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  deletionRequestedAt   DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  sessions       Session[]
-  tokens         VerificationToken[]
-  twoFactor      UserTwoFactor?
-  passkeys       Passkey[]
-  apiKeys        ApiKey[]
-  sharedWithMe   InstanceShare[] @relation("SharedWith")
-  deviceSignals  DeviceSignal[]
-  notes          CustomerNote[]
+  sessions               Session[]
+  tokens                 VerificationToken[]
+  twoFactor              UserTwoFactor?
+  passkeys               Passkey[]
+  apiKeys                ApiKey[]
+  sharedWithMe           InstanceShare[]         @relation("SharedWith")
+  deviceSignals          DeviceSignal[]
+  notes                  CustomerNote[]
   /// Labels the staff put on the account (vip, watch, reseller).
-  tags           String[]       @default([])
+  tags                   String[]                @default([])
   /// Public referral code. Null until the customer asks for one.
-  referralCode   String?        @unique
-  staff          StaffMember?
-  mailDomains    MailDomain[]
-  mailServices   MailService[]
-  vpsServices VpsService[]
-  notifications        Notification[]
-  notificationEvents   NotificationEvent[]
-  orders         Order[]
-  instances      Instance[]
-  tickets        Ticket[]
-  ticketMessages TicketMessage[]
-  auditLogs      AuditLog[]
-  invoices       Invoice[]
-  payments       Payment[]
-  subscriptions  Subscription[]
-  promotions     Promotion[] @relation("PromotionCreator")
-  promotionRedemptions PromotionRedemption[]
-  panelCredential PanelCredential?
-  emailChangeRequests EmailChangeRequest[]
+  referralCode           String?                 @unique
+  staff                  StaffMember?
+  mailDomains            MailDomain[]
+  mailServices           MailService[]
+  vpsServices            VpsService[]
+  notifications          Notification[]
+  notificationEvents     NotificationEvent[]
+  orders                 Order[]
+  instances              Instance[]
+  tickets                Ticket[]
+  ticketMessages         TicketMessage[]
+  auditLogs              AuditLog[]
+  invoices               Invoice[]
+  payments               Payment[]
+  subscriptions          Subscription[]
+  promotions             Promotion[]             @relation("PromotionCreator")
+  promotionRedemptions   PromotionRedemption[]
+  panelCredential        PanelCredential?
+  emailChangeRequests    EmailChangeRequest[]
   notificationPreference NotificationPreference?
-  adminSavedViews AdminSavedView[]
-  staffInvitations StaffInvitation[]
-  serverProfiles ServerProfile[]
-  cloudflareZone CloudflareZoneLink?
-  importSources ImportSource[]
-  dnsApprovals DnsApproval[]
-  connectedIdentities ConnectedIdentity[]
+  adminSavedViews        AdminSavedView[]
+  staffInvitations       StaffInvitation[]
+  serverProfiles         ServerProfile[]
+  cloudflareZone         CloudflareZoneLink?
+  importSources          ImportSource[]
+  dnsApprovals           DnsApproval[]
+  connectedIdentities    ConnectedIdentity[]
   githubAppInstallations GitHubAppInstallation[]
-  discordCommunityLinks DiscordCommunityLink[]
-  customerFacts CustomerFact[]
-  segmentsOwned CustomerSegment[] @relation("SegmentCreator")
-  campaigns MarketingCampaign[] @relation("CampaignCreator")
-  campaignSends CampaignSend[]
-  crmTasksAssigned CrmTask[] @relation("CrmTaskAssignee")
-  crmTasksAbout CrmTask[] @relation("CrmTaskCustomer")
-  crmOpportunities CrmOpportunity[]
-  automationsOwned MarketingAutomation[] @relation("AutomationCreator")
-  templatesOwned MarketingTemplate[] @relation("TemplateCreator")
-  automationRuns AutomationRun[]
-  riskEvaluations RiskEvaluation[]
-  riskOverrides RiskOverride[]
-  referralsMade ReferralAttribution[] @relation("Referrer")
-  referralReceived ReferralAttribution? @relation("Referred")
-  domainRegistrations DomainRegistration[]
-  saasHostnames SaasCustomHostname[]
+  discordCommunityLinks  DiscordCommunityLink[]
+  customerFacts          CustomerFact[]
+  segmentsOwned          CustomerSegment[]       @relation("SegmentCreator")
+  campaigns              MarketingCampaign[]     @relation("CampaignCreator")
+  campaignSends          CampaignSend[]
+  crmTasksAssigned       CrmTask[]               @relation("CrmTaskAssignee")
+  crmTasksAbout          CrmTask[]               @relation("CrmTaskCustomer")
+  crmOpportunities       CrmOpportunity[]
+  automationsOwned       MarketingAutomation[]   @relation("AutomationCreator")
+  templatesOwned         MarketingTemplate[]     @relation("TemplateCreator")
+  automationRuns         AutomationRun[]
+  riskEvaluations        RiskEvaluation[]
+  riskOverrides          RiskOverride[]
+  referralsMade          ReferralAttribution[]   @relation("Referrer")
+  referralReceived       ReferralAttribution?    @relation("Referred")
+  domainRegistrations    DomainRegistration[]
+  saasHostnames          SaasCustomHostname[]
+  supportBotSessions     SupportBotSession[]
+  /// A visitor of the public chat who has not signed in. Never able to sign in, never sent an email, removed after the retention period.
+  isGuest                Boolean                 @default(false)
+  supportGuestTokens     SupportGuestToken[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -110,10 +114,6 @@ model User {
   // the id, so the page after the first one is read without sorting the whole
   // table.
   @@index([createdAt, id])
-  supportBotSessions SupportBotSession[]
-  /// A visitor of the public chat who has not signed in. Never able to sign in, never sent an email, removed after the retention period.
-  isGuest Boolean @default(false)
-  supportGuestTokens SupportGuestToken[]
 }
 
 /// A private filter/sort preset for one operator and one admin list.
@@ -139,22 +139,22 @@ model AdminSavedView {
 model MailDelivery {
   /// The key of the message. It is a hash of the token, so it cannot be used
   /// to sign in and it is the same in every process.
-  key             String   @id
-  kind            String
+  key            String    @id
+  kind           String
   /// The event that caused the message, when the message came from the
   /// notification engine. It is empty for the messages that the platform
   /// sends on its own, e.g. the verification of the address.
-  eventId         String?
-  to              String
+  eventId        String?
+  to             String
   /// queued, delivered, written-to-file or failed.
-  state           String
-  transport       String   @default("file")
-  attempts        Int      @default(0)
-  lastErrorClass  String?
-  lastError       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now()) @updatedAt
-  deliveredAt     DateTime?
+  state          String
+  transport      String    @default("file")
+  attempts       Int       @default(0)
+  lastErrorClass String?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+  deliveredAt    DateTime?
 
   @@index([state])
   @@index([createdAt])
@@ -170,9 +170,9 @@ model MailDelivery {
 /// what was done with the event, so the back office can answer "was this
 /// event ever sent?" without guessing.
 model NotificationEvent {
-  id        String @id @default(cuid())
+  id          String    @id @default(cuid())
   /// The kind of the event, e.g. "payment.succeeded".
-  type      String
+  type        String
   /// The identity of the occurrence.
   ///
   /// It is built from the business identity of the thing that happened AND
@@ -180,24 +180,24 @@ model NotificationEvent {
   /// reactivated as many times as it happens and every occurrence has its
   /// own message. A key built only from the name and the state would keep
   /// every future occurrence of the same state silent.
-  businessKey String @unique
+  businessKey String    @unique
   /// The customer the event belongs to. It is empty for the events that are
   /// about the operator, e.g. a backup that failed.
-  userId    String?
-  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// The facts of the event. They are validated when the event is written.
-  payload   Json
+  payload     Json
   /// The state of the event: pending, processed or failed.
-  state     String  @default("pending")
+  state       String    @default("pending")
   /// What was done with the event, per channel: "sent", "skipped", "failed".
-  channels  Json    @default("{}")
-  attempts  Int     @default(0)
-  lastError String?
+  channels    Json      @default("{}")
+  attempts    Int       @default(0)
+  lastError   String?
   /// When the thing happened, as the business says it.
-  occurredAt DateTime @default(now())
+  occurredAt  DateTime  @default(now())
   processedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([state, createdAt])
   @@index([userId, createdAt])
@@ -210,22 +210,22 @@ model NotificationEvent {
 /// customer can never read the message of another customer, even when the
 /// two are in the same company.
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// The category of the message: the same categories as the preferences.
-  category  String
-  title     String
-  body      String
+  category    String
+  title       String
+  body        String
   /// Where the message leads: the service, the invoice, the ticket.
   actionUrl   String?
   actionLabel String?
   /// The occurrence of the event that produced the message. One message per
   /// occurrence, so the same message is never written twice.
-  eventKey  String   @unique
+  eventKey    String    @unique
   /// When the customer read the message. It is empty while it is unread.
-  readAt    DateTime?
-  createdAt DateTime @default(now())
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
@@ -257,34 +257,34 @@ model EmailChangeRequest {
 /// wants, not what has been sent: the delivery itself depends on the mail
 /// relay of the deployment.
 model NotificationPreference {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productUpdates Boolean  @default(true)
-  billing        Boolean  @default(true)
-  support        Boolean  @default(true)
-  incidents      Boolean  @default(true)
-  marketing      Boolean  @default(false)
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productUpdates   Boolean   @default(true)
+  billing          Boolean   @default(true)
+  support          Boolean   @default(true)
+  incidents        Boolean   @default(true)
+  marketing        Boolean   @default(false)
   /// The group of the messages about the account and its security. It is an
   /// essential group: the customer cannot switch it off, because these
   /// messages protect the account itself.
-  accountSecurity Boolean @default(true)
+  accountSecurity  Boolean   @default(true)
   /// The group of the messages about the orders and the invoices.
-  ordersBilling Boolean @default(true)
+  ordersBilling    Boolean   @default(true)
   /// The group of the messages about the hosting services.
-  hostingServices Boolean @default(true)
+  hostingServices  Boolean   @default(true)
   /// The group of the messages about the domains and the hosted mail.
-  domainsEmail Boolean @default(true)
+  domainsEmail     Boolean   @default(true)
   /// The channel of the e-mail as a whole. It never switches off the
   /// essential messages, whatever it says.
-  emailChannel Boolean @default(true)
+  emailChannel     Boolean   @default(true)
   /// The channel of the notification centre as a whole.
-  inAppChannel Boolean @default(true)
+  inAppChannel     Boolean   @default(true)
   /// When the customer agreed to receive the messages of the marketing. The
   /// agreement is kept with a date, so the back office can answer "did they
   /// agree?" without guessing.
   marketingOptInAt DateTime?
-  updatedAt      DateTime @updatedAt
+  updatedAt        DateTime  @updatedAt
 }
 
 /// The client credential of one customer on the panel.
@@ -294,9 +294,9 @@ model NotificationPreference {
 /// customer, and it is stored encrypted on this server. It never reaches the
 /// browser.
 model PanelCredential {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   // The panel account the key belongs to.
   panelUserId Int
   // The external id of that account on the panel.
@@ -305,31 +305,31 @@ model PanelCredential {
   tokenEnc    String
   // Where the key came from: "bridge" when the panel issued it on request,
   // "bootstrap" when an operator handed it over.
-  source      String   @default("bridge")
+  source      String    @default("bridge")
   lastUsedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  ip        String?
-  userAgent String?
+  id                  String    @id @default(cuid())
+  tokenHash           String    @unique
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt           DateTime
+  ip                  String?
+  userAgent           String?
   // The moment the session was last used. It is written at most once every
   // five minutes, so the list of the sessions can tell two sessions of the
   // same device apart without a write on every request.
-  lastSeenAt DateTime?
+  lastSeenAt          DateTime?
   // A recent password or authenticator confirmation for sensitive staff changes.
   // It belongs to this session only and expires after ten minutes.
-  stepUpUntil DateTime?
+  stepUpUntil         DateTime?
   // Set when a member of the staff opened this session to act as the customer.
   impersonatedById    String?
   impersonatedByEmail String?
-  createdAt DateTime @default(now())
+  createdAt           DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -378,7 +378,7 @@ model StaffMember {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  assignedTickets Ticket[] @relation("TicketAssignee")
+  assignedTickets Ticket[]                  @relation("TicketAssignee")
   departments     SupportDepartmentMember[]
   presence        SupportPresence?
 }
@@ -422,22 +422,22 @@ enum MailSendingInterval {
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  name        String
-  category    Category
-  description String
-  icon        String
+  id                 String               @id @default(cuid())
+  slug               String               @unique
+  name               String
+  category           Category
+  description        String
+  icon               String
   // Pterodactyl egg mapping.
-  eggId       Int?
-  eggUuid     String?
+  eggId              Int?
+  eggUuid            String?
   // The name of the egg the product runs on. The number of an egg belongs to
   // the panel and is given when the egg is imported, so a product that names
   // its egg keeps working when the panel is moved or when the egg is
   // imported again. The number is used when it is set.
-  eggName     String?
-  dockerImage String?
-  startup     Json?
+  eggName            String?
+  dockerImage        String?
+  startup            Json?
   // The variables the platform makes for every instance of this product, such
   // as the password of a database. They are written in the environment of the
   // container and shown to the owner of the instance:
@@ -448,105 +448,105 @@ model Product {
   // The platform asks for them, keeps them sealed and puts them in the
   // environment of the container:
   // { "STEAM_USER": { "label": "Steam account", "required": true } }
-  customerVariables Json?
+  customerVariables  Json?
   // The command the container runs. Overrides the egg default when set.
-  startupCommand String?
+  startupCommand     String?
   // Minimum resources required to run.
   //
   // The processor is counted in vCPU and it may be a half: a small bot of half
   // a processor is a thing the panel can build, and the price of the
   // resources is the same for every product.
-  minRam      Int      @default(512)
-  minCpu      Float    @default(1)
-  minDisk     Int      @default(5)
+  minRam             Int                  @default(512)
+  minCpu             Float                @default(1)
+  minDisk            Int                  @default(5)
   // Default resources used when deploying.
-  defaultRam  Int      @default(512)
-  defaultCpu  Float    @default(1)
-  defaultDisk Int      @default(5)
-  maxRam      Int      @default(16384)
-  maxCpu      Float    @default(4)
-  maxDisk     Int      @default(100)
-  visible     Boolean  @default(true)
+  defaultRam         Int                  @default(512)
+  defaultCpu         Float                @default(1)
+  defaultDisk        Int                  @default(5)
+  maxRam             Int                  @default(16384)
+  maxCpu             Float                @default(4)
+  maxDisk            Int                  @default(100)
+  visible            Boolean              @default(true)
   // Only genuinely validated products may be ordered.
-  deployable  Boolean  @default(false)
+  deployable         Boolean              @default(false)
   // What the platform delivers when this product is bought. A product of
   // category EMAIL_HOSTING is delivered as a mail service, without a server.
-  fulfilment ProductFulfilment @default(SERVER)
+  fulfilment         ProductFulfilment    @default(SERVER)
   // The limits of a mail plan. They are empty for a product of servers: the
   // limits of a server are the ones of the resources it uses.
   /// How many domains the plan includes.
-  mailMaxDomains Int?
+  mailMaxDomains     Int?
   /// How many mailboxes a domain of the plan may hold.
-  mailMaxMailboxes Int?
+  mailMaxMailboxes   Int?
   /// How many aliases a domain of the plan may hold.
-  mailMaxAliases Int?
+  mailMaxAliases     Int?
   /// How many forwarding rules a domain of the plan may hold.
-  mailMaxForwarding Int?
+  mailMaxForwarding  Int?
   /// How much space the plan includes, in megabytes.
   mailTotalStorageMb Int?
   /// How much space one mailbox of the plan may hold, in megabytes.
   mailMailboxQuotaMb Int?
   /// How many messages may be sent in the window of the interval.
-  mailSendLimit Int?
+  mailSendLimit      Int?
   /// The window in which the limit of sending is counted.
-  mailSendInterval MailSendingInterval?
+  mailSendInterval   MailSendingInterval?
   // How the deployment of this product is verified: { kind: 'http' | 'tcp',
   // path, expectStatus, expectBody }.
-  healthProbe Json?
-  docsUrl     String?
+  healthProbe        Json?
+  docsUrl            String?
   /// Guidance for installing and first use, written by the operator. Plain text.
-  installGuide String?
+  installGuide       String?
   /// Set when the product is retired: not listed, not orderable, and the services that exist keep running.
-  retiredAt   DateTime?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  retiredAt          DateTime?
+  sortOrder          Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
-  prices      ProductPrice[]
-  options     ProductOption[]
-  items       OrderItem[]
-  instances   Instance[]
-  mailServices MailService[]
-  vpsServices VpsService[]
+  prices         ProductPrice[]
+  options        ProductOption[]
+  items          OrderItem[]
+  instances      Instance[]
+  mailServices   MailService[]
+  vpsServices    VpsService[]
   /// Optional grouping for a later storefront. Absent for every product until an operator maps it.
   catalogVariant CatalogVariant?
-  catalogAddons CatalogAddonDefinition[]
+  catalogAddons  CatalogAddonDefinition[]
 
   @@index([visible, deployable])
   @@index([category])
 }
 
 model ProductPrice {
-  id           String        @id @default(cuid())
-  productId    String
-  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  period       BillingPeriod @default(MONTHLY)
+  id         String        @id @default(cuid())
+  productId  String
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  period     BillingPeriod @default(MONTHLY)
   // Amount for the minimum configuration, in minor units.
-  baseAmount   Int
+  baseAmount Int
   // Price per additional GB of RAM, in minor units.
-  ramPerGb     Int           @default(60)
-  cpuPerUnit   Int           @default(40)
-  diskPerGb    Int           @default(2)
-  currency     String        @default("EUR")
-  active       Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  ramPerGb   Int           @default(60)
+  cpuPerUnit Int           @default(40)
+  diskPerGb  Int           @default(2)
+  currency   String        @default("EUR")
+  active     Boolean       @default(true)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   @@index([productId, period, active])
 }
 
 /// Paid add-on features that can be attached to an order.
 model ProductOption {
-  id        String   @id @default(cuid())
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
-  code      String   @unique
-  name      String
-  description String?
-  amount    Int
-  currency  String   @default("EUR")
-  recurring Boolean  @default(true)
-  active    Boolean  @default(true)
+  id           String                  @id @default(cuid())
+  productId    String?
+  product      Product?                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  code         String                  @unique
+  name         String
+  description  String?
+  amount       Int
+  currency     String                  @default("EUR")
+  recurring    Boolean                 @default(true)
+  active       Boolean                 @default(true)
   /// Optional catalogue add-on that bills through this priced option. The amount stays on this row.
   catalogAddon CatalogAddonDefinition?
 
@@ -573,18 +573,18 @@ enum CatalogAddonKind {
 
 /// A customer-facing product family. Prepared families are not on the public catalogue.
 model CatalogFamily {
-  id         String           @id @default(cuid())
-  slug       String           @unique
-  name       String
-  summary    String
+  id        String           @id @default(cuid())
+  slug      String           @unique
+  name      String
+  summary   String
   /// One of the storefront groups: games, discord-bots, websites-apps, databases-caches, tools-automation, voice, custom-runtime.
-  group      String
-  discovery  CatalogDiscovery @default(HIDDEN)
+  group     String
+  discovery CatalogDiscovery @default(HIDDEN)
   /// Ready for a future projection. Public catalogue routes do not read this flag.
-  prepared   Boolean          @default(false)
-  sortOrder  Int              @default(0)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  prepared  Boolean          @default(false)
+  sortOrder Int              @default(0)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   variants CatalogVariant[]
   presets  CatalogPreset[]
@@ -744,38 +744,38 @@ enum FulfillmentStatus {
 }
 
 model Order {
-  id         String      @id @default(cuid())
-  number     String      @unique
-  userId     String
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status     OrderStatus @default(PENDING)
+  id                      String            @id @default(cuid())
+  number                  String            @unique
+  userId                  String
+  user                    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                  OrderStatus       @default(PENDING)
   /// NEW orders create instances, UPGRADE orders change the resources of one.
-  kind       OrderKind   @default(NEW)
+  kind                    OrderKind         @default(NEW)
   /// Set on UPGRADE orders: the instance whose resources are being changed.
-  instanceId String?
-  instance   Instance?   @relation("UpgradeOrders", fields: [instanceId], references: [id], onDelete: SetNull)
+  instanceId              String?
+  instance                Instance?         @relation("UpgradeOrders", fields: [instanceId], references: [id], onDelete: SetNull)
   /// The requested resources of an UPGRADE order, frozen like an order item.
-  requestedConfig Json?
+  requestedConfig         Json?
   /// Money state and fulfilment state are tracked separately.
-  fulfillmentStatus FulfillmentStatus @default(NOT_STARTED)
-  total      Int
-  currency   String      @default("EUR")
-  billingAddress Json?
-  promotionId String?
-  promotion  Promotion?  @relation(fields: [promotionId], references: [id], onDelete: SetNull)
-  discount   Int         @default(0)
+  fulfillmentStatus       FulfillmentStatus @default(NOT_STARTED)
+  total                   Int
+  currency                String            @default("EUR")
+  billingAddress          Json?
+  promotionId             String?
+  promotion               Promotion?        @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+  discount                Int               @default(0)
   /// Set when the promotion was actually consumed by a paid order.
-  promotionRedeemedAt DateTime?
-  stripeCheckoutSessionId String? @unique
+  promotionRedeemedAt     DateTime?
+  stripeCheckoutSessionId String?           @unique
   stripePaymentIntentId   String?
-  paidAt     DateTime?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  paidAt                  DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
-  items    OrderItem[]
-  payments Payment[]
-  invoices Invoice[]
-  instances Instance[]
+  items               OrderItem[]
+  payments            Payment[]
+  invoices            Invoice[]
+  instances           Instance[]
   promotionRedemption PromotionRedemption?
 
   @@index([userId, status])
@@ -788,24 +788,24 @@ model Order {
 }
 
 model OrderItem {
-  id         String   @id @default(cuid())
-  orderId    String
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-  name       String
-  quantity   Int      @default(1)
-  unitAmount Int
-  total      Int
-  currency   String   @default("EUR")
+  id                String            @id @default(cuid())
+  orderId           String
+  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product           @relation(fields: [productId], references: [id])
+  name              String
+  quantity          Int               @default(1)
+  unitAmount        Int
+  total             Int
+  currency          String            @default("EUR")
   // Frozen resource configuration, so prices never change retroactively.
-  config     Json?
+  config            Json?
   // The state of the delivery of this line, on its own. A line of mail is
   // delivered by the mail system and a line of servers by the panel, so the
   // two progress separately: one of them can fail while the other works.
   fulfillmentStatus FulfillmentStatus @default(NOT_STARTED)
   // Why the delivery of this line failed, in words.
-  fulfillmentError String?
+  fulfillmentError  String?
 
   // Every order line owns at most one subscription, so a multi-item checkout
   // produces one subscription per item instead of one for the whole order.
@@ -829,36 +829,36 @@ enum SubscriptionStatus {
 }
 
 model Subscription {
-  id                   String             @id @default(cuid())
-  userId               String
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  instanceId           String?            @unique
-  instance             Instance?          @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  id                       String             @id @default(cuid())
+  userId                   String
+  user                     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instanceId               String?            @unique
+  instance                 Instance?          @relation(fields: [instanceId], references: [id], onDelete: SetNull)
   // The order line this subscription pays for.
-  orderItemId          String?            @unique
-  orderItem            OrderItem?         @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  orderItemId              String?            @unique
+  orderItem                OrderItem?         @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   // The Stripe subscription can cover several order lines, so the id is not
   // unique here. The Stripe subscription *item* is what identifies one line.
-  stripeSubscriptionId String?
-  stripeSubscriptionItemId String? @unique
-  stripePriceId        String?
-  status               SubscriptionStatus @default(INCOMPLETE)
-  quantity             Int                @default(1)
-  amount               Int
-  currency             String             @default("EUR")
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  cancelAtPeriodEnd    Boolean            @default(false)
-  cancelledAt          DateTime?
+  stripeSubscriptionId     String?
+  stripeSubscriptionItemId String?            @unique
+  stripePriceId            String?
+  status                   SubscriptionStatus @default(INCOMPLETE)
+  quantity                 Int                @default(1)
+  amount                   Int
+  currency                 String             @default("EUR")
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  cancelAtPeriodEnd        Boolean            @default(false)
+  cancelledAt              DateTime?
   /// Last time the renewal sweep looked at this subscription.
-  lastRenewalCheckAt   DateTime?
+  lastRenewalCheckAt       DateTime?
   // A subscription of a mail service. A mail service has no instance, so the
   // link is here: the subscription of the mail is the one that is renewed,
   // suspended and cancelled with the mail and not with a server.
-  mailService          MailService?
-  vpsService           VpsService?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  mailService              MailService?
+  vpsService               VpsService?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -875,29 +875,29 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id             String        @id @default(cuid())
-  number         String        @unique
-  userId         String
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderId        String?
-  order          Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  stripeInvoiceId String?      @unique
+  id                   String        @id @default(cuid())
+  number               String        @unique
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId              String?
+  order                Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  stripeInvoiceId      String?       @unique
   stripeSubscriptionId String?
-  stripeCustomerId String?
-  status         InvoiceStatus @default(DRAFT)
-  amount         Int
-  tax            Int           @default(0)
-  total          Int
-  currency       String        @default("EUR")
-  billingAddress Json?
-  hostedUrl      String?
-  pdfUrl         String?
-  paidAt         DateTime?
-  periodStart    DateTime?
-  periodEnd      DateTime?
-  dueDate        DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  stripeCustomerId     String?
+  status               InvoiceStatus @default(DRAFT)
+  amount               Int
+  tax                  Int           @default(0)
+  total                Int
+  currency             String        @default("EUR")
+  billingAddress       Json?
+  hostedUrl            String?
+  pdfUrl               String?
+  paidAt               DateTime?
+  periodStart          DateTime?
+  periodEnd            DateTime?
+  dueDate              DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -914,24 +914,24 @@ enum PaymentStatus {
 }
 
 model Payment {
-  id                     String        @id @default(cuid())
-  userId                 String
-  user                   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderId                String?
-  order                  Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  stripePaymentIntentId  String?       @unique
-  stripeChargeId         String?
+  id                    String        @id @default(cuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId               String?
+  order                 Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  stripePaymentIntentId String?       @unique
+  stripeChargeId        String?
   // The Stripe customer is what the billing portal needs, so it is stored as
   // soon as a checkout session exposes it.
-  stripeCustomerId       String?
-  stripeSubscriptionId   String?
-  stripeInvoiceId        String?       @unique
-  amount                 Int
-  currency               String        @default("EUR")
-  status                 PaymentStatus @default(PENDING)
-  failureMessage         String?
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  stripeInvoiceId       String?       @unique
+  amount                Int
+  currency              String        @default("EUR")
+  status                PaymentStatus @default(PENDING)
+  failureMessage        String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -944,34 +944,34 @@ enum PromotionType {
 }
 
 model Promotion {
-  id             String        @id @default(cuid())
-  code           String        @unique
-  type           PromotionType
-  value          Int
-  maxRedemptions Int?
+  id                String           @id @default(cuid())
+  code              String           @unique
+  type              PromotionType
+  value             Int
+  maxRedemptions    Int?
   /// How many times a single account may use the code.
-  maxPerUser     Int?
-  usedCount      Int           @default(0)
-  startsAt       DateTime?
-  endsAt         DateTime?
-  active         Boolean       @default(true)
-  createdById    String?
-  createdBy      User?         @relation("PromotionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  maxPerUser        Int?
+  usedCount         Int              @default(0)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  active            Boolean          @default(true)
+  createdById       String?
+  createdBy         User?            @relation("PromotionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   /// Optional CRM segment. Null means the code is not limited by facts.
-  segmentId      String?
-  segment        CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
-  firstPurchaseOnly Boolean    @default(false)
-  assignedUserId String?
-  privateCode    Boolean       @default(false)
-  stacking       Boolean       @default(false)
-  budgetCents    Int?
-  priority       Int           @default(0)
-  familySlug     String?
-  recurringPeriods Int?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  segmentId         String?
+  segment           CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  firstPurchaseOnly Boolean          @default(false)
+  assignedUserId    String?
+  privateCode       Boolean          @default(false)
+  stacking          Boolean          @default(false)
+  budgetCents       Int?
+  priority          Int              @default(0)
+  familySlug        String?
+  recurringPeriods  Int?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-  orders Order[]
+  orders      Order[]
   /// One row per paid order that used the promotion. Redemptions are counted
   /// from this table, never from an unpaid order.
   redemptions PromotionRedemption[]
@@ -984,19 +984,19 @@ model Promotion {
 /// The unique constraint makes the redemption idempotent: a redelivered
 /// webhook cannot consume the promotion twice.
 model PromotionRedemption {
-  id          String    @id @default(cuid())
-  promotionId String
-  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderId     String    @unique
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                  String    @id @default(cuid())
+  promotionId         String
+  promotion           Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId             String    @unique
+  order               Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   /// The discounted amount, in minor units.
-  amount      Int
+  amount              Int
   /// HMAC-SHA256 of Stripe's card fingerprint. The raw card fingerprint is
   /// never stored, while the unique pair still enforces one card per campaign.
   cardFingerprintHash String?
-  createdAt   DateTime  @default(now())
+  createdAt           DateTime  @default(now())
 
   @@unique([promotionId, cardFingerprintHash])
   @@index([promotionId, userId])
@@ -1020,133 +1020,133 @@ enum InstanceStatus {
 }
 
 model Instance {
-  id                String         @id @default(cuid())
-  userId            String
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId         String
-  product           Product        @relation(fields: [productId], references: [id])
-  orderId           String?
-  order             Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  id                             String         @id @default(cuid())
+  userId                         String
+  user                           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId                      String
+  product                        Product        @relation(fields: [productId], references: [id])
+  orderId                        String?
+  order                          Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
   // The order line this instance was provisioned from. A line with a quantity
   // above one produces several instances that all point at the same line.
-  orderItemId       String?
-  orderItem         OrderItem?     @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
-  name              String
-  status            InstanceStatus @default(PENDING)
-  pterodactylServerId Int?          @unique
-  pterodactylUuid   String?        @unique
+  orderItemId                    String?
+  orderItem                      OrderItem?     @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  name                           String
+  status                         InstanceStatus @default(PENDING)
+  pterodactylServerId            Int?           @unique
+  pterodactylUuid                String?        @unique
   // The allocation that the panel really assigned. The port of the service
   // is read from it and is never assumed.
-  pterodactylAllocation Int?
-  pterodactylNodeId     Int?
-  ram               Int
-  cpu               Float
-  disk              Int
-  price             Int
-  currency          String         @default("EUR")
+  pterodactylAllocation          Int?
+  pterodactylNodeId              Int?
+  ram                            Int
+  cpu                            Float
+  disk                           Int
+  price                          Int
+  currency                       String         @default("EUR")
   // Idempotency key used by the provisioning worker.
-  provisioningKey   String?        @unique
-  provisionError    String?
+  provisioningKey                String?        @unique
+  provisionError                 String?
   /// The container exists. This does not mean the imported application is built or healthy.
-  infrastructureReadyAt DateTime?
+  infrastructureReadyAt          DateTime?
   /// The customer application passed its health check. Empty until then when an import is attached.
-  applicationReadyAt DateTime?
-  applicationError  String?
+  applicationReadyAt             DateTime?
+  applicationError               String?
   /// Preset chosen at checkout and whether its files were written into the container.
-  installationManifest Json?
+  installationManifest           Json?
   // The last provisioning step that completed successfully. A retry resumes
   // after this step instead of starting over, which is what keeps a retry
   // from reinstalling a server that is already running.
-  provisionStep     String?
+  provisionStep                  String?
   // The variables the platform made for this instance, such as the password
   // of a database. They are encrypted with the versioned data-encryption key, so
   // they can be shown to the owner of the instance without being written in
   // the clear. The value is empty for an instance that needs no such variable.
-  generatedVariables String?
+  generatedVariables             String?
   // The values the customer gave for the variables of the product, such as
   // the licence of a game. They are encrypted with the same data key, because
   // they are secrets of the customer and not of the platform.
-  customerVariables  String?
+  customerVariables              String?
   // Set while a worker holds the instance, so two jobs cannot provision it.
-  provisionLockAt   DateTime?
-  suspendedAt       DateTime?
-  cancelledAt       DateTime?
+  provisionLockAt                DateTime?
+  suspendedAt                    DateTime?
+  cancelledAt                    DateTime?
   // The state of the container, as the node reports it. The customer zone
   // shows this state and not the state the platform believes, so a service
   // whose container runs is not shown as restarting for ever.
-  runtimeState String?
+  runtimeState                   String?
   // What the platform concludes from what the node says: the container
   // serves, it is still coming up, or it does not serve. This is the state
   // the customer zone shows.
-  runtimeCondition String?
+  runtimeCondition               String?
   // When the node answered about this instance for the last time.
-  runtimeStateCheckedAt DateTime?
+  runtimeStateCheckedAt          DateTime?
   // True when the node could not be asked: the last known state is kept and
   // this says that it is not fresh any more. An instance whose node is not
   // reachable is never broken by that: it is only not known.
-  runtimeStateStale Boolean @default(false)
+  runtimeStateStale              Boolean        @default(false)
   // The condition that was seen last but is not shown yet, and the moment it
   // was seen for the first time. A condition has to be seen for a while
   // before it replaces the one that is shown, so a container that flaps does
   // not make the customer zone blink between two labels.
-  runtimeConditionCandidate String?
+  runtimeConditionCandidate      String?
   runtimeConditionCandidateSince DateTime?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  createdAt                      DateTime       @default(now())
+  updatedAt                      DateTime       @updatedAt
 
-  domains         InstanceDomain[]
-  ticket          Ticket[]
-  events          InstanceEvent[]
-  subscription    Subscription?
-  provisioningJobs ProvisioningJob[]
-  upgradeOrders   Order[]          @relation("UpgradeOrders")
-  profiles        ServerProfile[]
-  gameConnect     GameConnect?
-  repurposeJobs   RepurposeJob[]
+  domains               InstanceDomain[]
+  ticket                Ticket[]
+  events                InstanceEvent[]
+  subscription          Subscription?
+  provisioningJobs      ProvisioningJob[]
+  upgradeOrders         Order[]                      @relation("UpgradeOrders")
+  profiles              ServerProfile[]
+  gameConnect           GameConnect?
+  repurposeJobs         RepurposeJob[]
+  shares                InstanceShare[]
+  /// Whether the owner is told by email when the service stops serving.
+  alertsEnabled         Boolean                      @default(true)
+  /// Since when the service has not been serving, while it is down.
+  downSince             DateTime?
+  /// When the owner was told about the current outage.
+  downAlertedAt         DateTime?
+  checks                InstanceCheck[]
+  offsiteBackups        OffsiteBackup[]
+  gitDeploy             GitDeploy?
+  addonJobs             InstanceAddonJob[]
+  profileActivationJobs ServerProfileActivationJob[]
+  /// Tell the owner when the memory or the disk use passes this percentage of the plan. Null means no alert.
+  alertMemoryPercent    Int?
+  alertDiskPercent      Int?
+  resourceAlertedAt     DateTime?
 
   @@index([userId, status])
   @@index([orderItemId])
   // The list of the services is ordered by the moment of the service and by
   // the id.
   @@index([createdAt, id])
-  shares InstanceShare[]
-  /// Whether the owner is told by email when the service stops serving.
-  alertsEnabled Boolean         @default(true)
-  /// Since when the service has not been serving, while it is down.
-  downSince     DateTime?
-  /// When the owner was told about the current outage.
-  downAlertedAt DateTime?
-  checks        InstanceCheck[]
-  offsiteBackups OffsiteBackup[]
-  gitDeploy GitDeploy?
-  addonJobs InstanceAddonJob[]
-  profileActivationJobs ServerProfileActivationJob[]
-  /// Tell the owner when the memory or the disk use passes this percentage of the plan. Null means no alert.
-  alertMemoryPercent Int?
-  alertDiskPercent   Int?
-  resourceAlertedAt  DateTime?
 }
 
 /// An immutable, reproducible snapshot of a supported server installation.
 model ServerProfile {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  instanceId  String
-  instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  name        String
-  productSlug String
-  ram         Int
-  cpu         Float
-  disk        Int
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instanceId      String
+  instance        Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  name            String
+  productSlug     String
+  ram             Int
+  cpu             Float
+  disk            Int
   /// Snapshot of installationManifest when the profile was saved. Apply never writes files without a backup.
-  manifest    Json?
+  manifest        Json?
   /// Canonical snapshot of catalogue identity, runtime and immutable artifacts.
-  snapshot    Json?
-  snapshotVersion Int @default(1)
+  snapshot        Json?
+  snapshotVersion Int      @default(1)
   /// SHA-256 of the canonical snapshot JSON. A changed snapshot is refused.
-  snapshotSha256 String?
-  createdAt   DateTime @default(now())
+  snapshotSha256  String?
+  createdAt       DateTime @default(now())
 
   activationJobs ServerProfileActivationJob[]
 
@@ -1182,22 +1182,22 @@ model ServerProfileActivationJob {
 
 /// A switch from one catalogue product to another. The egg is not changed until the backup archive can be opened.
 model RepurposeJob {
-  id            String   @id @default(cuid())
-  instanceId    String
-  instance      Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  fromProductId String
-  toProductId   String
-  backupUuid    String?
-  sha256          String?
-  archiveBytes    Int?
-  archiveEntries  Int?
+  id             String   @id @default(cuid())
+  instanceId     String
+  instance       Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  fromProductId  String
+  toProductId    String
+  backupUuid     String?
+  sha256         String?
+  archiveBytes   Int?
+  archiveEntries Int?
   /// Egg, image, startup and environment from before the switch, so a failed switch can be put back.
-  rollback        Json?
+  rollback       Json?
   /// pending, archive_verified, switching, switched, restored, restore_failed, or refused.
-  state           String   @default("pending")
-  error         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  state          String   @default("pending")
+  error          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([instanceId, createdAt])
 }
@@ -1221,20 +1221,20 @@ enum DomainStatus {
 }
 
 model InstanceDomain {
-  id          String       @id @default(cuid())
-  instanceId  String
-  instance    Instance     @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  hostname    String       @unique
-  targetPort  Int          @default(30000)
+  id                String           @id @default(cuid())
+  instanceId        String
+  instance          Instance         @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  hostname          String           @unique
+  targetPort        Int              @default(30000)
   /// http routes through the website gateway. game is an address record only, never an HTTPS route.
-  purpose     String       @default("http")
+  purpose           String           @default("http")
   /// The game server address a game hostname has to publish. Empty for a website.
-  gameAddress String?
+  gameAddress       String?
   /// Set for a Java game hostname that should also publish an SRV record.
-  srvPort     Int?
+  srvPort           Int?
   /// The service label of the SRV record of a game hostname, for example `minecraft._tcp`. Null for a website.
-  srvService  String?
-  status      DomainStatus @default(PENDING_DNS)
+  srvService        String?
+  status            DomainStatus     @default(PENDING_DNS)
   // Random per-domain proof of ownership. The customer has to publish it as a
   // TXT record before the domain can be routed.
   verificationToken String?
@@ -1242,16 +1242,16 @@ model InstanceDomain {
   verifiedAt        DateTime?
   // Who claimed the hostname. A hostname can only be claimed once.
   claimedByUserId   String?
-  caddyRouteId String?
+  caddyRouteId      String?
   /// Certificate state. Independent of whether the customer application is healthy.
-  tlsStatus   String       @default("unknown")
+  tlsStatus         String           @default("unknown")
   /// Application health on this hostname. A certificate that answers is not this.
-  applicationStatus String  @default("unknown")
-  lastError   String?
-  dnsApprovals DnsApproval[]
-  dnsGrants   DnsRecordGrant[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  applicationStatus String           @default("unknown")
+  lastError         String?
+  dnsApprovals      DnsApproval[]
+  dnsGrants         DnsRecordGrant[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([instanceId])
   @@index([status])
@@ -1271,40 +1271,40 @@ model CloudflareZoneLink {
 
 /// A project the customer asked to deploy. The zip stays here until the server exists, and it is never executed on the platform.
 model ImportSource {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                       String                 @id @default(cuid())
+  userId                   String
+  user                     User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Set once a server is installing this import, so a retry finds the same row.
-  instanceId    String?
-  productSlug   String
-  kind          String
-  repoUrl       String?
-  branch        String?
-  buildCommand  String    @default("")
-  startCommand  String
-  zipBytes      Bytes?
+  instanceId               String?
+  productSlug              String
+  kind                     String
+  repoUrl                  String?
+  branch                   String?
+  buildCommand             String                 @default("")
+  startCommand             String
+  zipBytes                 Bytes?
   /// Length of zipBytes, so a quota check does not have to read the archive.
-  zipBytesLength Int      @default(0)
+  zipBytesLength           Int                    @default(0)
   /// When the archive must be deleted whether or not the build finished.
-  zipExpiresAt  DateTime?
+  zipExpiresAt             DateTime?
   /// pending, queued, checking, failed, or applied. appliedAt is set only for applied.
-  phase         String    @default("pending")
-  deployId      String?
-  lastError     String?
-  attempts      Int       @default(0)
-  createdAt     DateTime  @default(now())
-  appliedAt     DateTime?
+  phase                    String                 @default("pending")
+  deployId                 String?
+  lastError                String?
+  attempts                 Int                    @default(0)
+  createdAt                DateTime               @default(now())
+  appliedAt                DateTime?
   /// Optional databases the customer confirmed. A suggestion is never added on its own.
-  confirmedServices String[] @default([])
+  confirmedServices        String[]               @default([])
   /// Set after the connection variables were written into the application container.
-  servicesLinkedAt DateTime?
+  servicesLinkedAt         DateTime?
   /// GitHub App installation used for this import (not the OAuth login identity).
-  githubInstallationId String?
-  githubInstallation GitHubAppInstallation? @relation(fields: [githubInstallationId], references: [id], onDelete: SetNull)
+  githubInstallationId     String?
+  githubInstallation       GitHubAppInstallation? @relation(fields: [githubInstallationId], references: [id], onDelete: SetNull)
   /// Numeric GitHub repository id as a string.
-  githubRepositoryId String?
+  githubRepositoryId       String?
   githubRepositoryFullName String?
-  buildJobs IsolatedBuildJob[]
+  buildJobs                IsolatedBuildJob[]
 
   @@index([userId, createdAt])
   @@index([phase, appliedAt])
@@ -1312,20 +1312,20 @@ model ImportSource {
 
 /// A social or OIDC provider identity linked to a Blipmade account.
 model ConnectedIdentity {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// github | google | discord | apple
-  provider       String
+  provider           String
   /// Immutable subject from the provider (Discord snowflake, GitHub user id, OIDC sub).
-  providerUserId String
-  displayName    String?
-  avatarUrl      String?
-  emailSnapshot  String?
+  providerUserId     String
+  displayName        String?
+  avatarUrl          String?
+  emailSnapshot      String?
   /// Encrypted OAuth refresh token when the provider issued one (never returned to the client).
   refreshTokenSealed String?
-  connectedAt    DateTime @default(now())
-  lastUsedAt     DateTime?
+  connectedAt        DateTime  @default(now())
+  lastUsedAt         DateTime?
 
   @@unique([provider, providerUserId])
   @@index([userId, provider])
@@ -1333,51 +1333,51 @@ model ConnectedIdentity {
 
 /// Short-lived OAuth state / PKCE / nonce for one authorization attempt.
 model OAuthTransaction {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   provider     String
   /// login | link | github_app_install
   intent       String
-  stateHash    String   @unique
+  stateHash    String    @unique
   codeVerifier String?
   nonce        String?
   userId       String?
   returnTo     String?
   expiresAt    DateTime
   consumedAt   DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   @@index([expiresAt])
 }
 
 /// A GitHub App installation authorized for a Blipmade user (user or org account).
 model GitHubAppInstallation {
-  id               String   @id @default(cuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  installationId   String   @unique
-  accountLogin     String
-  accountType      String
-  repositorySelection String @default("selected")
-  suspendedAt      DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  repositories     GitHubAuthorizedRepository[]
-  importSources    ImportSource[]
+  id                  String                       @id @default(cuid())
+  userId              String
+  user                User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installationId      String                       @unique
+  accountLogin        String
+  accountType         String
+  repositorySelection String                       @default("selected")
+  suspendedAt         DateTime?
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  repositories        GitHubAuthorizedRepository[]
+  importSources       ImportSource[]
 
   @@index([userId])
 }
 
 /// Repository the GitHub App may read for deployments.
 model GitHubAuthorizedRepository {
-  id               String   @id @default(cuid())
-  installationId   String
-  installation     GitHubAppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
-  repositoryId     String
-  fullName         String
-  defaultBranch    String   @default("main")
-  isPrivate        Boolean  @default(false)
-  revokedAt        DateTime?
-  syncedAt         DateTime @default(now())
+  id             String                @id @default(cuid())
+  installationId String
+  installation   GitHubAppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  repositoryId   String
+  fullName       String
+  defaultBranch  String                @default("main")
+  isPrivate      Boolean               @default(false)
+  revokedAt      DateTime?
+  syncedAt       DateTime              @default(now())
 
   @@unique([installationId, repositoryId])
   @@index([fullName])
@@ -1385,18 +1385,18 @@ model GitHubAuthorizedRepository {
 
 /// Opt-in Discord community membership separate from Discord login identity.
 model DiscordCommunityLink {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  discordUserId   String   @unique
-  guildId         String
-  joinedAt        DateTime?
-  syncState       String   @default("pending")
-  lastSyncAt      DateTime?
-  lastError       String?
-  rolesSynced     String[] @default([])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discordUserId String    @unique
+  guildId       String
+  joinedAt      DateTime?
+  syncState     String    @default("pending")
+  lastSyncAt    DateTime?
+  lastError     String?
+  rolesSynced   String[]  @default([])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 /// Admin-configured Discord role mapping (Blipmade rule → Discord role id).
@@ -1410,18 +1410,18 @@ model DiscordRoleMapping {
 
 /// Versioned desired guild layout + channel ID bindings (Discord 3.0).
 model DiscordServerConfig {
-  id                  String   @id @default("default")
-  desiredStateVersion Int      @default(1)
-  desiredState        Json
-  channelBindings     Json     @default("{}")
-  protectedChannelIds String[] @default(["1565844667147493376"])
-  supportPanelMessageId String?
+  id                     String    @id @default("default")
+  desiredStateVersion    Int       @default(1)
+  desiredState           Json
+  channelBindings        Json      @default("{}")
+  protectedChannelIds    String[]  @default(["1565844667147493376"])
+  supportPanelMessageId  String?
   /// Maps content slot keys (welcome_start, welcome_rules, …) to Discord message IDs for idempotent updates.
-  contentAnchors        Json     @default("{}")
+  contentAnchors         Json      @default("{}")
   liveTemplateImportedAt DateTime?
-  lastGuildSyncAt     DateTime?
-  lastGuildSyncError  String?
-  updatedAt           DateTime @updatedAt
+  lastGuildSyncAt        DateTime?
+  lastGuildSyncError     String?
+  updatedAt              DateTime  @updatedAt
 }
 
 /// Maps Blipmade staff permission keys to Discord roles (presentation only; RBAC stays in Blipmade).
@@ -1435,29 +1435,29 @@ model DiscordStaffRoleMapping {
 
 /// Links a Blipmade ticket to a private Discord thread/channel.
 model DiscordTicketBridge {
-  id                    String   @id @default(cuid())
-  ticketId              String   @unique
-  ticket                Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  discordGuildId        String
-  discordChannelId      String   @unique
-  openedByDiscordUserId String
-  syncState             String   @default("active")
-  lastDiscordMessageId  String?
+  id                     String   @id @default(cuid())
+  ticketId               String   @unique
+  ticket                 Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  discordGuildId         String
+  discordChannelId       String   @unique
+  openedByDiscordUserId  String
+  syncState              String   @default("active")
+  lastDiscordMessageId   String?
   lastBlipmadeMessageSeq BigInt?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   messages DiscordMessageBridge[]
 }
 
 model DiscordMessageBridge {
-  id               String   @id @default(cuid())
+  id               String              @id @default(cuid())
   bridgeId         String
   bridge           DiscordTicketBridge @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
-  ticketMessageId  String   @unique
-  discordMessageId String   @unique
+  ticketMessageId  String              @unique
+  discordMessageId String              @unique
   direction        String
-  createdAt        DateTime @default(now())
+  createdAt        DateTime            @default(now())
 
   @@index([bridgeId])
 }
@@ -1473,23 +1473,23 @@ model GitHubWebhookDelivery {
 
 /// A server-generated DNS diff. Writing requires this exact preview, before it expires.
 model DnsApproval {
-  id          String    @id @default(cuid())
+  id          String         @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   domainId    String
   domain      InstanceDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
   fingerprint String
   diff        Json
   expiresAt   DateTime
   consumedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime       @default(now())
 
   @@index([domainId, createdAt])
 }
 
 /// A DNS record this platform created in the customer's zone. Records it did not create are not edited.
 model DnsRecordGrant {
-  id           String   @id @default(cuid())
+  id           String         @id @default(cuid())
   domainId     String
   domain       InstanceDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
   zoneId       String
@@ -1497,7 +1497,7 @@ model DnsRecordGrant {
   name         String
   content      String
   cloudflareId String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime       @default(now())
 
   @@unique([zoneId, cloudflareId])
   @@index([domainId])
@@ -1555,39 +1555,39 @@ enum SupportAutomationRunStatus {
 
 /// A rule the operator writes: when something happens in a conversation and the conditions hold, do these things.
 model SupportAutomation {
-  id          String   @id @default(cuid())
-  name        String
-  enabled     Boolean  @default(false)
+  id           String   @id @default(cuid())
+  name         String
+  enabled      Boolean  @default(false)
   /// The lower number runs first.
-  priority    Int      @default(100)
-  trigger     String
+  priority     Int      @default(100)
+  trigger      String
   /// For the triggers that look at waiting time: after how many minutes (of business time when hours are set).
   afterMinutes Int?
-  conditions  Json     @default("{}")
-  actions     Json     @default("[]")
+  conditions   Json     @default("{}")
+  actions      Json     @default("[]")
   /// The staff member the messages of the rule are written as.
-  actorId     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  actorId      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   runs SupportAutomationRun[]
 }
 
 /// One run of a rule on one conversation for one event. The pair (rule, event) is unique: an event is handled once.
 model SupportAutomationRun {
-  id           String                      @id @default(cuid())
+  id           String                     @id @default(cuid())
   automationId String
-  automation   SupportAutomation           @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  automation   SupportAutomation          @relation(fields: [automationId], references: [id], onDelete: Cascade)
   ticketId     String
   eventKey     String
-  status       SupportAutomationRunStatus  @default(OK)
-  attempts     Int                         @default(1)
-  depth        Int                         @default(0)
+  status       SupportAutomationRunStatus @default(OK)
+  attempts     Int                        @default(1)
+  depth        Int                        @default(0)
   /// What the rule did, in words, for the history.
-  done         Json                        @default("[]")
+  done         Json                       @default("[]")
   error        String?
-  createdAt    DateTime                    @default(now())
-  updatedAt    DateTime                    @updatedAt
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
 
   @@unique([automationId, eventKey])
   @@index([ticketId])
@@ -1596,13 +1596,13 @@ model SupportAutomationRun {
 
 /// The credential of a guest of the chat: only the hash is kept, it is valid for a day at a time and for a week at most, and it opens only the chat of its own guest.
 model SupportGuestToken {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
-  expiresAt DateTime
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
   lastSeenAt DateTime @default(now())
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -1631,13 +1631,13 @@ model SupportBot {
 }
 
 model SupportBotVersion {
-  id            String   @id @default(cuid())
+  id            String     @id @default(cuid())
   botId         String
   bot           SupportBot @relation(fields: [botId], references: [id], onDelete: Cascade)
   version       Int
   flow          Json
   publishedById String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime   @default(now())
 
   sessions SupportBotSession[]
 
@@ -1705,37 +1705,37 @@ model SupportPresence {
 }
 
 model Ticket {
-  id           String         @id @default(cuid())
-  number       Int            @unique @default(autoincrement())
-  userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subject      String
-  category     TicketCategory @default(TECHNICAL)
-  priority     TicketPriority @default(NORMAL)
-  status       TicketStatus   @default(OPEN)
-  instanceId   String?
-  instance     Instance?      @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  id                   String             @id @default(cuid())
+  number               Int                @unique @default(autoincrement())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject              String
+  category             TicketCategory     @default(TECHNICAL)
+  priority             TicketPriority     @default(NORMAL)
+  status               TicketStatus       @default(OPEN)
+  instanceId           String?
+  instance             Instance?          @relation(fields: [instanceId], references: [id], onDelete: SetNull)
   // The hosted mail the ticket is about, when it is about mail and not about a server.
-  mailServiceId String?
-  mailService   MailService?   @relation(fields: [mailServiceId], references: [id], onDelete: SetNull)
-  assignedToId String?
-  assignedTo   StaffMember?   @relation("TicketAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
-  lastReplyAt  DateTime?
-  closedAt     DateTime?
-  channel      SupportChannel @default(TICKET)
-  departmentId String?
-  department   SupportDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  mailServiceId        String?
+  mailService          MailService?       @relation(fields: [mailServiceId], references: [id], onDelete: SetNull)
+  assignedToId         String?
+  assignedTo           StaffMember?       @relation("TicketAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
+  lastReplyAt          DateTime?
+  closedAt             DateTime?
+  channel              SupportChannel     @default(TICKET)
+  departmentId         String?
+  department           SupportDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   /// The first answer of a person. A greeting of a bot is not one.
   firstHumanResponseAt DateTime?
   lastCustomerAt       DateTime?
   lastStaffAt          DateTime?
   reopenedAt           DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  messages TicketMessage[]
-  events   TicketEvent[]
-  attachments Attachment[]
+  messages      TicketMessage[]
+  events        TicketEvent[]
+  attachments   Attachment[]
   discordBridge DiscordTicketBridge?
 
   @@index([userId, status])
@@ -1749,23 +1749,23 @@ model Ticket {
 }
 
 model TicketMessage {
-  id         String   @id @default(cuid())
-  ticketId   String
-  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  body       String
+  id             String       @id @default(cuid())
+  ticketId       String
+  ticket         Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body           String
   // Internal notes are never visible to the customer.
-  internal   Boolean  @default(false)
+  internal       Boolean      @default(false)
   // Metadata written by clients that only describe a file. Real uploads are
   // stored as Attachment rows and referenced from here.
   attachmentMeta Json?
-  attachments Attachment[]
+  attachments    Attachment[]
   /// The order of the messages of the whole platform: a stream resumes from the last one it saw.
-  seq        BigInt   @unique @default(autoincrement())
+  seq            BigInt       @unique @default(autoincrement())
   /// The Message-ID of an email this message came from. An email is taken in once.
-  externalId String?  @unique
-  createdAt  DateTime @default(now())
+  externalId     String?      @unique
+  createdAt      DateTime     @default(now())
 
   @@index([ticketId, createdAt])
 }
@@ -1813,17 +1813,17 @@ model AuditLog {
 /// event keeps its row so a redelivery is retried instead of being discarded
 /// as a duplicate.
 model WebhookEvent {
-  id         String   @id @default(cuid())
-  provider   String
-  eventId    String
-  type       String
-  payload    Json?
-  status     String   @default("received")
-  attempts   Int      @default(0)
+  id            String    @id @default(cuid())
+  provider      String
+  eventId       String
+  type          String
+  payload       Json?
+  status        String    @default("received")
+  attempts      Int       @default(0)
   lastAttemptAt DateTime?
-  processedAt DateTime?
-  error      String?
-  createdAt  DateTime @default(now())
+  processedAt   DateTime?
+  error         String?
+  createdAt     DateTime  @default(now())
 
   @@unique([provider, eventId])
   @@index([provider, type])
@@ -1839,16 +1839,16 @@ model Setting {
 
 /// Queue of provisioning jobs, used for reconciliation and admin retry.
 model ProvisioningJob {
-  id          String   @id @default(cuid())
-  instanceId  String
-  instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  step        String
-  status      String   @default("pending")
-  attempts    Int      @default(0)
-  error       String?
-  payload     Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  step       String
+  status     String   @default("pending")
+  attempts   Int      @default(0)
+  error      String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([instanceId])
   @@index([status])
@@ -1871,33 +1871,33 @@ enum DeadLetterState {
 /// survives a restart of the queue, and it is what an operator reads to know
 /// what is broken and to put the job back on the queue.
 model DeadLetterJob {
-  id        String   @id @default(cuid())
+  id           String          @id @default(cuid())
   /// The name of the queue the job was on.
-  queue     String
+  queue        String
   /// The name the job had on that queue.
-  jobId     String
+  jobId        String
   /// The name of the job, which says what it was doing.
-  name      String
+  name         String
   /// What the job was carrying. It never carries a token: the payload of a
   /// job is only the identifiers of the rows it works on.
-  payload   Json?
+  payload      Json?
   /// The message of the failure.
-  error     String
+  error        String
   /// The class of the failure, so the kind of problem can be told apart.
-  errorClass String?
+  errorClass   String?
   /// How many times the job was tried before it was given up on.
-  attempts  Int      @default(0)
+  attempts     Int             @default(0)
   /// When the job was given up on.
-  failedAt  DateTime @default(now())
+  failedAt     DateTime        @default(now())
   /// Where the failure stands.
-  state     DeadLetterState @default(pending)
+  state        DeadLetterState @default(pending)
   /// When the job was put back on the queue, and by whom.
-  requeuedAt DateTime?
-  requeuedBy String?
+  requeuedAt   DateTime?
+  requeuedBy   String?
   /// How many times the job was put back on the queue.
-  requeueCount Int        @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  requeueCount Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@unique([queue, jobId])
   @@index([state, failedAt])
@@ -1922,7 +1922,6 @@ model Attachment {
   @@index([ticketMessageId])
   @@index([ticketId])
 }
-
 
 /// The state of a hosted domain of mail.
 enum MailDomainStatus {
@@ -1973,39 +1972,39 @@ enum MailServiceStatus {
 /// the mailboxes and the aliases; the platform holds the plan limits and the
 /// truth about what the mail system answered.
 model MailDomain {
-  id           String           @id @default(cuid())
-  userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   // The mail service this domain belongs to. A domain that is not part of a
   // service is a domain the platform hosts for a customer without a plan.
-  serviceId    String?
-  service      MailService?     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId         String?
+  service           MailService?        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   /// The domain itself, in lower case, e.g. "acme.ro".
-  name         String
-  status       MailDomainStatus @default(PENDING)
+  name              String
+  status            MailDomainStatus    @default(PENDING)
   /// Whether the customer proved that the domain is theirs.
-  ownershipStatus MailOwnershipStatus @default(UNVERIFIED)
+  ownershipStatus   MailOwnershipStatus @default(UNVERIFIED)
   /// The token the customer has to publish to prove the domain is theirs.
   verificationToken String?
   /// The name of the record that carries the token, e.g. "_blipmade-verify.acme.ro".
-  verificationHost String?
+  verificationHost  String?
   /// When the domain was proved.
-  verifiedAt   DateTime?
+  verifiedAt        DateTime?
   /// How much of the quota of the domain is used, in megabytes.
-  quotaMb      Int              @default(10240)
-  usedMb       Int              @default(0)
+  quotaMb           Int                 @default(10240)
+  usedMb            Int                 @default(0)
   /// How many mailboxes the plan allows on this domain.
-  maxMailboxes Int              @default(10)
+  maxMailboxes      Int                 @default(10)
   /// How many aliases the plan allows on this domain.
-  maxAliases   Int              @default(100)
+  maxAliases        Int                 @default(100)
   /// How many forwarding rules the plan allows on this domain.
-  maxForwarding Int             @default(0)
+  maxForwarding     Int                 @default(0)
   /// The public part of the DKIM key of the domain.
-  dkimPublic   String?
+  dkimPublic        String?
   /// Why the last attempt failed, in words.
-  lastError    String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  lastError         String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   mailboxes Mailbox[]
   aliases   MailAlias[]
@@ -2024,26 +2023,26 @@ model MailDomain {
 /// buy mail alone, and cancelling the server they bought later does not
 /// touch it.
 model MailService {
-  id         String   @id @default(cuid())
-  tickets    Ticket[]
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String              @id @default(cuid())
+  tickets         Ticket[]
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   // The plan the customer bought.
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
+  productId       String
+  product         Product             @relation(fields: [productId], references: [id])
   // The order line that paid for it. One line, one service.
-  orderItemId String? @unique
-  orderItem  OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  orderItemId     String?             @unique
+  orderItem       OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   // The order the service comes from.
-  orderId    String?
+  orderId         String?
   // The subscription that renews it. It has no instance: the mail is
   // renewed on its own.
-  subscriptionId String? @unique
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  status     MailServiceStatus @default(PENDING)
+  subscriptionId  String?             @unique
+  subscription    Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  status          MailServiceStatus   @default(PENDING)
   /// The key that makes the creation of the service safe to repeat: a
   /// redelivered payment event finds the service instead of making another.
-  provisioningKey String @unique
+  provisioningKey String              @unique
   // The limits that were bought. They are a copy, so a change of the plan in
   // the catalog never changes a service that was already paid for.
   maxDomains      Int
@@ -2055,8 +2054,8 @@ model MailService {
   sendLimit       Int
   sendInterval    MailSendingInterval @default(HOURLY)
   // The use of the service, counted when it is asked for.
-  domainCount     Int @default(0)
-  mailboxCount    Int @default(0)
+  domainCount     Int                 @default(0)
+  mailboxCount    Int                 @default(0)
   // The life of the service.
   /// The end of the period of grace: after it, the service is suspended.
   graceUntil      DateTime?
@@ -2068,8 +2067,8 @@ model MailService {
   retentionUntil  DateTime?
   /// Why the last attempt failed, in words.
   lastError       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   domains MailDomain[]
 
@@ -2079,19 +2078,19 @@ model MailService {
 
 /// A mailbox of a hosted domain.
 model Mailbox {
-  id         String     @id @default(cuid())
-  domainId   String
-  domain     MailDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  id        String     @id @default(cuid())
+  domainId  String
+  domain    MailDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
   /// The part before the "@", in lower case.
-  localPart  String
+  localPart String
   /// The whole address, e.g. "contact@acme.ro".
-  address    String     @unique
+  address   String     @unique
   /// "active" or "disabled".
-  status     String     @default("active")
-  quotaMb    Int        @default(1024)
-  usedMb     Int        @default(0)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  status    String     @default("active")
+  quotaMb   Int        @default(1024)
+  usedMb    Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@unique([domainId, localPart])
 }
@@ -2117,20 +2116,20 @@ model MailAlias {
 /// be down. The work is written down before it is done, so a customer always
 /// sees what is pending, and a failed job is never lost.
 model MailJob {
-  id         String      @id @default(cuid())
+  id        String      @id @default(cuid())
   /// What the job does: "domain.create", "domain.delete", "mailbox.create",
   /// "mailbox.delete", "alias.create", "alias.delete".
-  kind       String
-  domainId   String?
-  domain     MailDomain? @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  kind      String
+  domainId  String?
+  domain    MailDomain? @relation(fields: [domainId], references: [id], onDelete: Cascade)
   /// What the job carries.
-  payload    Json
+  payload   Json
   /// "queued", "running", "done" or "failed".
-  status     String      @default("queued")
-  attempts   Int         @default(0)
-  lastError  String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  status    String      @default("queued")
+  attempts  Int         @default(0)
+  lastError String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([status])
   @@index([domainId])
@@ -2169,46 +2168,45 @@ model VpsSlot {
 }
 
 model VpsService {
-  id             String        @id @default(cuid())
-  userId         String
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId      String
-  product        Product       @relation(fields: [productId], references: [id])
-  orderItemId    String        @unique
-  orderItem      OrderItem     @relation(fields: [orderItemId], references: [id])
-  subscriptionId String?       @unique
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id])
+  orderItemId      String        @unique
+  orderItem        OrderItem     @relation(fields: [orderItemId], references: [id])
+  subscriptionId   String?       @unique
+  subscription     Subscription? @relation(fields: [subscriptionId], references: [id])
   /// The name the customer gave it. It is also the hostname of the machine.
-  name           String
-  status         VpsStatus     @default(PENDING)
+  name             String
+  status           VpsStatus     @default(PENDING)
   /// The number of the machine among the VPS. The id on Proxmox, the private
   /// address and the public SSH port are all derived from it.
-  slot           Int           @unique
-  vmid           Int?
-  privateIp      String?
+  slot             Int           @unique
+  vmid             Int?
+  privateIp        String?
   /// The address the customer reaches it on: the shared one, or its own.
-  publicIp       String?
-  sshPort        Int?
-  dedicatedIp    Boolean       @default(false)
-  ram            Int
-  cpu            Int
-  disk           Int
+  publicIp         String?
+  sshPort          Int?
+  dedicatedIp      Boolean       @default(false)
+  ram              Int
+  cpu              Int
+  disk             Int
   /// The public key of the customer, put in the machine at the start.
-  sshPublicKey   String
+  sshPublicKey     String
   /// The image the server is built from: a key of lib/vps-images.
-  image          String        @default("debian-13")
-  lastError      String?
+  image            String        @default("debian-13")
+  lastError        String?
   /// Set when an operator gave or took resources without changing the bill: why, who, when, from and to.
   resourceOverride Json?
   /// When the machine was stopped because the subscription is not paid. Its data is kept until the retention ends.
-  suspendedAt    DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  suspendedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@index([userId])
   @@index([status])
 }
-
 
 /// The authenticator app of an account. The secret is kept encrypted. A row without
 /// `enabledAt` is a setup that was started and not finished, and it protects nothing.
@@ -2302,7 +2300,6 @@ model Announcement {
 
   @@index([active, startsAt])
 }
-
 
 /// A private note of the staff about a customer. The customer never sees it.
 model CustomerNote {
@@ -2409,7 +2406,6 @@ model MoneyAdjustment {
   @@index([orderId])
 }
 
-
 /// Access to an instance for another account. The owner makes a code; whoever redeems it becomes a member.
 model InstanceShare {
   id         String    @id @default(cuid())
@@ -2506,25 +2502,24 @@ model OffsiteBackup {
 
 /// The Git deployment of an instance. The build runs inside the instance's own container, with its limits.
 model GitDeploy {
-  id              String   @id @default(cuid())
-  instanceId      String   @unique
-  instance        Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  instanceId      String    @unique
+  instance        Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   repoUrl         String
-  branch          String   @default("main")
-  buildCommand    String   @default("")
-  startCommand    String   @default("npm start")
-  autoDeploy      Boolean  @default(false)
+  branch          String    @default("main")
+  buildCommand    String    @default("")
+  startCommand    String    @default("npm start")
+  autoDeploy      Boolean   @default(false)
   /// The secret of the signed webhook, encrypted. Shown to the customer once.
   webhookSecret   String?
   /// The startup command the server had before Git deployment took it over, so it can be given back.
   previousStartup String?
   lastDeployAt    DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([repoUrl, branch])
 }
-
 
 /// A version of a block of words of the public site. A block has at most one draft and one
 /// published version; the versions that were published before are kept as ARCHIVED, so the
@@ -2547,44 +2542,44 @@ model ContentRevision {
 /// Smart Connect: a clean hostname for a game server. Blipmade writes an A and an SRV record in its own zone and keeps the
 /// ids of the records it wrote, so it only ever removes its own. The real port of the allocation stays; SRV points at it.
 model GameConnect {
-  id               String    @id @default(cuid())
-  instanceId       String?   @unique
-  instance         Instance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
-  label            String    @unique
+  id                String    @id @default(cuid())
+  instanceId        String?   @unique
+  instance          Instance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  label             String    @unique
   /// The profile of the capability registry: minecraft-java, factorio, fivem.
-  profile          String
+  profile           String
   /// PENDING_DNS, DNS_VERIFIED, CLIENT_VERIFIED (set by hand after a real join), DEGRADED, UNSUPPORTED.
-  state            String    @default("PENDING_DNS")
-  publicAddress    String?
-  port             Int?
-  aRecordId        String?
-  srvRecordId      String?
-  lastError        String?
-  lastSyncedAt     DateTime?
-  clientVerifiedAt DateTime?
+  state             String    @default("PENDING_DNS")
+  publicAddress     String?
+  port              Int?
+  aRecordId         String?
+  srvRecordId       String?
+  lastError         String?
+  lastSyncedAt      DateTime?
+  clientVerifiedAt  DateTime?
   removeRequestedAt DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([state])
 }
 
 /// One install, update or removal of a catalogue add-on on a server.
 model InstanceAddonJob {
-  id              String   @id @default(cuid())
-  instanceId      String
-  instance        Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  addonSlug       String
-  action          String
-  status          String   @default("pending")
-  backupRequired  Boolean  @default(true)
-  backupOk        Boolean  @default(false)
-  writes          Boolean  @default(false)
-  error           String?
-  idempotencyKey  String?
-  result          Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  instanceId     String
+  instance       Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  addonSlug      String
+  action         String
+  status         String   @default("pending")
+  backupRequired Boolean  @default(true)
+  backupOk       Boolean  @default(false)
+  writes         Boolean  @default(false)
+  error          String?
+  idempotencyKey String?
+  result         Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([instanceId, idempotencyKey])
   @@index([instanceId, createdAt])
@@ -2592,20 +2587,20 @@ model InstanceAddonJob {
 
 /// Typed fact about a customer. Source is billing, support, Discord or staff.
 model CustomerFact {
-  id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  key             String
-  value           String
-  numericValue    Float?
-  occurredAt      DateTime?
-  source          String
-  version         Int       @default(1)
-  classification  String    @default("general")
-  provenance      String?
-  staleAt         DateTime?
-  updatedAt       DateTime  @updatedAt
-  createdAt       DateTime  @default(now())
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key            String
+  value          String
+  numericValue   Float?
+  occurredAt     DateTime?
+  source         String
+  version        Int       @default(1)
+  classification String    @default("general")
+  provenance     String?
+  staleAt        DateTime?
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
 
   @@unique([userId, key])
   @@index([key, value])
@@ -2614,67 +2609,67 @@ model CustomerFact {
 
 /// Saved filter over typed facts. It does not copy customer rows.
 model CustomerSegment {
-  id        String   @id @default(cuid())
-  name      String
-  filter    Json
-  kind      String   @default("dynamic")
-  version   Int      @default(1)
-  history   Json?
-  memberIds String[] @default([])
-  createdBy String
-  creator   User     @relation("SegmentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  campaigns MarketingCampaign[]
-  promotions Promotion[]
+  id          String                @id @default(cuid())
+  name        String
+  filter      Json
+  kind        String                @default("dynamic")
+  version     Int                   @default(1)
+  history     Json?
+  memberIds   String[]              @default([])
+  createdBy   String
+  creator     User                  @relation("SegmentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  campaigns   MarketingCampaign[]
+  promotions  Promotion[]
   automations MarketingAutomation[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 }
 
 /// Versioned marketing template. Variables are validated before a send is queued.
 model MarketingTemplate {
-  id        String   @id @default(cuid())
+  id        String              @id @default(cuid())
   name      String
-  channel   String   @default("email")
+  channel   String              @default("email")
   subject   String?
   body      String
-  version   Int      @default(1)
+  version   Int                 @default(1)
   createdBy String
-  creator   User     @relation("TemplateCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  creator   User                @relation("TemplateCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   campaigns MarketingCampaign[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 }
 
 /// Marketing campaign. Delivery stays off until MARKETING_DELIVERY_ENABLED is on.
 model MarketingCampaign {
-  id          String   @id @default(cuid())
-  name        String
-  status      String   @default("draft")
-  body        String
-  objective   String   @default("retain")
-  channel     String   @default("email")
-  segmentId   String?
-  segment     CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
-  templateId  String?
-  template    MarketingTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  promotionId String?
-  eligibility Json?
-  scheduledAt DateTime?
-  pausedAt    DateTime?
-  budgetCents Int?
-  frequencyHours Int?
-  version     Int      @default(1)
-  createdBy   String
-  creator     User     @relation("CampaignCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  approvedAt  DateTime?
-  approvedBy  String?
-  deliveredAt DateTime?
-  dispatchCursor String?
+  id                  String             @id @default(cuid())
+  name                String
+  status              String             @default("draft")
+  body                String
+  objective           String             @default("retain")
+  channel             String             @default("email")
+  segmentId           String?
+  segment             CustomerSegment?   @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  templateId          String?
+  template            MarketingTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  promotionId         String?
+  eligibility         Json?
+  scheduledAt         DateTime?
+  pausedAt            DateTime?
+  budgetCents         Int?
+  frequencyHours      Int?
+  version             Int                @default(1)
+  createdBy           String
+  creator             User               @relation("CampaignCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approvedAt          DateTime?
+  approvedBy          String?
+  deliveredAt         DateTime?
+  dispatchCursor      String?
   dispatchCompletedAt DateTime?
-  suppressed  Boolean  @default(false)
-  sends       CampaignSend[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  suppressed          Boolean            @default(false)
+  sends               CampaignSend[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([status, createdAt])
   @@index([status, scheduledAt])
@@ -2682,31 +2677,31 @@ model MarketingCampaign {
 
 /// One planned or attempted campaign recipient. Consent is stored at queue time and re-checked before send.
 model CampaignSend {
-  id           String   @id @default(cuid())
-  campaignId   String
-  campaign     MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status       String   @default("planned")
-  consent      Boolean
-  skipReason   String?
-  createdAt    DateTime @default(now())
+  id         String            @id @default(cuid())
+  campaignId String
+  campaign   MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status     String            @default("planned")
+  consent    Boolean
+  skipReason String?
+  createdAt  DateTime          @default(now())
 
   @@unique([campaignId, userId])
   @@index([campaignId, status])
 }
 
 model CrmTask {
-  id          String    @id @default(cuid())
-  userId      String
-  customer    User      @relation("CrmTaskCustomer", fields: [userId], references: [id], onDelete: Cascade)
-  assigneeId  String?
-  assignee    User?     @relation("CrmTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  title       String
-  status      String    @default("open")
-  dueAt       DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  userId     String
+  customer   User      @relation("CrmTaskCustomer", fields: [userId], references: [id], onDelete: Cascade)
+  assigneeId String?
+  assignee   User?     @relation("CrmTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  title      String
+  status     String    @default("open")
+  dueAt      DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([userId, status])
   @@index([assigneeId, status])
@@ -2727,38 +2722,38 @@ model CrmOpportunity {
 }
 
 model MarketingAutomation {
-  id         String   @id @default(cuid())
-  name       String
-  status     String   @default("draft")
-  trigger    String
-  graph      Json
-  segmentId  String?
-  segment    CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
-  paused     Boolean  @default(false)
-  createdBy  String
-  creator    User     @relation("AutomationCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  runs       AutomationRun[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String           @id @default(cuid())
+  name      String
+  status    String           @default("draft")
+  trigger   String
+  graph     Json
+  segmentId String?
+  segment   CustomerSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  paused    Boolean          @default(false)
+  createdBy String
+  creator   User             @relation("AutomationCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  runs      AutomationRun[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@index([trigger, status])
 }
 
 model AutomationRun {
-  id            String    @id @default(cuid())
-  automationId  String
-  automation    MarketingAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventId       String
-  nodeId        String    @default("start")
-  status        String    @default("running")
-  waitUntil     DateTime?
-  lastError     String?
-  attempts      Int       @default(0)
-  appliedNodes  String[]  @default([])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String              @id @default(cuid())
+  automationId String
+  automation   MarketingAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId      String
+  nodeId       String              @default("start")
+  status       String              @default("running")
+  waitUntil    DateTime?
+  lastError    String?
+  attempts     Int                 @default(0)
+  appliedNodes String[]            @default([])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   @@unique([automationId, userId, eventId])
   @@index([status, waitUntil])
@@ -2846,17 +2841,25 @@ model DomainRegistration {
 
 /// Build of an imported project. The API never executes the archive. A sandbox host must exist to run commands.
 model IsolatedBuildJob {
-  id             String       @id @default(cuid())
-  importSourceId String
-  importSource   ImportSource @relation(fields: [importSourceId], references: [id], onDelete: Cascade)
-  status         String       @default("planned")
-  buildCommand   String
-  startCommand   String
-  sandboxHost    String?
-  log            String       @default("")
-  lastError      String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                  String       @id @default(cuid())
+  importSourceId      String
+  importSource        ImportSource @relation(fields: [importSourceId], references: [id], onDelete: Cascade)
+  status              String       @default("planned")
+  runtime             String?
+  buildCommand        String
+  startCommand        String
+  sandboxHost         String?
+  log                 String       @default("")
+  lastError           String?
+  inputSha256         String?
+  artifactSha256      String?
+  artifactBytes       Bytes?
+  artifactBytesLength Int          @default(0)
+  attempts            Int          @default(0)
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([importSourceId, createdAt])
 }

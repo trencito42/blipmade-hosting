@@ -128,6 +128,11 @@ const schema = z.object({
   GITHUB_APP_PRIVATE_KEY: z.string().default(''),
   GITHUB_APP_WEBHOOK_SECRET: z.string().default(''),
 
+  /** HTTPS base URL of the disposable Smart Deploy builder. Empty keeps dispatch off. */
+  SMART_DEPLOY_SANDBOX_URL: z.string().default(''),
+  /** Independent HMAC secret shared only with that builder. */
+  SMART_DEPLOY_SANDBOX_SECRET: z.string().default(''),
+
   /** Discord community bot (guild join + role sync — separate from OAuth login). */
   DISCORD_BOT_TOKEN: z.string().default(''),
   DISCORD_GUILD_ID: z.string().default(''),

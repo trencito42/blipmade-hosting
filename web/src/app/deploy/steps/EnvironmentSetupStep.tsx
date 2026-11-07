@@ -23,8 +23,8 @@ export function EnvironmentSetupStep({
   variableSpecs,
   error,
 }: EnvironmentSetupStepProps) {
-  const safeSpecs = variableSpecs || {};
-  const safeVars = variables || {};
+  const safeSpecs = (variableSpecs && typeof variableSpecs === 'object') ? variableSpecs : {};
+  const safeVars = (variables && typeof variables === 'object') ? variables : {};
   const hasVars = Object.keys(safeSpecs).length > 0;
 
   return (
