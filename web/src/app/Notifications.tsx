@@ -106,7 +106,7 @@ export default function Notifications() {
    */
   const refreshCount = useCallback(async () => {
     try {
-      const result = await get<{ unread: number }>('/notifications/unread-count');
+      const result = await get<{ unread: number }>('/notifications/unread-count', { _t: Date.now() });
       setUnread(result.unread);
     } catch {
       // The server cannot be reached: the number on the screen stays the
@@ -220,6 +220,7 @@ export default function Notifications() {
     if (!id) return;
     const moment = new Date().toISOString();
     setItems((current) => current.map((item) => (item.id === id ? { ...item, readAt: moment } : item)));
+    setUnread((count) => Math.max(0, count - 1));
     toast.push('The notification is marked as read', 'ok');
     void refreshCount();
     if (typeof window !== 'undefined') {
@@ -232,6 +233,7 @@ export default function Notifications() {
     if (updated === undefined) return;
     const moment = new Date().toISOString();
     setItems((current) => current.map((item) => (item.readAt ? item : { ...item, readAt: moment })));
+    setUnread(0);
     toast.push(`${updated} notification${updated === 1 ? '' : 's'} marked as read.`, 'ok');
     void refreshCount();
     if (typeof window !== 'undefined') {

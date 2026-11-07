@@ -1686,7 +1686,7 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
   /** The last messages of the customer, for the menu of the bell. */
   const readRecent = useCallback(async () => {
     try {
-      const result = await get<{ notifications: NotificationView[] }>('/notifications', { limit });
+      const result = await get<{ notifications: NotificationView[] }>('/notifications', { limit, _t: Date.now() });
       setItems(result.notifications);
     } catch {
       // The server cannot be reached: the menu keeps the messages it has.
@@ -1716,7 +1716,7 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
 
     const poll = async () => {
       try {
-        const result = await get<{ unread: number }>('/notifications/unread-count');
+        const result = await get<{ unread: number }>('/notifications/unread-count', { _t: Date.now() });
         if (!stopped) applyCount(result.unread);
       } catch {
         // The server cannot be reached: the number on the screen stays the
