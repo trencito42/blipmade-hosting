@@ -24,23 +24,28 @@ export async function resetDatabase(): Promise<void> {
     .filter((name) => /^[A-Za-z0-9_]+$/.test(name))
     .map((name) => `"${name}"`);
   if (!names.length) return;
-  let locked = false;
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const res = await prisma.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_lock(8723341) as locked`;
-    if (res[0]?.locked) {
-      locked = true;
-      break;
-    }
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  if (!locked) {
-    await prisma.$executeRaw`SELECT pg_advisory_unlock_all()`.catch(() => undefined);
-    await prisma.$executeRaw`SELECT pg_advisory_lock(8723341)`;
-  }
+
+  // Terminate any stale connections holding uncommitted transactions on the test database
+  await prisma.$executeRawUnsafe(`
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE datname = current_database()
+      AND pid <> pg_backend_pid()
+      AND (state = 'idle in transaction' OR state = 'idle in transaction (aborted)');
+  `).catch(() => undefined);
+
+  // Execute fast truncate with a strict 2s lock timeout; if a lock is contested, fall back to DELETE
   try {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} CASCADE`);
-  } finally {
-    await prisma.$executeRaw`SELECT pg_advisory_unlock(8723341)`.catch(() => undefined);
+    await prisma.$executeRawUnsafe(`
+      SET lock_timeout = '2s';
+      TRUNCATE TABLE ${names.join(', ')} CASCADE;
+      RESET lock_timeout;
+    `);
+  } catch {
+    await prisma.$executeRawUnsafe('RESET lock_timeout;').catch(() => undefined);
+    for (const name of names) {
+      await prisma.$executeRawUnsafe(`DELETE FROM ${name}`).catch(() => undefined);
+    }
   }
 }
 
