@@ -580,15 +580,13 @@ export async function priceItems(
     // A closed product is refused even when it has no price. An open product
     // with no price is missing, which is not the same refusal.
     const availability = deploymentAvailability(product, catalogSalesContext());
-    if (requireCredentials && !availability.orderable) throw badRequest(unavailableMessage(product, availability));
+    if (!availability.orderable) throw badRequest(unavailableMessage(product, availability));
     const activePrices = await prisma.productPrice.count({ where: { productId: product.id, active: true } });
     if (activePrices === 0) throw notFound('This product has no active price.');
     // The full gate: the egg, the provider, a real price and room on a node.
     // Visible and deployable are what the operator wants, not what is true.
-    if (requireCredentials) {
-      const gate = await productGate({ ...product, prices: await prisma.productPrice.findMany({ where: { productId: product.id } }) });
-      if (!gate.ready) throw badRequest(`${product.name} cannot be ordered right now: ${gate.blockers.join(' ')}`);
-    }
+    const gate = await productGate({ ...product, prices: await prisma.productPrice.findMany({ where: { productId: product.id } }) });
+    if (!gate.ready) throw badRequest(`${product.name} cannot be ordered right now: ${gate.blockers.join(' ')}`);
 
     // A line of mail has no resources: the plan of the line is the whole
     // configuration, so the price of the line is the price of the plan.

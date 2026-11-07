@@ -110,7 +110,8 @@ export async function registerNotificationRoutes(app: FastifyInstance): Promise<
   app.get('/notifications', {
     config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
     preHandler: customerLimit(app, LIMITS.panel),
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
     const user = await requireAuth(request);
     const query = z
       .object({
@@ -170,7 +171,8 @@ export async function registerNotificationRoutes(app: FastifyInstance): Promise<
   app.get('/notifications/unread-count', {
     config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
     preHandler: customerLimit(app, LIMITS.panel),
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
     const user = await requireAuth(request);
     const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
     return { unread };

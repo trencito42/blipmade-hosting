@@ -25,28 +25,13 @@ export async function resetDatabase(): Promise<void> {
     .map((name) => `"${name}"`);
   if (!names.length) return;
 
-  // Terminate any stale connections holding uncommitted transactions on the test database
-  await prisma.$executeRawUnsafe(`
-    SELECT pg_terminate_backend(pid)
-    FROM pg_stat_activity
-    WHERE datname = current_database()
-      AND pid <> pg_backend_pid()
-      AND (state = 'idle in transaction' OR state = 'idle in transaction (aborted)');
-  `).catch(() => undefined);
-
-  // Execute fast truncate with a strict 2s lock timeout; if a lock is contested, fall back to DELETE
-  try {
-    await prisma.$executeRawUnsafe(`
-      SET lock_timeout = '2s';
-      TRUNCATE TABLE ${names.join(', ')} CASCADE;
-      RESET lock_timeout;
-    `);
-  } catch {
-    await prisma.$executeRawUnsafe('RESET lock_timeout;').catch(() => undefined);
-    for (const name of names) {
-      await prisma.$executeRawUnsafe(`DELETE FROM ${name}`).catch(() => undefined);
-    }
-  }
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(8723341)`;
+      await tx.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} CASCADE`);
+    },
+    { timeout: 30000, maxWait: 30000 },
+  );
 }
 
 /**

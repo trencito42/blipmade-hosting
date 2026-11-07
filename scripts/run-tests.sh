@@ -102,6 +102,9 @@ unset PAYMENTS_ENABLED
 export BACKUP_DIR="${TEST_BACKUP_DIR:-/var/tmp/blipmade-test-backup}"
 mkdir -p "$BACKUP_DIR/mail"
 
+export ATTACHMENT_DIR="${ATTACHMENT_DIR:-${TEST_ATTACHMENT_DIR:-/var/tmp/blipmade-test-uploads}}"
+mkdir -p "$ATTACHMENT_DIR"
+
 # The receipts of the backups are the state of the operations, and the
 # platform reads them to know whether the backup of the night happened. The
 # suite runs the scripts of the backups, so without this the suite writes the

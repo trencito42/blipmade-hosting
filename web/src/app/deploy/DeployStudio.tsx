@@ -206,7 +206,7 @@ export default function DeployStudio({ initialSlug }: { initialSlug?: string } =
   // Authoritative server quote calculation
   const quoteState = useAsync<Quote | null>(
     async (signal) => {
-      if (!activeVariant) return null;
+      if (!activeVariant || !activeVariant.orderable) return null;
       const isVps = offering?.kind === 'vps' || activeVariant.fulfilment === 'VPS';
       const isEmail = offering?.kind === 'email' || activeVariant.fulfilment === 'EMAIL';
 
