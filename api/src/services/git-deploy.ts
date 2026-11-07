@@ -17,7 +17,7 @@ import * as operations from './panel/operations.js';
  */
 
 /** Only runtimes where the customer brings the code, and where the container has git and a shell. */
-export const GIT_RUNTIMES = new Set(['nodejs', 'discord-bot', 'python', 'php']);
+export const GIT_RUNTIMES = new Set(['nodejs', 'discord-bot', 'python', 'php', 'golang', 'rust-runtime']);
 
 /** Public hosts only. A repository on another host is not fetched: it could be an address inside our own network. */
 const GIT_HOSTS = new Set(['github.com', 'gitlab.com', 'bitbucket.org', 'codeberg.org']);

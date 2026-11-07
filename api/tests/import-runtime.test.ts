@@ -62,6 +62,35 @@ describe('import runtime plans', () => {
     expect(plan.notes.join(' ')).not.toMatch(/no PHP product/);
   });
 
+  it('builds an unambiguous root Go application without guessing a cmd entry point', () => {
+    const plan = inspectManifests([
+      { path: 'go.mod', text: 'module example.com/hello\n\ngo 1.24\n' },
+      { path: 'main.go', text: 'package main\n\nfunc main() {}\n' },
+    ]);
+    expect(plan.productSlug).toBe('golang');
+    expect(plan.build).toBe('go build -trimpath -o blipmade-app .');
+    expect(plan.start).toBe('./blipmade-app');
+
+    const ambiguous = inspectManifests([{ path: 'go.mod', text: 'module example.com/library\n' }]);
+    expect(ambiguous.productSlug).toBeNull();
+    expect(ambiguous.notes.join(' ')).toMatch(/no root main\.go/);
+  });
+
+  it('builds an unambiguous root Rust binary and respects its lockfile', () => {
+    const plan = inspectManifests([
+      { path: 'Cargo.toml', text: '[package]\nname = "status-api"\nversion = "0.1.0"\n' },
+      { path: 'Cargo.lock', text: '# lock' },
+      { path: 'src/main.rs', text: 'fn main() {}\n' },
+    ]);
+    expect(plan.productSlug).toBe('rust-runtime');
+    expect(plan.build).toBe('cargo build --release --locked');
+    expect(plan.start).toBe('./target/release/status-api');
+
+    const workspace = inspectManifests([{ path: 'Cargo.toml', text: '[workspace]\nmembers = ["api"]\n' }]);
+    expect(workspace.productSlug).toBeNull();
+    expect(workspace.notes.join(' ')).toMatch(/no unambiguous root binary/);
+  });
+
   it('does not invent a database for a plain Node script', () => {
     const plan = inspectManifests([{ path: 'package.json', text: JSON.stringify({ scripts: { start: 'node server.js' } }) }]);
     expect(plan.confidence).toBe('confirmed');

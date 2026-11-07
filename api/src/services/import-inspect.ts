@@ -121,7 +121,7 @@ function proposal(partial: Omit<ImportProposal, 'services' | 'envNames' | 'recom
   };
 }
 
-const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'composer.json', 'Dockerfile', 'Procfile', 'prisma/schema.prisma', '.env.example', '.env.sample'] as const;
+const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'go.mod', 'main.go', 'Cargo.toml', 'Cargo.lock', 'src/main.rs', 'composer.json', 'Dockerfile', 'Procfile', 'prisma/schema.prisma', '.env.example', '.env.sample'] as const;
 const MAX_BYTES = 65_536;
 
 export function inspectManifests(files: { path: string; text: string }[]): ImportProposal {
@@ -175,10 +175,30 @@ export function inspectManifests(files: { path: string; text: string }[]): Impor
     return proposal({ productSlug: 'python', runtime: 'python', confidence: 'likely', start: 'python main.py', build, files: found, notes }, files);
   }
   if (files.some((file) => file.path === 'go.mod')) {
-    return proposal({ productSlug: 'golang', runtime: 'go', confidence: 'confirmed', start: null, build: null, files: found, notes }, files);
+    const main = files.find((file) => file.path === 'main.go')?.text ?? '';
+    if (/^\s*package\s+main\b/m.test(main) && /\bfunc\s+main\s*\(/.test(main)) {
+      notes.push('A root Go application was detected. Projects whose entry point is under cmd/ need an explicit command.');
+      return proposal({ productSlug: 'golang', runtime: 'go', confidence: 'confirmed', start: './blipmade-app', build: 'go build -trimpath -o blipmade-app .', files: found, notes }, files);
+    }
+    notes.push('go.mod was found, but no root main.go application was found. Choose commands explicitly.');
+    return proposal({ productSlug: null, runtime: 'go', confidence: 'unknown', start: null, build: null, files: found, notes }, files);
   }
   if (files.some((file) => file.path === 'Cargo.toml')) {
-    return proposal({ productSlug: 'rust-runtime', runtime: 'rust', confidence: 'confirmed', start: null, build: null, files: found, notes }, files);
+    const cargo = files.find((file) => file.path === 'Cargo.toml')?.text ?? '';
+    const main = files.find((file) => file.path === 'src/main.rs')?.text ?? '';
+    const packageBlock = /^\s*\[package\]\s*$([\s\S]*?)(?=^\s*\[|(?![\s\S]))/m.exec(cargo)?.[1] ?? '';
+    const name = /^\s*name\s*=\s*["']([A-Za-z0-9_-]{1,64})["']\s*$/m.exec(packageBlock)?.[1] ?? null;
+    if (name && /\bfn\s+main\s*\(/.test(main)) {
+      notes.push('A root Rust binary was detected. Workspaces and extra binaries need explicit commands.');
+      return proposal({
+        productSlug: 'rust-runtime', runtime: 'rust', confidence: 'confirmed',
+        start: `./target/release/${name}`,
+        build: `cargo build --release${files.some((file) => file.path === 'Cargo.lock') ? ' --locked' : ''}`,
+        files: found, notes,
+      }, files);
+    }
+    notes.push('Cargo.toml was found, but no unambiguous root binary was found. Choose commands explicitly.');
+    return proposal({ productSlug: null, runtime: 'rust', confidence: 'unknown', start: null, build: null, files: found, notes }, files);
   }
   const composer = files.find((file) => file.path === 'composer.json');
   if (composer) {

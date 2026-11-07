@@ -8,7 +8,7 @@ async function json(route: Route, body: unknown) {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 }
 
-async function stub(page: Page) {
+async function stub(page: Page, instance = INSTANCE) {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
     if (path === '/auth/session') return json(route, { user: USER });
@@ -17,11 +17,17 @@ async function stub(page: Page) {
     if (path === '/notifications/stream') return route.abort();
     if (path === '/support/availability') return json(route, { available: false });
     if (path === '/support/chat/current' || path === '/support/bot/current') return json(route, { conversation: null });
-    if (path === '/instances/i1') return json(route, { instance: INSTANCE });
+    if (path === '/instances/i1') return json(route, { instance });
     if (path === '/instances/i1/backups') return json(route, { backups: BACKUPS, limit: 5, storage: 'local', preset: 'daily', lastRun: null, nextRun: null });
     return json(route, {});
   });
 }
+
+test('supported imported runtimes keep their Deploy workspace in the primary navigation', async ({ page }) => {
+  await stub(page, { ...INSTANCE, product: { ...INSTANCE.product, slug: 'golang', name: 'Golang' } });
+  await page.goto('/app/instances/i1');
+  await expect(page.getByRole('tab', { name: 'Deploy', exact: true })).toBeVisible();
+});
 
 test('the backup rows are divided, their actions are one group with tooltips and share a centre line with the cells', async ({ page }) => {
   await stub(page);

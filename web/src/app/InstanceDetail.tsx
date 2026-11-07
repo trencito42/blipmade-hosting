@@ -135,6 +135,7 @@ const TABS: { value: Tab; label: string }[] = [
 const PRIMARY_TABS: Tab[] = ['overview', 'console', 'files', 'databases', 'backups', 'settings', 'minecraft'];
 const MINECRAFT_SLUGS = ['minecraft-paper', 'minecraft-folia', 'minecraft-forge'];
 const GAME_SLUGS = ['minecraft-bedrock', 'rust', 'fivem', 'counter-strike-1-6', 'counter-strike-2', 'valheim', 'factorio'];
+const DEPLOY_SLUGS = ['nodejs', 'discord-bot', 'python', 'php', 'golang', 'rust-runtime'];
 
 const ADVANCED_GROUPS: { label: string; tabs: Tab[] }[] = [
   { label: 'Files & data', tabs: ['files', 'databases', 'git'] },
@@ -147,7 +148,7 @@ const ADVANCED_GROUPS: { label: string; tabs: Tab[] }[] = [
 function primaryTabsFor(slug: string | undefined): Tab[] {
   if (slug && MINECRAFT_SLUGS.includes(slug)) return ['overview', 'console', 'minecraft', 'addons', 'backups', 'settings'];
   if (slug && GAME_SLUGS.includes(slug)) return ['overview', 'console', 'game', 'addons', 'backups', 'settings'];
-  if (slug === 'nodejs' || slug === 'discord-bot') return ['overview', 'console', 'git', 'domains', 'settings'];
+  if (slug && DEPLOY_SLUGS.includes(slug)) return ['overview', 'console', 'git', 'domains', 'settings'];
   if (slug && ['mariadb', 'postgresql', 'mongodb', 'redis'].includes(slug)) return ['overview', 'databases', 'backups', 'settings'];
   return ['overview', 'console', 'files', 'backups', 'settings'];
 }
@@ -545,7 +546,7 @@ export default function InstanceDetail() {
     // Deploy from Git is for the runtimes where the customer brings the code.
     if (entry.value === 'minecraft' && !MINECRAFT_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
     if (entry.value === 'game' && !GAME_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
-    if (entry.value === 'git' && !['nodejs', 'discord-bot'].includes(data?.instance.product.slug ?? '')) return false;
+    if (entry.value === 'git' && !DEPLOY_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
     if (access === 'owner') return true;
     if (OWNER_ONLY.includes(entry.value)) return false;
     return access === 'manager' || !VIEWER_HIDDEN.includes(entry.value);
